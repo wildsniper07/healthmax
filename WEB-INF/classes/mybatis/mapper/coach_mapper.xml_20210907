@@ -1,0 +1,949 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.CoachMapper">
+
+	<!-- 90일 밸런스 링 현황조회 -->
+	<select id="selectBalncRing90DaysList" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+		       DT.DATE COACH_DE
+		     , CASE WHEN ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0) > 100 THEN 0
+		            WHEN ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0) < 0   THEN 100
+		            ELSE 100 - (ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0)) 
+		        END BALNC_RING_SCORE
+		     , IFNULL(MEAL_RATE, 0) MEAL_RATE
+		     , IFNULL(SPORTS_RATE, 0) SPORTS_RATE
+		  FROM (
+		        SELECT 
+		               DATE_FORMAT(DATE, '%Y%m%d') DATE
+		          FROM CALENDAR_DATA
+		         WHERE DATE BETWEEN DATE_FORMAT(DATE_ADD(DATE_ADD(NOW(), INTERVAL -90 DAY), INTERVAL-(DAYOFWEEK(DATE_ADD(NOW(), INTERVAL -90 DAY))-1    ) DAY),"%Y%m%d")  
+		        		        AND DATE_FORMAT(DATE_ADD(NOW(), INTERVAL (7 - (DAYOFWEEK(NOW()))) DAY),"%Y%m%d")
+		     ) DT
+		  LEFT JOIN (
+		          SELECT 
+		                 MBER_NO
+		               , SUBSTRING(MEAL_DT, 1, 8) MEAL_DE
+		               , MAX(RECMND_CALORIE) RECMND_CALORIE
+		               , SUM(MEAL_CALORIE) MEAL_CALORIE
+		               , ROUND(SUM(MEAL_CALORIE) / ROUND(MAX(RECMND_CALORIE) * 0.01, 2), 1) MEAL_RATE
+		            FROM MBER_MEAL_DIARY
+		           WHERE MBER_NO = #{MBER_NO}
+		             AND DATEDIFF(NOW(), MEAL_DT) <= 90 
+		             AND USE_AT = 'Y'
+		           GROUP BY MBER_NO, SUBSTRING(MEAL_DT, 1, 8)
+		     ) MC
+		    ON DT.DATE = MC.MEAL_DE
+		  LEFT JOIN (
+		          SELECT
+		                 MBER_NO
+		               , SPORTS_EXECUT_DE
+		               , MAX(GOAL_CNSMP_CALORIE) GOAL_CNSMP_CALORIE
+		               , SUM(SPORTS_EXECUT_CALORIE) SPORTS_EXECUT_CALORIE
+		               , ROUND(SUM(SPORTS_EXECUT_CALORIE) / ROUND(MAX(GOAL_CNSMP_CALORIE) * 0.01, 2), 1) SPORTS_RATE
+		            FROM (
+		                  SELECT
+		                         SEH.MBER_NO
+		                       , SEH.SPORTS_EXECUT_DE
+		                       , DATEDIFF(NOW(), SPORTS_EXECUT_DE) DAYS
+		                       , GOAL_CNSMP_CALORIE
+		                       , CASE WHEN SPORTS_EXECUT_CALORIE > 0 THEN SPORTS_EXECUT_CALORIE
+		                              ELSE ROUND(((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND(SEH.TOT_SPORTS_TIME / 60, 0), 0) 
+		                          END SPORTS_EXECUT_CALORIE
+		                    FROM SPORTS_EXECUT_HIST SEH
+		                   INNER JOIN SPORTS_INFO SI
+		                      ON SEH.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+		                     AND SEH.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+		                     AND SEH.SPORTS_SN = SI.SPORTS_SN
+		                   WHERE SEH.MBER_NO = #{MBER_NO}
+		                     AND SEH.USE_AT = 'Y'
+		                   UNION ALL
+	                      SELECT
+	                             MBER_NO
+	                           , SPORTS_EXECUT_DE
+	                           , DATEDIFF(NOW(), SPORTS_EXECUT_DE) DAYS
+	                           , #{GOAL_CNSMP_CALORIE} GOAL_CNSMP_CALORIE
+	                           , SPORTS_EXECUT_CALORIE
+	                        FROM (
+	                              SELECT 
+	          		                       MBER_NO
+	          		                     , SUBSTRING(MESURE_BGNDT, 1, 8) SPORTS_EXECUT_DE
+	          		                     , ROUND(IFNULL(MAX(CNSMP_CALORIE), 0), 0) SPORTS_EXECUT_CALORIE
+	          		                  FROM MESURE_INFO_ACTV_TRCK
+	          		                 WHERE MBER_NO = #{MBER_NO}
+	          		                 GROUP BY MBER_NO, SUBSTRING(MESURE_BGNDT, 1, 8)
+	                           ) MIAT
+		               ) SEH
+		           WHERE DAYS <= 90
+		           GROUP BY MBER_NO, SPORTS_EXECUT_DE
+		     ) SC
+		    ON DT.DATE = SC.SPORTS_EXECUT_DE
+		 ORDER BY DT.DATE DESC
+    	]]>
+	</select>
+	
+	<!-- 조회일자 기준 밸런스 링 정보 조회 -->
+	<select id="selectBalncRingInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+		       CASE WHEN ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0) > 100 THEN 0
+		            WHEN ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0) < 0   THEN 100
+		            ELSE 100 - (ROUND(IFNULL(MEAL_RATE, 100), 0) - ROUND(IFNULL(SPORTS_RATE, 0), 0)) 
+		        END BALNC_RING_SCORE
+		     , IFNULL(RECMND_CALORIE, #{RECMND_CALORIE}) RECMND_CALORIE
+		     , IFNULL(MEAL_CALORIE, 0) MEAL_CALORIE
+		     , IFNULL(MEAL_RATE, 0) MEAL_RATE
+		     , IFNULL(GOAL_CNSMP_CALORIE, #{GOAL_CNSMP_CALORIE}) GOAL_CNSMP_CALORIE
+		     , IFNULL(SPORTS_EXECUT_CALORIE, 0) SPORTS_EXECUT_CALORIE
+		     , IFNULL(SPORTS_RATE, 0) SPORTS_RATE
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		           SELECT 
+		                 MBER_NO
+		               , SUBSTRING(MEAL_DT, 1, 8) MEAL_DE
+		               , MAX(RECMND_CALORIE) RECMND_CALORIE
+		               , SUM(MEAL_CALORIE) MEAL_CALORIE
+		               , ROUND(SUM(MEAL_CALORIE) / ROUND(MAX(RECMND_CALORIE) * 0.01, 2), 1) MEAL_RATE
+		            FROM MBER_MEAL_DIARY
+		           WHERE MBER_NO = #{MBER_NO}
+		             AND MEAL_DT LIKE CONCAT(#{COACH_DE}, '%')
+		             AND USE_AT = 'Y'
+		           GROUP BY MBER_NO, SUBSTRING(MEAL_DT, 1, 8)
+		     ) MC
+		    ON MI.MBER_NO = MC.MBER_NO
+		  LEFT JOIN (
+		          SELECT
+		                 MBER_NO
+		               , SPORTS_EXECUT_DE
+		               , MAX(GOAL_CNSMP_CALORIE) GOAL_CNSMP_CALORIE
+		               , SUM(SPORTS_EXECUT_CALORIE) SPORTS_EXECUT_CALORIE
+		               , ROUND(SUM(SPORTS_EXECUT_CALORIE) / ROUND(MAX(GOAL_CNSMP_CALORIE) * 0.01, 2), 1) SPORTS_RATE
+		            FROM (
+		                  SELECT
+		                         SEH.MBER_NO
+		                       , SEH.SPORTS_EXECUT_DE
+		                       , DATEDIFF(NOW(), SPORTS_EXECUT_DE) DAYS
+		                       , GOAL_CNSMP_CALORIE
+		                       , CASE WHEN SPORTS_EXECUT_CALORIE > 0 THEN ROUND(SPORTS_EXECUT_CALORIE, 0)
+		                              ELSE ROUND(((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND(SEH.TOT_SPORTS_TIME / 60, 0), 0) 
+		                          END SPORTS_EXECUT_CALORIE
+		                    FROM SPORTS_EXECUT_HIST SEH
+		                   INNER JOIN SPORTS_INFO SI
+		                      ON SEH.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+		                     AND SEH.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+		                     AND SEH.SPORTS_SN = SI.SPORTS_SN
+		                   WHERE SEH.MBER_NO = #{MBER_NO}
+		                     AND SEH.USE_AT = 'Y'
+		                     AND SEH.SPORTS_EXECUT_DE = #{COACH_DE}
+		                   UNION ALL
+	                      SELECT
+	                             MBER_NO
+	                           , SPORTS_EXECUT_DE
+	                           , DATEDIFF(NOW(), SPORTS_EXECUT_DE) DAYS
+	                           , #{GOAL_CNSMP_CALORIE} GOAL_CNSMP_CALORIE
+	                           , SPORTS_EXECUT_CALORIE
+	                        FROM (
+	                              SELECT 
+	          		                       MBER_NO
+	          		                     , SUBSTRING(MESURE_BGNDT, 1, 8) SPORTS_EXECUT_DE
+	          		                     , ROUND(IFNULL(MAX(CNSMP_CALORIE), 0), 0) SPORTS_EXECUT_CALORIE
+	          		                  FROM MESURE_INFO_ACTV_TRCK
+	          		                 WHERE MBER_NO = #{MBER_NO}
+	          		                   AND MESURE_BGNDT LIKE CONCAT(#{COACH_DE}, '%')
+	          		                 GROUP BY MBER_NO, SUBSTRING(MESURE_BGNDT, 1, 8)
+	                           ) MIAT
+		               ) SEH
+		           GROUP BY MBER_NO, SPORTS_EXECUT_DE
+		     ) SC
+		    ON MI.MBER_NO = SC.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+		 ]]>
+	</select>
+	
+	<!-- 조회일자 기준 타임라인 현황 조회 -->
+	<select id="selectTimeLineInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , PROGRM_SE_CODE SE_CODE
+		     , F_CODE_NM('MCSS', PROGRM_SE_CODE, #{LOCALE}) SE_CODE_NM
+		     , DATE_FORMAT(MAX(REGIST_DT), '%H:%i') EXECUT_TIME
+		     , CONCAT('-', F_STR_FORMAT('NUM', SUM(SPORTS_EXECUT_CALORIE), #{LOCALE})) EXECUT_CALORIE
+		     , TIME_FORMAT(SEC_TO_TIME(SUM(SPORTS_EXECUT_TIME)), '%i:%s') REMARK
+		  FROM SPORTS_EXECUT_HIST
+		 WHERE 1=1
+		   AND MBER_NO = #{MBER_NO}
+		   AND USE_AT = 'Y'
+		   AND SPORTS_EXECUT_DE = #{COACH_DE}
+		   AND PROGRM_SE_CODE = 'TS'
+		 GROUP BY MBER_NO, SPORTS_EXECUT_DE, PROGRM_SE_CODE
+		HAVING SUM(SPORTS_SET) = SUM(PRSCRPTN_SET) 
+		   AND COUNT(*) = 3
+		 UNION ALL
+		SELECT 
+		       SEH.MBER_NO
+		     , SEH.PROGRM_SE_CODE SE_CODE
+		     , CONCAT(F_CODE_NM('MCSS', SEH.PROGRM_SE_CODE, #{LOCALE}), '_', MAX(SP.PROGRM_NM)) SE_CODE_NM
+		     , DATE_FORMAT(MAX(SEH.REGIST_DT), '%H:%i') EXECUT_TIME
+		     , CONCAT('-', F_STR_FORMAT('NUM', SUM(SEH.SPORTS_EXECUT_CALORIE), #{LOCALE})) EXECUT_CALORIE
+		     , TIME_FORMAT(SEC_TO_TIME(SUM(SEH.SPORTS_EXECUT_TIME)), '%i:%s') REMARK
+		  FROM SPORTS_EXECUT_HIST SEH
+		 INNER JOIN SPORTS_PROGRM SP
+		    ON SEH.PROGRM_SE_CODE = SP.PROGRM_SE_CODE
+		   AND SEH.PROGRM_PURPS_CODE = SP.PROGRM_PURPS_CODE
+		   AND SEH.PROGRM_SN = SP.PROGRM_SN
+		 WHERE SEH.MBER_NO = #{MBER_NO}
+		   AND SEH.USE_AT = 'Y'
+		   AND SEH.SPORTS_EXECUT_DE = #{COACH_DE}
+		   AND SEH.PROGRM_SE_CODE = 'TM'
+		 GROUP BY SEH.MBER_NO, SEH.SPORTS_EXECUT_DE, SEH.PROGRM_SE_CODE, SEH.PROGRM_PURPS_CODE, SEH.PROGRM_SN
+		 UNION ALL
+		SELECT 
+		       MMD.MBER_NO
+		     , MMD.MEAL_SE_CODE 
+		     , F_CODE_NM('CM12', MMD.MEAL_SE_CODE, #{LOCALE}) MEAL_SE_CODE_NM
+		     , DATE_FORMAT(MIN(MMD.MEAL_DT), '%H:%i') MEAL_DT
+		     , CONCAT(F_STR_FORMAT('NUM', SUM(MMD.MEAL_CALORIE), #{LOCALE})) MEAL_CALORIE
+		     , GROUP_CONCAT(MENU SEPARATOR ',') REMARK
+		  FROM MBER_MEAL_DIARY MMD
+	      LEFT JOIN (
+	          SELECT 
+	                 MBER_NO
+	               , MEAL_DT
+	               , GROUP_CONCAT(FD_NM SEPARATOR ',') MENU
+	            FROM MBER_MEAL_MENU
+	           WHERE MBER_NO = #{MBER_NO}
+	             AND FD_NM != '음식아님'
+	           GROUP BY MBER_NO, MEAL_DT
+	         ) MMM
+	        ON MMD.MBER_NO = MMM.MBER_NO
+	       AND MMD.MEAL_DT = MMM.MEAL_DT
+		 WHERE MMD.MBER_NO = #{MBER_NO}
+		   AND MMD.MEAL_DT LIKE CONCAT(#{COACH_DE}, '%')
+		   AND MMD.USE_AT = 'Y'
+		 GROUP BY MMD.MBER_NO, MMD.MEAL_SE_CODE
+		 UNION ALL
+		SELECT
+		       MBER_NO
+		     , MESUER_CODE
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		    , 'SETP' MESUER_CODE_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			, 'SETP' MESUER_CODE_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			, 'SETP' MESUER_CODE_NM
+			</when>
+			<otherwise>
+	    			, '스마트밴드' MESUER_CODE_NM
+			</otherwise>
+		</choose>
+		     , DATE_FORMAT(MAX(MESURE_BGNDT), '%H:%i') MESURE_BGNDT
+		     , CONCAT('-', F_STR_FORMAT('NUM', MAX(CNSMP_CALORIE), #{LOCALE})) CNSMP_CALORIE
+		     , CONCAT(F_STR_FORMAT('NUM', MAX(SPORTS_STEP), #{LOCALE}), ' step / ', ROUND(MAX(SPORTS_DSTNC)/1000, 1), ' km') REMARK
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , 'STEP' MESUER_CODE
+		             , CNSMP_CALORIE
+		             , CAST(MESURE_DATA AS UNSIGNED) SPORTS_STEP
+		             , SPORTS_DSTNC
+		             , FIRST_TIME
+		             , MESURE_BGNDT
+		             , TIMES
+		             , CAST(TIMEDIFF(MESURE_BGNDT, FIRST_TIME) AS CHAR) SPORTS_TIME
+		             , IF(TIMES = 0, @RN := 1, @RN := @RN + 1) RN
+		             , IF(@PRE_FIRST_TIME != FIRST_TIME, @RN_GROUP := @RN_GROUP + 1, @RN_GROUP) RN_GROUP
+		             , IF(@PRE_FIRST_TIME != FIRST_TIME, @PRE_FIRST_TIME := FIRST_TIME, @PRE_FIRST_TIME)
+		          FROM (
+		                SELECT
+		                       MBER_NO
+		                     , HOUR(MESURE_BGNDT) HOURS
+		                     , TRUNCATE(HOUR(MESURE_BGNDT) % 6, 0) TIMES                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    'CP'
+		             ) TCI
+		          LEFT JOIN (   
+		                  SELECT
+		                         'CP' COACH_TY_CODE
+		                       , 'STEP' COACH_SE_CODE
+		                       , IFNULL(MEG.GOAL_VALUE, 10000) GOAL_VALUE
+		                       , IF(MOBLPHON_STEPS >= SPORTS_TOT_STEPS, MOBLPHON_STEPS, SPORTS_TOT_STEPS) EXECUT_VALUE
+		                    FROM MESURE_INFO_CMMN_DALY MICD
+		                    LEFT JOIN (
+		                            SELECT 
+		                                   MBER_NO
+		                                 , GOAL_VALUE
+		                              FROM MBER_ESTBS_GOAL
+		                             WHERE MBER_NO = #{MBER_NO}
+		                               AND MESURE_CODE = '4010'
+		                       ) MEG
+		                      ON MICD.MBER_NO = MEG.MBER_NO
+		                   WHERE MICD.MBER_NO = #{MBER_NO}
+		                     AND MICD.MESURE_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+		                   UNION ALL
+		                  SELECT
+		                         'CP' COACH_TY_CODE
+		                       , 'TKWT' COACH_SE_CODE
+		                       , NULL GOAL_VALUE
+		                       , SUM(DRKWT_QY) EXECUT_VALUE     
+		                    FROM MBER_DRKWT_DIARY
+		                   WHERE MBER_NO = #{MBER_NO}
+		                     AND DRKWT_DT LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+		                   GROUP BY MBER_NO, SUBSTRING(DRKWT_DT, 1, 8)
+		                   UNION ALL
+		                  SELECT
+		                         'CP' COACH_TY_CODE
+		                       , 'TDSP' COACH_SE_CODE
+		                       , COUNT(TS.PROGRM_SE_CODE) GOAL_VALUE
+		                       , SUM(IF(ES.SPORTS_REGN_CODE IS NULL, 0, 1)) EXECUT_VALUE
+		                    FROM (
+		                          SELECT 
+		                                 SPD.PROGRM_SE_CODE
+		                               , SPD.PROGRM_PURPS_CODE
+		                               , SPD.PROGRM_SN
+		                               , SPD.SPORTS_TY_CODE
+		                               , SPD.SPORTS_REGN_CODE
+		                               , SPD.SPORTS_SN
+		                            FROM SPORTS_PROGRM_DETAIL SPD
+		                           INNER JOIN SPORTS_INFO SI
+		                              ON SPD.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+		                             AND SPD.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+		                             AND SPD.SPORTS_SN = SI.SPORTS_SN
+		                           WHERE SPD.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+		                             AND SPD.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+		                             AND SPD.PROGRM_SN = #{PROGRM_SN}
+		                             AND SPD.PROGRM_WEEK = #{PROGRM_WEEK}
+		                             AND SPD.PROGRM_WIK = #{PROGRM_WIK}
+		                             AND SPD.USE_AT = 'Y'
+		                             AND SI.USE_AT = 'Y'
+		                       ) TS
+		                    LEFT JOIN (
+		                          SELECT
+		                                 SPORTS_TY_CODE
+		                               , SPORTS_REGN_CODE
+		                               , SPORTS_SN
+		                            FROM SPORTS_EXECUT_HIST
+		                           WHERE MBER_NO = #{MBER_NO}
+		                             AND SPORTS_EXECUT_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+		                             AND USE_AT = 'Y'
+		                             AND SPORTS_SET = PRSCRPTN_SET
+		                           GROUP BY SPORTS_TY_CODE, SPORTS_REGN_CODE, SPORTS_SN
+		                       ) ES
+		                      ON TS.SPORTS_TY_CODE = ES.SPORTS_TY_CODE
+		                     AND TS.SPORTS_REGN_CODE = ES.SPORTS_REGN_CODE
+		                     AND TS.SPORTS_SN = ES.SPORTS_SN
+		                   GROUP BY PROGRM_SE_CODE, PROGRM_PURPS_CODE, PROGRM_SN
+		             ) MIC
+		            ON TCI.COACH_TY_CODE = MIC.COACH_TY_CODE
+		           AND TCI.COACH_SE_CODE = MIC.COACH_SE_CODE
+		     ) TBL
+		 ORDER BY TODAY_COACH_NM ASC
+	</select>
+	
+	<!-- 섭취 칼로리 오늘로 부터 7일 데이터 조회 -->
+	<select id="selectMeal7DayCalorieList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       DATE
+		     , ROUND(IFNULL(MEAL_CALORIE, 0), 0) MEAL_CALORIE
+		     , ROUND(IFNULL(MEAL_CARBOHYDRATE, 0), 0) MEAL_CARBOHYDRATE
+		     , ROUND(IFNULL(IFNULL(MEAL_CARBOHYDRATE, 0) / (TOTAL_NTR * 0.01), 0), 1) MEAL_CARBOHYDRATE_RATE
+		     , ROUND(IFNULL(MEAL_PROTEIN, 0), 0) MEAL_PROTEIN
+		     , ROUND(IFNULL(IFNULL(MEAL_PROTEIN, 0) / (TOTAL_NTR * 0.01), 0), 1) MEAL_PROTEIN_RATE
+		     , ROUND(IFNULL(MEAL_FAT, 0), 0) MEAL_FAT
+		     , ROUND(IFNULL(IFNULL(MEAL_FAT, 0) / (TOTAL_NTR * 0.01), 0), 1) MEAL_FAT_RATE
+		  FROM (
+		        SELECT 
+		               DATE_FORMAT(DATE, '%Y%m%d') DATE
+		          FROM CALENDAR_DATA
+		         WHERE DATE BETWEEN DATE_FORMAT(DATE_ADD(#{COACH_DE}, INTERVAL -7 DAY), '%Y%m%d')  
+		        		        AND DATE_FORMAT(#{COACH_DE}, '%Y%m%d')
+		     ) DT
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , SUBSTRING(MEAL_DT, 1, 8) MEAL_DE
+		             , SUM(MEAL_CALORIE) MEAL_CALORIE
+		             , SUM(MEAL_CARBOHYDRATE) MEAL_CARBOHYDRATE
+		             , SUM(MEAL_PROTEIN) MEAL_PROTEIN
+		             , SUM(MEAL_FAT) MEAL_FAT
+		             , SUM(MEAL_CARBOHYDRATE + MEAL_PROTEIN + MEAL_FAT) TOTAL_NTR
+		          FROM MBER_MEAL_DIARY
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND USE_AT = 'Y'
+		         GROUP BY MBER_NO, SUBSTRING(MEAL_DT, 1, 8)
+		     ) MM
+		    ON DT.DATE = MM.MEAL_DE
+		 ORDER BY DT.DATE DESC
+	</select>
+	
+	<!-- 소모 칼로리 오늘로 부터 7일 데이터 조회 -->
+	<select id="selectCnsmp7DayCalorieList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       DATE
+		     , IFNULL(TOTAL_CALORIE, 0) CNSMP_CALORIE
+		     , IFNULL(STEPS, 0) STEP
+		     , ROUND(IFNULL(IFNULL(STEPS, 0) / (TOTAL_CALORIE * 0.01), 0), 1) STEP_RATE
+		     , IFNULL(TODAY_SPORTS, 0) TODAY_SPORTS
+		     , ROUND(IFNULL(IFNULL(TODAY_SPORTS, 0) / (TOTAL_CALORIE * 0.01), 0), 1) TODAY_SPORTS_RATE
+		     , IFNULL(THEMA_SPORTS, 0) THEMA_SPORTS
+		     , ROUND(IFNULL(IFNULL(THEMA_SPORTS, 0) / (TOTAL_CALORIE * 0.01), 0), 1) THEMA_SPORTS_RATE
+		  FROM (
+		        SELECT 
+		               DATE_FORMAT(DATE, '%Y%m%d') DATE
+		          FROM CALENDAR_DATA
+		         WHERE DATE BETWEEN DATE_FORMAT(DATE_ADD(#{COACH_DE}, INTERVAL -7 DAY), '%Y%m%d')  
+		        		        AND DATE_FORMAT(#{COACH_DE}, '%Y%m%d')
+		     ) DT
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , EXECUT_DE
+		             , MAX(IF(MESURE_CODE = 'ST', CNSMP_CALORIE, 0)) STEPS
+		             , MAX(IF(MESURE_CODE = 'TS', CNSMP_CALORIE, 0)) TODAY_SPORTS
+		             , MAX(IF(MESURE_CODE = 'TM', CNSMP_CALORIE, 0)) THEMA_SPORTS
+		             , SUM(CNSMP_CALORIE) TOTAL_CALORIE
+		          FROM (
+		                SELECT 
+		                       MBER_NO
+		                     , SUBSTRING(MESURE_BGNDT, 1, 8) EXECUT_DE
+		                     , 'ST' MESURE_CODE
+		                     , ROUND(IFNULL(MAX(CNSMP_CALORIE), 0), 0) CNSMP_CALORIE
+		                  FROM MESURE_INFO_ACTV_TRCK
+		                 WHERE MBER_NO = #{MBER_NO}
+		                 GROUP BY MBER_NO, SUBSTRING(MESURE_BGNDT, 1, 8)
+		                 UNION ALL     
+		                SELECT
+		                       MBER_NO
+		                     , SPORTS_EXECUT_DE EXECUT_DE
+		                     , PROGRM_SE_CODE MESURE_CODE
+		                     , ROUND(IFNULL(SUM(SPORTS_EXECUT_CALORIE), 0), 0) CNSMP_CALORIE
+		                  FROM SPORTS_EXECUT_HIST
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND USE_AT = 'Y'
+		                 GROUP BY MBER_NO, SPORTS_EXECUT_DE, PROGRM_SE_CODE
+		             ) TBL
+		         GROUP BY MBER_NO, EXECUT_DE
+		     ) CC
+		    ON DT.DATE = CC.EXECUT_DE
+		 ORDER BY DT.DATE DESC
+	</select>
+
+	<!-- 오늘의 운동 처방 이력 상세조회 -->
+	<select id="selectSportsPrsscrptnHistInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , PRSCRPTN_DT
+		     , PROGRM_SE_CODE
+		     , PROGRM_PURPS_CODE
+		     , PROGRM_SN
+		     , REPTIT_SN
+		     , TRUNCATE(DATEDIFF(DATE_FORMAT(NOW(), '%Y%m%d'), SPORTS_BGNDE) / 7, 0) + 1 PROGRM_WEEK
+             , IF(DAYOFWEEK(NOW()) = 1, 6, DAYOFWEEK(NOW()) - 2) PROGRM_WIK
+		  FROM SPORTS_PRSCRPTN_HIST
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND USE_AT = 'Y'
+		   AND DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN SPORTS_BGNDE AND SPORTS_ENDDE
+	</select>
+	
+	<!-- 오늘의 운동 프로그램 정보 조회 -->
+	<select id="selectTodaySportsProgrmInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       SP.PROGRM_SE_CODE
+		     , SP.PROGRM_PURPS_CODE
+		     , SP.PROGRM_SN
+		     , IFNULL(SPH.REPTIT_SN, 1) REPTIT_SN
+		     , 1 PROGRM_WEEK
+		     , IF(DAYOFWEEK(NOW()) = 1, 6, DAYOFWEEK(NOW()) - 2) PROGRM_WIK
+		  FROM (
+		      SELECT
+		             PROGRM_SE_CODE
+		           , PROGRM_PURPS_CODE
+		           , MAX(PROGRM_SN) PROGRM_SN
+		        FROM SPORTS_PROGRM
+		       WHERE USE_AT = 'Y'
+		         AND PROGRM_SE_CODE = 'TS'
+		       GROUP BY PROGRM_SE_CODE, PROGRM_PURPS_CODE
+		     ) SP
+		 LEFT JOIN (
+		      SELECT
+		             PROGRM_SE_CODE
+		           , PROGRM_PURPS_CODE
+		           , PROGRM_SN
+		           , MAX(REPTIT_SN) REPTIT_SN
+		        FROM SPORTS_PRSCRPTN_HIST
+		       WHERE MBER_NO = #{MBER_NO}
+		       GROUP BY PROGRM_SE_CODE, PROGRM_PURPS_CODE, PROGRM_SN
+		     ) SPH
+		    ON SP.PROGRM_SE_CODE = SPH.PROGRM_SE_CODE
+		   AND SP.PROGRM_PURPS_CODE = SPH.PROGRM_PURPS_CODE
+		   AND SP.PROGRM_SN = SPH.PROGRM_SN
+	</select>
+	
+	<!-- 오늘의 운동 처방 이력 저장처리 -->
+	<insert id="inserttSportsPrsscrptnHistInfo" parameterType="hmap">
+		INSERT INTO SPORTS_PRSCRPTN_HIST (
+			   MBER_NO
+			 , PRSCRPTN_DT
+			 , PROGRM_SE_CODE
+			 , PROGRM_PURPS_CODE
+			 , PROGRM_SN
+			 , REPTIT_SN
+			 , SPORTS_BGNDE
+			 , SPORTS_ENDDE
+			 , USE_AT
+			 , REGIST_ID
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+			 , #{PROGRM_SE_CODE}
+			 , #{PROGRM_PURPS_CODE}
+			 , #{PROGRM_SN}
+			 , #{REPTIT_SN}
+			 , DATE_FORMAT(DATE_ADD(NOW(), INTERVAL - (DAYOFWEEK(NOW()) - 1) DAY), "%Y%m%d") 
+			 , DATE_FORMAT(DATE_ADD(DATE_ADD(NOW(), INTERVAL  (7 - (DAYOFWEEK(NOW()))) DAY), INTERVAL 7 WEEK), "%Y%m%d")
+			 , 'Y'
+			 , 'USER_SELF'
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 오늘의 운동 처방 내역 -->
+	<select id="selectTodaySportsList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       SPD.PROGRM_SE_CODE
+		     , SPD.PROGRM_PURPS_CODE
+		     , SPD.PROGRM_SN
+		     , SPD.PROGRM_WEEK
+		     , SPD.PROGRM_WIK
+		     , CONCAT('마이코치 ', SPD.PROGRM_WEEK, '주차 ', F_CODE_NM('MCSW', SPD.PROGRM_WIK, #{LOCALE}), '요일 처방 운동') PROGRM_NM
+		     , CONCAT('마이코치 ', SPD.PROGRM_WEEK, '주차 ', F_CODE_NM('MCSW', SPD.PROGRM_WIK, #{LOCALE}), '요일 처방 운동') PROGRM_DC
+		     , NULL PROGRM_REGN_CODE_NM
+		     , NULL PROGRM_DFFLY
+		     , MSPD.PRSCRPTN_SET
+		     , MSPD.EXECUT_SET
+		     , MSPD.TOT_SPORTS_TIME
+		     , MSPD.CNSMP_CALORIE
+		     , SI.ATCHMNFL_PATH
+		  FROM SPORTS_PROGRM_DETAIL SPD
+		  LEFT JOIN ( 
+		        SELECT
+		               SPORTS_TY_CODE
+		             , SPORTS_REGN_CODE
+		             , SPORTS_SN
+		             , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		          FROM SPORTS_INFO SI
+		          LEFT JOIN ATCHMNFL_INFO AI
+		            ON SI.IMAGE_ATCHMNFL_NO = AI.ATCHMNFL_NO 
+		         WHERE SI.USE_AT = 'Y'
+		     ) SI
+		    ON SPD.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+		   AND SPD.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+		   AND SPD.SPORTS_SN = SI.SPORTS_SN
+		 INNER JOIN (
+					SELECT 
+					       SPD.PROGRM_SE_CODE
+					     , SPD.PROGRM_PURPS_CODE
+					     , SPD.PROGRM_SN
+					     , SUM(PRSCRPTN_SET) PRSCRPTN_SET
+					     , IFNULL(SUM(EXECUT_SET), 0) EXECUT_SET
+					     , TIME_FORMAT(SEC_TO_TIME(SUM(SPEI.TOT_SPORTS_TIME)), '%i') TOT_SPORTS_TIME
+					     , ROUND(SUM(ROUND(((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND((SPEI.PRSCRPTN_SPORTS_TIME + SPEI.PRSCRPTN_REST_TIME) * SPEI.PRSCRPTN_SET / 60, 2), 0)), 0) CNSMP_CALORIE
+					  FROM SPORTS_PROGRM_DETAIL SPD
+					 INNER JOIN SPORTS_INFO SI
+					    ON SPD.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+					   AND SPD.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+					   AND SPD.SPORTS_SN = SI.SPORTS_SN
+			  		  LEFT JOIN (
+							 SELECT 
+							        SPORTS_TY_CODE
+							      , SPORTS_REGN_CODE
+							      , SPORTS_SN
+							      , SPORTS_SET EXECUT_SET
+							   FROM SPORTS_EXECUT_HIST
+							  WHERE MBER_NO = #{MBER_NO}
+							    AND SPORTS_EXECUT_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+					     ) SEH
+					    ON SPD.SPORTS_TY_CODE = SEH.SPORTS_TY_CODE
+					   AND SPD.SPORTS_REGN_CODE = SEH.SPORTS_REGN_CODE
+					   AND SPD.SPORTS_SN = SEH.SPORTS_SN
+					 INNER JOIN (
+					      SELECT
+					             SPORTS_TY_CODE
+					           , PRSCRPTN_EVL_NCL
+					           , CASE WHEN SEE.WGHTVAL IS NULL THEN PRSCRPTN_CO
+					                  WHEN SEE.WGHTVAL <![CDATA[ < ]]> 0     THEN PRSCRPTN_CO + FLOOR(PRSCRPTN_CO * SEE.WGHTVAL)
+					                  WHEN SEE.WGHTVAL >  0    THEN PRSCRPTN_CO + CEIL(PRSCRPTN_CO * SEE.WGHTVAL)
+					                  ELSE PRSCRPTN_CO
+					              END PRSCRPTN_CO
+					           , PRSCRPTN_SET
+					           , PRSCRPTN_SPORTS_TIME
+					           , PRSCRPTN_REST_TIME
+					           , TOT_SPORTS_TIME
+					        FROM SPORTS_PRSCRPTN_EVL_INFO SPEI
+					       INNER JOIN MBER_INFO MI
+					          ON MI.MBER_NO = #{MBER_NO}
+					         AND SPEI.SEXDSTN = MI.SEXDSTN
+					        LEFT JOIN (
+									SELECT
+									       MBER_NO
+									     , SUM(WGHTVAL) WGHTVAL
+									  FROM SPORTS_EXECUT_EVL
+									 WHERE MBER_NO = #{MBER_NO}
+									 GROUP BY MBER_NO
+					           ) SEE
+					          ON MI.MBER_NO = SEE.MBER_NO
+					       WHERE EVL_SE_CODE = #{EVL_SE_CODE}
+					         AND PRSCRPTN_EVL_NCL = #{PRSCRPTN_EVL_NCL}
+					     ) SPEI
+					    ON SPD.SPORTS_TY_CODE = SPEI.SPORTS_TY_CODE
+					 WHERE SPD.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+					   AND SPD.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+					   AND SPD.PROGRM_SN = #{PROGRM_SN}
+					   AND SPD.PROGRM_WEEK = #{PROGRM_WEEK}
+					   AND SPD.PROGRM_WIK = #{PROGRM_WIK}
+					   AND SPD.USE_AT = 'Y'
+					   AND SI.USE_AT = 'Y'
+					 GROUP BY SPD.PROGRM_SE_CODE, SPD.PROGRM_PURPS_CODE, SPD.PROGRM_SN
+		     ) MSPD
+		    ON SPD.PROGRM_SE_CODE = MSPD.PROGRM_SE_CODE
+		   AND SPD.PROGRM_PURPS_CODE = MSPD.PROGRM_PURPS_CODE
+		   AND SPD.PROGRM_SN = MSPD.PROGRM_SN
+		 WHERE SPD.USE_AT = 'Y'
+		   AND SPD.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+		   AND SPD.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+		   AND SPD.PROGRM_SN = #{PROGRM_SN}
+		   AND SPD.PROGRM_WEEK = #{PROGRM_WEEK}
+		   AND SPD.PROGRM_WIK = #{PROGRM_WIK}
+		 ORDER BY SPD.SPORTS_TY_CODE, SPD.SPORTS_REGN_CODE, SPD.SPORTS_SN
+		 LIMIT 1
+	</select>
+	
+	<!-- 테마 운동 정보 내역 조회 -->
+	<select id="selectThemaSportsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   IEM_CODE PROGRM_PURPS_CODE
+			 , IEM_NM PROGRM_PURPS_CODE_NM
+		  FROM IEM_CODE 
+		 WHERE GROUP_CODE = 'MCSP' 
+		   AND IEM_CODE != 'MYCC'
+	</select>
+	
+	<!-- 테마 운동 프로그램 내역 조회 -->
+	<select id="selectThemaSportsProgrmDetailList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       SP.PROGRM_SE_CODE
+		     , SP.PROGRM_PURPS_CODE
+		     , SP.PROGRM_SN
+		     , 0 PROGRM_WEEK
+		     , 0 PROGRM_WIK
+		     , SP.PROGRM_NM
+		     , SP.PROGRM_DC
+		     , F_CODE_NM('MCSR', SP.PROGRM_REGN_CODE, #{LOCALE}) PROGRM_REGN_CODE_NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("KO")'>
+		     , CASE WHEN SP.PROGRM_DFFLY = 'A' THEN '상'
+		            WHEN SP.PROGRM_DFFLY = 'B' THEN '중'
+		            WHEN SP.PROGRM_DFFLY = 'C' THEN '하'
+		     		ELSE '최하'
+		        END PROGRM_DFFLY
+			</when>
+			<otherwise>
+		     , SP.PROGRM_DFFLY
+			</otherwise>
+		</choose>
+		     , SPD.TOT_SPORTS_TIME TOT_SPORTS_TIME
+		     , SPD.CNSMP_CALORIE
+		     , SP.IMAGE_ATCHMNFL_NO
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , CASE WHEN SB.MBER_NO IS NOT NULL THEN 'Y'
+		            ELSE 'N'
+		        END PROGRM_BKMK
+		  FROM SPORTS_PROGRM SP
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON SP.IMAGE_ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , PROGRM_SE_CODE
+		             , PROGRM_PURPS_CODE
+		             , PROGRM_SN
+		          FROM SPORTS_BKMK
+		         WHERE MBER_NO = #{MBER_NO}
+		     ) SB
+		    ON SP.PROGRM_SE_CODE = SB.PROGRM_SE_CODE
+		   AND SP.PROGRM_PURPS_CODE = SB.PROGRM_PURPS_CODE
+		   AND SP.PROGRM_SN = SB.PROGRM_SN
+		 INNER JOIN (
+				SELECT 
+				       SPD.PROGRM_SE_CODE
+				     , SPD.PROGRM_PURPS_CODE
+				     , SPD.PROGRM_SN
+				     , TIME_FORMAT(SEC_TO_TIME(SUM(SPEI.TOT_SPORTS_TIME)), '%i') TOT_SPORTS_TIME
+				     , ROUND(SUM(ROUND(((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND((SPEI.PRSCRPTN_SPORTS_TIME + SPEI.PRSCRPTN_REST_TIME) * SPEI.PRSCRPTN_SET / 60, 2), 0)), 0) CNSMP_CALORIE
+				  FROM SPORTS_PROGRM_DETAIL SPD
+				 INNER JOIN SPORTS_INFO SI
+				    ON SPD.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+				   AND SPD.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+				   AND SPD.SPORTS_SN = SI.SPORTS_SN
+				 INNER JOIN (
+						  SELECT
+					             SPORTS_TY_CODE
+					           , PRSCRPTN_EVL_NCL
+					           , CASE WHEN SEE.WGHTVAL IS NULL THEN PRSCRPTN_CO
+					                  WHEN SEE.WGHTVAL <![CDATA[ < ]]> 0     THEN PRSCRPTN_CO + FLOOR(PRSCRPTN_CO * SEE.WGHTVAL)
+					                  WHEN SEE.WGHTVAL > 0     THEN PRSCRPTN_CO + CEIL(PRSCRPTN_CO * SEE.WGHTVAL)
+					                  ELSE PRSCRPTN_CO
+					              END PRSCRPTN_CO
+					           , PRSCRPTN_SET
+					           , PRSCRPTN_SPORTS_TIME
+					           , PRSCRPTN_REST_TIME
+					           , TOT_SPORTS_TIME
+					        FROM SPORTS_PRSCRPTN_EVL_INFO SPEI
+					       INNER JOIN MBER_INFO MI
+					          ON MI.MBER_NO = #{MBER_NO}
+					         AND SPEI.SEXDSTN = MI.SEXDSTN
+					        LEFT JOIN (
+									SELECT
+									       MBER_NO
+									     , SUM(WGHTVAL) WGHTVAL
+									  FROM SPORTS_EXECUT_EVL
+									 WHERE MBER_NO = #{MBER_NO}
+									 GROUP BY MBER_NO
+					           ) SEE
+					          ON MI.MBER_NO = SEE.MBER_NO
+					       WHERE EVL_SE_CODE = #{EVL_SE_CODE}
+					         AND PRSCRPTN_EVL_NCL = #{PRSCRPTN_EVL_NCL}
+				     ) SPEI
+				    ON SPD.SPORTS_TY_CODE = SPEI.SPORTS_TY_CODE
+				 WHERE SPD.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+				   AND SPD.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+				   AND SPD.USE_AT = 'Y'
+				 GROUP BY SPD.PROGRM_SE_CODE, SPD.PROGRM_PURPS_CODE, SPD.PROGRM_SN
+		     ) SPD
+		    ON SP.PROGRM_SE_CODE = SPD.PROGRM_SE_CODE
+		   AND SP.PROGRM_PURPS_CODE = SPD.PROGRM_PURPS_CODE
+		   AND SP.PROGRM_SN = SPD.PROGRM_SN
+		 WHERE SP.USE_AT = 'Y'
+		   AND SP.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+		   AND SP.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+	</select>
+	
+	<!-- 내가 좋아하는 운동 내역 -->
+	<select id="selectBkmkSportsList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       SB.PROGRM_SE_CODE
+		     , SB.PROGRM_PURPS_CODE
+		     , SB.PROGRM_SN
+		     , 0 PROGRM_WEEK
+		     , 0 PROGRM_WIK
+		     , SP.PROGRM_NM
+		     , SP.PROGRM_DC
+		     , F_CODE_NM('MCSR', SP.PROGRM_REGN_CODE, #{LOCALE}) PROGRM_REGN_CODE_NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("KO")'>
+		     , CASE WHEN SP.PROGRM_DFFLY = 'A' THEN '상'
+		            WHEN SP.PROGRM_DFFLY = 'B' THEN '중'
+		            WHEN SP.PROGRM_DFFLY = 'C' THEN '하'
+		     		ELSE '최하'
+		        END PROGRM_DFFLY
+			</when>
+			<otherwise>
+		     , SP.PROGRM_DFFLY
+			</otherwise>
+		</choose>
+		     , SPD.TOT_SPORTS_TIME
+		     , SPD.CNSMP_CALORIE
+		     , SP.IMAGE_ATCHMNFL_NO
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		  FROM SPORTS_BKMK SB
+		 INNER JOIN SPORTS_PROGRM SP
+		    ON SB.PROGRM_SE_CODE = SP.PROGRM_SE_CODE
+		   AND SB.PROGRM_PURPS_CODE = SP.PROGRM_PURPS_CODE
+	                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 SPD.SPORTS_TY_CODE = SI.SPORTS_TY_CODE
+		   AND SPD.SPORTS_REGN_CODE = SI.SPORTS_REGN_CODE
+		   AND SPD.SPORTS_SN = SI.SPORTS_SN
+		 LEFT JOIN ATCHMNFL_INFO AI
+			ON SI.IMAGE_ATCHMNFL_NO = AI.ATCHMNFL_NO 
+	     INNER JOIN (
+			  SELECT
+		             SPORTS_TY_CODE
+		           , PRSCRPTN_EVL_NCL
+		           , CASE WHEN SEE.WGHTVAL IS NULL THEN PRSCRPTN_CO
+		                  WHEN SEE.WGHTVAL <![CDATA[ < ]]> 0     THEN PRSCRPTN_CO + FLOOR(PRSCRPTN_CO * SEE.WGHTVAL)
+		                  WHEN SEE.WGHTVAL > 0     THEN PRSCRPTN_CO + CEIL(PRSCRPTN_CO * SEE.WGHTVAL)
+		                  ELSE PRSCRPTN_CO
+		              END PRSCRPTN_CO
+		           , PRSCRPTN_SET
+		           , PRSCRPTN_SPORTS_TIME
+		           , PRSCRPTN_REST_TIME
+		           , TOT_SPORTS_TIME
+		        FROM SPORTS_PRSCRPTN_EVL_INFO SPEI
+		       INNER JOIN MBER_INFO MI
+		          ON MI.MBER_NO = #{MBER_NO}
+		         AND SPEI.SEXDSTN = MI.SEXDSTN
+		        LEFT JOIN (
+						SELECT
+						       MBER_NO
+						     , SUM(WGHTVAL) WGHTVAL
+						  FROM SPORTS_EXECUT_EVL
+						 WHERE MBER_NO = #{MBER_NO}
+						 GROUP BY MBER_NO
+		           ) SEE
+		          ON MI.MBER_NO = SEE.MBER_NO
+		       WHERE EVL_SE_CODE = #{EVL_SE_CODE}
+		         AND PRSCRPTN_EVL_NCL = #{PRSCRPTN_EVL_NCL}
+	         ) SPEI
+	        ON SPD.SPORTS_TY_CODE = SPEI.SPORTS_TY_CODE
+		  LEFT JOIN (
+		        SELECT
+		               SEH.MBER_NO
+		             , SEH.SPORTS_EXECUT_DE
+		             , SEH.SPORTS_TY_CODE
+		             , SEH.SPORTS_REGN_CODE
+		             , SEH.SPORTS_SN
+		             , MAX(SEH.SPORTS_SET) SPORTS_SET
+		             , MAX(SEH.SPORTS_EXECUT_TIME) SPORTS_TIME
+		             , MAX(SPORTS_EXECUT_CALORIE) SPORTS_CALORIE
+		          FROM SPORTS_EXECUT_HIST SEH
+		         WHERE SEH.MBER_NO = #{MBER_NO}
+		           AND SEH.USE_AT = 'Y'
+		           AND SEH.SPORTS_EXECUT_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+		         GROUP BY SEH.MBER_NO, SEH.SPORTS_EXECUT_DE, SEH.SPORTS_TY_CODE, SEH.SPORTS_REGN_CODE, SEH.SPORTS_SN
+		     ) SEH
+		    ON SPD.SPORTS_TY_CODE = SEH.SPORTS_TY_CODE
+		   AND SPD.SPORTS_REGN_CODE = SEH.SPORTS_REGN_CODE
+		   AND SPD.SPORTS_SN = SEH.SPORTS_SN
+		 WHERE SPD.PROGRM_SE_CODE = #{PROGRM_SE_CODE}
+		   AND SPD.PROGRM_PURPS_CODE = #{PROGRM_PURPS_CODE}
+		   AND SPD.PROGRM_SN = #{PROGRM_SN}
+		   AND SPD.PROGRM_WEEK = #{PROGRM_WEEK}
+		   AND SPD.PROGRM_WIK = #{PROGRM_WIK}
+		   AND SPD.USE_AT = 'Y'
+		 ORDER BY SPD.SPORTS_TY_CODE, SPD.SPORTS_REGN_CODE, SPD.SPORTS_SN
+	</select>
+	
+	<!-- 운동 프로그램 운동 내역 상세조회 -->
+	<select id="selectSportsProgrmDetailSportsInfoExecutHistInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       SPD.SPORTS_TY_CODE
+		     , SPD.SPORTS_REGN_CODE
+		     , SPD.SPORTS_SN
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("KO")'>
+		     , CASE WHEN SI.SPORTS_DFFLY = 'A' THEN '상'
+		            WHEN SI.SPORTS_DFFLY = 'B' THEN '중'
+		            WHEN SI.SPORTS_DFFLY = 'C' THEN '하'
+		     		ELSE '최하'
+		        END SPORTS_DFFLY
+			</when>
+			<otherwise>
+		     , SI.SPORTS_DFFLY
+			</otherwise>
+		</choose>
+		     , SI.SPORTS_IN
+		     , SI.SPORTS_NM
+		     , SI.SPORTS_DC
+		     , SI.IMAGE_ATCHMNFL_NO
+		     , SI.SPORTS_MVP_ADRES
+		     , SPEI.PRSCRPTN_EVL_NCL
+		     , SPEI.PRSCRPTN_CO
+		     , SPEI.PRSCRPTN_SET
+		     , SPEI.PRSCRPTN_SPORTS_TIME
+		     , SPEI.PRSCRPTN_REST_TIME
+		     , SPEI.TOT_SPORTS_TIME
+		     , ROUND(((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND((SPEI.PRSCRPTN_SPORTS_TIME + SPEI.PRSCRPTN_REST_TIME) / 60, 2), 0) PRSCRPTN_CALORIE
+		     , IFNULL(SEH.SPORTS_EXECUT_DE, DATE_FORMAT(NOW(), '%Y%m%d')) EXECUT_DE
+		     , IFNULL(SEH.SPORTS_SET, 0) EXECUT_SET
+		     , IFNULL(SEH.SPORTS_TIME, 0) EXECUT_TIME
+		     , IFNULL(SEH.SPORTS_CALORIE, 0) EXECUT_CALORIE
+         	 , ROUND((((((SI.SPORTS_IN * 3.5) - 3.5) * #{BDWGH}) / 1000) * 5 * ROUND((SPEI.PRSCRPTN_SPORTS_TIME + SPEI.PRSCRPTN_REST_TIME) / 60, 2)), 2) CNSMP_CALORIE
+		  FROM SPORTS_PROGRM_DETAIL SPD
+		 INNER JOIN SPORTS_INF                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         AND CS.SPORTS_TY_CODE = 'SP'
+		<if test="ODSN_EXECUT_AT != null and ODSN_EXECUT_AT != ''">
+				   AND CS.ODSN_EXECUT_AT = 'Y'
+		</if>
+		         ORDER BY RAND()
+		         LIMIT 1
+		     ) 
+		 UNION ALL
+		     (
+		         SELECT 
+		               SPORTS_NM
+		             , F_FILE_PATH(AI.ATCHMNFL_NM) SPORTS_ATCHMNFL_PATH
+		             , TRUNCATE(#{GOAL_CNSMP_CALORIE} / (#{BDWGH} * SPORTS_IN * 3.5 / 1000 * 5), 0) SPORTS_TIME
+		             , #{GOAL_CNSMP_CALORIE} GOAL_CNSMP_CALORIE
+		          FROM CALORIE_SPORTS CS
+		          LEFT JOIN ATCHMNFL_INFO AI
+		            ON CS.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		         WHERE CS.USE_AT = 'Y'
+		           AND CS.SPORTS_TY_CODE = 'FB'
+		<if test="ODSN_EXECUT_AT != null and ODSN_EXECUT_AT != ''">
+				   AND CS.ODSN_EXECUT_AT = 'Y'
+		</if>
+		         ORDER BY RAND()
+		         LIMIT 1
+		     ) 
+		 UNION ALL
+		     (
+		         SELECT 
+		               SPORTS_NM
+		             , F_FILE_PATH(AI.ATCHMNFL_NM) SPORTS_ATCHMNFL_PATH
+		             , TRUNCATE(#{GOAL_CNSMP_CALORIE} / (#{BDWGH} * SPORTS_IN * 3.5 / 1000 * 5), 0) SPORTS_TIME
+		             , #{GOAL_CNSMP_CALORIE} GOAL_CNSMP_CALORIE
+		          FROM CALORIE_SPORTS CS
+		          LEFT JOIN ATCHMNFL_INFO AI
+		            ON CS.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		         WHERE CS.USE_AT = 'Y'
+		           AND CS.SPORTS_TY_CODE = 'MS'
+		<if test="ODSN_EXECUT_AT != null and ODSN_EXECUT_AT != ''">
+				   AND CS.ODSN_EXECUT_AT = 'Y'
+		</if>
+		         ORDER BY RAND()
+		         LIMIT 1
+		     )
+	</select>
+	
+	<!-- 오늘의 코치 판정을 위한 측정판정 및 측정일 기간 계산 -->
+	<select id="selectMesureSttbrdInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MAX(IF(MESURE_CODE = '6021', IFNULL(DISS_AT, 'N'), NULL)) IS_DISS_AT
+		     , MAX(IF(MESURE_CODE = '6021', IFNULL(LAST_MESURE_DAY, 99), NULL)) IS_LAST_MESURE_DAY
+		     , MAX(IF(MESURE_CODE = '622E', IFNULL(DISS_AT, 'N'), NULL)) BP_DISS_AT
+		     , MAX(IF(MESURE_CODE = '622E', IFNULL(LAST_MESURE_DAY, 99), NULL)) BP_LAST_MESURE_DAY
+		     , MAX(IF(MESURE_CODE = '624A', IFNULL(DISS_AT, 'N'), NULL)) BS_DISS_AT
+		     , MAX(IF(MESURE_CODE = '624A', IFNULL(LAST_MESURE_DAY, 99), NULL)) BS_LAST_MESURE_DAY
+		     , MAX(IF(MESURE_CODE = '624C', IFNULL(DISS_AT, 'N'), NULL)) BC_DISS_AT
+		     , MAX(IF(MESURE_CODE = '624C', IFNULL(LAST_MESURE_DAY, 99), NULL)) BC_LAST_MESURE_DAY   
+		  FROM (
+		        SELECT
+		              CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                   WHEN MIC.MESURE_CODE IN ('624A', '62AB') THEN '624A'
+		                   WHEN MIC.MESURE_CODE IN ('624C', '624D', '624E', '624F') THEN '624C'
+		                   ELSE '6021'
+		               END MESURE_CODE
+		             , IF(INSTR(IFNULL(JDGMNT_RESULT, F_MESURE_GRAD_NM(MIC.MBER_NO, MIC.MESURE_CODE, MIC.MESURE_DATA, #{LOCALE})), '나쁨') > 0, 'Y', 'N') DISS_AT
+		             , DATEDIFF(NOW(), MIC.MESURE_DT) LAST_MESURE_DAY
+		          FROM MESURE_INFO_CMMN MIC
+		         INNER JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MESURE_CODE
+		                     , MAX(MESURE_DT) MESURE_DT
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE IN (
+		                       '6021',
+		                       '622E', '622F',
+		                       '624A', '62AB',
+		                       '624C', '624D', '624E', '624F'
+		                     )
+		                   AND MESURE_DATA > 0
+		                 GROUP BY MBER_NO, MESURE_CODE
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		           AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) TBL
+	</select>
+</mapper>

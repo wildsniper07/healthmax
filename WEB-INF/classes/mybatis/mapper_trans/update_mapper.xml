@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.trans.mapper.UpdateMapper">
+
+	
+	<!-- 납품 나간 존인지 확인(FVR 코드일경우만 해당) -->
+	<select id="selectCheckZone" parameterType="hmap" resultType="int">
+		SELECT COUNT(UHEALTH_ZONE_NO) as CNT 
+		FROM UHEALTH_ZONE_VEIN_RCIVR		
+		WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		AND SERIAL_NO = #{SERIAL_NO}
+	</select>
+	
+	<!-- 버전 정보 반환 -->
+	<select id="selectUpdateVersion" parameterType="hmap" resultType="hmap">
+		SELECT 
+			DV_KND_CODE,
+			APP_VER,
+		    FILE_NM,
+			FILE_SZ
+		FROM DVAPP_VER_MANAGE
+		WHERE DV_KND_CODE = #{DV_KND_CODE}
+	</select>
+	
+	
+	
+	
+</mapper>

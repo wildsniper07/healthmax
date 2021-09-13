@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.trans.mapper.AssistMapper">
+	<!-- 최근 50 개 접속 이력 반환  -->
+	<select id="selectConnectHistory" resultType="hmap">
+		SELECT 
+			MI.USID,
+			MI.NM,
+		    MI.BRTHDY,
+		    MI.MBTLNUM,
+			MCH.CONECT_DT,
+			MCH.UHEALTH_ZONE_NO,
+		    MCH.CONECT_MTH
+		FROM MBER_CONECT_HIST MCH
+		LEFT JOIN MBER_INFO MI
+		ON MCH.MBER_NO = MI.MBER_NO
+		ORDER BY MCH.CONECT_DT DESC
+		LIMIT 50;
+	</select>
+</mapper>

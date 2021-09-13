@@ -1,0 +1,1371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.InstMapper">
+
+	<!-- 기관 상세 조회 -->
+	<select id="selectInstInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       II.INST_NO
+		     , II.INST_NM
+		     , II.NATION_CODE
+		     , II.INST_TY_CODE
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+			 , F_CODE_NM('IT02', II.INST_TY_CODE, 'US') INST_TY_CODE_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+			 , F_CODE_NM('IT02', II.INST_TY_CODE, 'ES') INST_TY_CODE_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+			 , F_CODE_NM('IT02', II.INST_TY_CODE, 'ID') INST_TY_CODE_NM
+			</when>
+			<otherwise>
+			 , F_CODE_NM('IT02', II.INST_TY_CODE, 'KO') INST_TY_CODE_NM
+			</otherwise>
+		</choose>		     
+		     , II.CLSDR_CODE
+		     , II.USE_AT
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , II.TOP_INST_NO
+		     , II.MIDDLE_INST_NO
+		     , II.BOTTOM_INST_NO
+		     , II.UPPER_INST_NO
+		     , IFNULL(LOWER_INST_CNT, 0) LOWER_INST_CNT
+		     , IFNULL(BOTTOM_INST_CNT, 0) BOTTOM_INST_CNT
+		     , IFNULL(BUDGET_INST_CNT, 0) BUDGET_INST_CNT
+		<if test="INST_NO != null and INST_NO != ''">
+	         , INST1.INST_NM TOP_INST_NM
+	         , INST2.INST_NM MIDDLE_INST_NM
+	         , INST3.INST_NM BOTTOM_INST_NM
+		</if>			
+			 , II.SIGUNGU_CD
+			 , II.BIZ_INFO
+		     , II.SPUSE_STPLAT_AT
+		     , II.REPRSNT_TELNO
+		  FROM INST_INFO II
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON II.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+				SELECT
+				       UPPER_INST_NO
+				     , COUNT(*) LOWER_INST_CNT
+				  FROM INST_INFO
+				 WHERE USE_AT = 'Y'
+		<if test="INST_NO != null and INST_NO != ''">				 
+				   AND UPPER_INST_NO = #{INST_NO}
+		</if>
+				 GROUP BY UPPER_INST_NO
+		     ) LOWER_INST
+		    ON II.INST_NO = LOWER_INST.UPPER_INST_NO
+		  LEFT JOIN (
+				SELECT
+				       TOP_INST_NO
+				     , COUNT(*) BOTTOM_INST_CNT
+				  FROM INST_INFO
+				 WHERE USE_AT = 'Y'
+				   AND BOTTOM_INST_NO > 0
+		<if test="INST_NO != null and INST_NO != ''">				 
+				   AND TOP_INST_NO = #{INST_NO}
+		</if>
+				 GROUP BY TOP_INST_NO
+		     ) BOTTOM_INST
+		    ON II.INST_NO = BOTTOM_INST.TOP_INST_NO
+		  LEFT JOIN (
+				SELECT 
+				       INST_NO
+				     , COUNT(*) BUDGET_INST_CNT
+				  FROM BUDGET_ASIGN
+				 WHERE DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN BUDGET_BGNDE AND BUDGET_ENDDE
+		<if test="INST_NO != null and INST_NO != ''">
+				   AND INST_NO = #{INST_NO}
+		</if>
+				 GROUP BY INST_NO
+		     ) BUDGET_INST
+		    ON II.INST_NO = BUDGET_INST.INST_NO
+		<if test="INST_NO != null and INST_NO != ''">
+		  LEFT JOIN INST_INFO INST1
+		    ON INST1.INST_NO = II.TOP_INST_NO
+		  LEFT JOIN INST_INFO INST2
+		    ON INST2.INST_NO = II.MIDDLE_INST_NO
+		  LEFT JOIN INST_INFO INST3
+		    ON INST3.INST_NO = II.BOTTOM_INST_NO
+		</if>
+		 WHERE II.USE_AT = 'Y'
+		<if test="INST_NO != null and INST_NO != ''">
+		   AND II.INST_NO = #{INST_NO}
+		</if>
+		<if test="INST_NM != null and INST_NM != ''">
+		   AND II.INST_NM LIKE CONCAT('%', #{INST_NM}, '%')
+		</if>	
+	     ORDER BY II.INST_NO	 
+	</select>
+	
+	<!-- 소속기관 목록 조회 -->
+	<select id="selectMberPstinstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MPI.MBER_NO
+		     , MPI.INST_NO
+		     , II.INST_NM
+		     , IFNULL(MMPI.MBER_CNT, 0) MBER_CNT
+	         , II.ATCHMNFL_PATH
+		  FROM MBER_PSTINST_INFO MPI
+		 INNER JOIN (
+	          SELECT 
+	                 II.INST_NO
+	               , II.INST_NM
+	               , II.TOP_INST_NO
+	               , II.MIDDLE_INST_NO
+	               , II.BOTTOM_INST_NO
+	               , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+	            FROM INST_INFO II
+	            LEFT JOIN ATCHMNFL_INFO AI
+	          	  ON II.ATCHMNFL_NO = AI.ATCHMNFL_NO
+	           WHERE II.INST_NO > 1000
+	         ) II
+		    ON MPI.INST_NO = II.INST_NO
+		  LEFT JOIN (
+		        SELECT 
+		               INST_NO
+		             , COUNT(*) MBER_CNT
+		          FROM MBER_PSTINST_INFO
+		         WHERE CONFM_AT = 'Y'
+		           AND SECSN_AT = 'N'
+		         GROUP BY INST_NO
+		     ) MMPI
+		    ON MPI.INST_NO = MMPI.INST_NO
+		 WHERE MPI.MBER_NO = #{MBER_NO}
+		   AND MPI.CONFM_AT = #{CONFM_AT}
+		   AND MPI.SECSN_AT = 'N'  
+		 ORDER BY TOP_INST_NO ASC, MIDDLE_INST_NO, BOTTOM_INST_NO
+	</select>
+	
+	<!-- 추천 기관 목록 조회 -->
+	<select id="selectRecomendInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   II.INST_NO
+			 , II.INST_NM
+			 , IFNULL(MMPI.MBER_CNT, 0) MBER_CNT
+	         , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		  FROM INST_INFO II
+		  LEFT JOIN ATCHMNFL_INFO AI
+         	ON II.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+		        SELECT 
+		               INST_NO
+		             , COUNT(*) MBER_CNT
+		          FROM MBER_PSTINST_INFO
+		         WHERE CONFM_AT = 'Y'
+		           AND SECSN_AT = 'N'
+		         GROUP BY INST_NO
+		     ) MMPI
+		    ON II.INST_NO = MMPI.INST_NO
+		  LEFT JOIN (
+			  SELECT 
+				     INST_NO
+				   , CASE WHEN CONFM_AT = 'Y' AND SECSN_AT = 'Y' THEN 'N'
+				          ELSE CONFM_AT
+				      END CONFM_AT
+				   , SECSN_AT
+			    FROM MBER_PSTINST_INFO
+			   WHERE MBER_NO = #{MBER_NO}
+		     ) MPI
+		    ON II.INST_NO = MPI.INST_NO
+		 WHERE II.USE_AT = 'Y'
+		   AND II.INST_NO > 1000
+		   AND II.INST_TY_CODE IN ('O', 'M')
+		   AND II.NATION_CODE = #{LOCALE}
+		   AND (MPI.CONFM_AT IS NULL OR MPI.CONFM_AT IN ('C', 'N'))
+		 ORDER BY TOP_INST_NO, MIDDLE_INST_NO, BOTTOM_INST_NO
+	</select>
+	
+	<!-- 기관 검색결과 목록 조회 -->
+	<select id="selectSearchInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   II.INST_NO
+			 , II.INST_NM
+			 , CASE WHEN SECSN_AT = 'Y' THEN 'N'  
+			 		ELSE IFNULL(MPI.CONFM_AT, 'N') 
+			    END CONFM_AT
+			 , IFNULL(MMPI.MBER_CNT, 0) MBER_CNT
+			 , II.ATCHMNFL_PATH
+		  FROM (
+		        SELECT 
+		               II.INST_NO
+		             , II.INST_NM
+		             , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		             , II.TOP_INST_NO
+		             , II.MIDDLE_INST_NO
+		             , II.BOTTOM_INST_NO
+		          FROM INST_INFO II
+		          LEFT JOIN ATCHMNFL_INFO AI
+          	        ON II.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		         WHERE II.USE_AT = 'Y'
+		           AND II.INST_NO > 1000
+		           AND II.INST_NM LIKE CONCAT('%', #{KEYWORD}, '%')
+		         UNION ALL
+		        SELECT 
+		               II.INST_NO
+		             , II.INST_NM
+		             , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		             , II.TOP_INST_NO
+		             , II.MIDDLE_INST_NO
+		             , II.BOTTOM_INST_NO
+		          FROM INST_INFO II
+		          LEFT JOIN ATCHMNFL_INFO AI
+          	        ON II.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		         WHERE II.USE_AT = 'Y'
+		           AND II.INST_NO > 1000
+		           AND II.CLSDR_CODE = #{KEYWORD}
+		     ) II
+		  LEFT JOIN (
+			      SELECT 
+				         MBER_NO
+				       , INST_NO
+				       , CONFM_AT
+				       , SECSN_AT
+			        FROM MBER_PSTINST_INFO MPI
+			       WHERE MBER_NO = #{MBER_NO}
+         	 ) MPI
+		    ON II.INST_NO = MPI.INST_NO
+		  LEFT JOIN (
+		        SELECT 
+		               INST_NO
+		             , COUNT(*) MBER_CNT
+		          FROM MBER_PSTINST_INFO
+		         WHERE CONFM_AT = 'Y'
+		           AND SECSN_AT = 'N'
+		         GROUP BY INST_NO
+		      ) MMPI
+		     ON II.INST_NO = MMPI.INST_NO
+		  ORDER BY II.TOP_INST_NO, II.MIDDLE_INST_NO, II.BOTTOM_INST_NO
+	</select>
+	
+	<!-- 소속기관 정보 저장 -->
+	<insert id="insertMberPstinstInfo" parameterType="hmap">
+		INSERT INTO MBER_PSTINST_INFO (
+		       MBER_NO
+		     , INST_NO
+		     , CONFM_AT
+		     , CONFM_DE
+		     , SECSN_AT
+		     , SECSN_DE
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{INST_NO}
+		     , #{CONFM_AT}
+		     , #{CONFM_DE}
+		     , #{SECSN_AT}
+		     , #{SECSN_DE}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 소속기관 정보 조회 -->
+	<select id="selectMberPstinstInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   MBER_NO
+		     , INST_NO
+		     , CONFM_AT
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+			 , F_CODE_NM('CM07', CONFM_AT, 'US') CONFM_AT_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+			 , F_CODE_NM('CM07', CONFM_AT, 'ES') CONFM_AT_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+			 , F_CODE_NM('CM07', CONFM_AT, 'ID') CONFM_AT_NM
+			</when>
+			<otherwise>
+			 , F_CODE_NM('CM07', CONFM_AT, 'KO') CONFM_AT_NM
+			</otherwise>
+		</choose>
+		     , CONFM_DE
+		     , SECSN_AT
+		     , SECSN_DE
+		  FROM MBER_PSTINST_INFO
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND INST_NO = #{INST_NO}
+		<if test="CONFM_AT != null and CONFM_AT != ''">
+		   AND CONFM_AT = #{CONFM_AT}
+		</if>
+		<if test="SECSN_AT != null and SECSN_AT != ''">
+		   AND SECSN_AT = #{SECSN_AT}
+		</if>
+	</select>
+	
+	<!-- 관리자용 회원상세정보 소속기관 현황조회 -->
+	<select id="selectChargerPstinstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MPI.MBER_NO
+		     , MPI.INST_NO
+		     , INST_NM
+		     , F_STR_FORMAT('DATE', CONFM_DE, #{LOCALE}) CONFM_DE
+		     , CONFM_AT
+		  FROM MBER_PSTINST_INFO MPI
+		 INNER JOIN INST_INFO II
+		    ON MPI.INST_NO = II.INST_NO
+		 WHERE MPI.MBER_NO = #{MBER_NO}
+		   AND MPI.CONFM_AT = 'Y'
+		   AND MPI.SECSN_AT = 'N' 
+		 ORDER BY MPI.CONFM_DE ASC, MPI.INST_NO
+	</select>
+	
+	<!-- 소속기관 이력 정보 저장 -->
+	<insert id="insertMberPstinstHist" parameterType="hmap">
+		INSERT INTO MBER_PSTINST_HIST ( 
+		       MBER_NO
+		     , INST_NO
+		     , CHANGE_DT
+		     , CHANGE_RESN
+		     , CHANGE_ID
+		     , CONFM_AT
+		     , SECSN_AT
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{INST_NO}
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		     , #{CHANGE_RESN}
+		     , #{USID}
+		     , #{CONFM_AT}
+		     , #{SECSN_AT}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 소속기관 정보 수정 -->
+	<update id="updateMberPstinstInfo" parameterType="hmap">
+		UPDATE MBER_PSTINST_INFO SET
+		       MBER_NO = MBER_NO
+		<if test="CONFM_AT != null and CONFM_AT != ''">
+			<choose>
+				<when test='CONFM_AT != null and CONFM_AT.equals("Y")'>
+		     , CONFM_AT = 'Y'
+		     , CONFM_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+				</when>
+				<otherwise>
+			 , CONFM_AT = #{CONFM_AT}
+				</otherwise>
+			</choose>
+		</if>
+		<if test="SECSN_AT != null and SECSN_AT != ''">
+			<choose>
+				<when test='SECSN_AT != null and SECSN_AT.equals("Y")'>
+		     , SECSN_AT = 'Y'
+		     , SECSN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+				</when>
+				<otherwise>
+			 , SECSN_AT = 'N'
+				</otherwise>
+			</choose>
+		</if>
+		<if test="SECSN_RESN != null and SECSN_RESN != ''">
+			 , SECSN_RESN = #{SECSN_RESN}
+		</if>
+		<if test="STPLAT_AGRE_AT != null and STPLAT_AGRE_AT != ''">
+			 , STPLAT_AGRE_AT = #{STPLAT_AGRE_AT}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND INST_NO = #{INST_NO}
+	</update>
+	
+	<!-- 관리자 현황조회 쿼리 -->
+	<sql id="selectInstChargerInfoListQuery">
+		SELECT
+		       ICI.AUTHOR_CODE
+		     , AM.AUTHOR_NM
+		     , ICI.INST_NO
+		     , II.INST_NM
+		     , MI.MBER_NO
+		     , MI.NM
+		     , MI.USID
+		     , MI.MBTLNUM_CRTFC_AT
+		     , ICI.REGIST_DT
+		     , ICI.CONECT_LMTT_AT
+		     , ICI.CONECT_IP
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+			 , F_STR_FORMAT('TEL', MI.MBTLNUM, 'US') MBTLNUM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, 'US') BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, 'US') SEXDSTN
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+			 , F_STR_FORMAT('TEL', MI.MBTLNUM, 'ES') MBTLNUM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, 'ES') BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, 'ES') SEXDSTN
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+			 , F_STR_FORMAT('TEL', MI.MBTLNUM, 'ID') MBTLNUM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, 'ID') BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, 'ID') SEXDSTN
+			</when>
+			<otherwise>
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, 'KO') MBTLNUM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, 'KO') BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, 'KO') SEXDSTN
+			</otherwise>
+		</choose>
+		  FROM INST_CHARGER_INFO ICI 
+		 INNER JOIN MBER_INFO MI
+		    ON ICI.MBER_NO = MI.MBER_NO
+		   AND MI.MBER_SECSN_AT = 'N'
+		 INNER JOIN AUTHOR_MANAGE AM
+		    ON ICI.AUTHOR_CODE = AM.AUTHOR_CODE
+		   AND AM.USE_AT = 'Y'
+		 INNER JOIN INST_INFO II
+		    ON ICI.INST_NO = II.INST_NO
+		   AND II.USE_AT = 'Y'
+		 WHERE ICI.USE_AT = 'Y'
+		   AND ICI.AUTHOR_CODE IN ('SM00', 'IM00')
+ 		<if test="INST_NO != null and INST_NO != ''">
+ 		   AND ICI.INST_NO = #{INST_NO}
+ 		</if>
+ 		<if test="MBER_NO != null and MBER_NO != ''">
+ 		   AND ICI.MBER_NO = #{MBER_NO}
+ 		</if>
+ 		<if test="NM != null and NM != ''">
+ 		   AND MI.NM LIKE CONCAT('%', #{NM}, '%')
+ 		</if>
+ 		<if test="MBTLNUM != null and MBTLNUM != ''">
+ 		   AND MI.MBTLNUM = #{MBTLNUM}
+ 		</if>
+	</sql>
+	
+	<!-- 기관 관리자정보 현황 조회 건수 -->
+	<select id="selectInstChargerInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectInstChargerInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 기관 관리자정보 현황 조회 -->
+	<select id="selectInstChargerInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectInstChargerInfoListQuery" />
+		     ) TBL
+ 		 ORDER BY
+ 		<choose>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("AUTHOR_NM")'>
+ 				AUTHOR_NM
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("INST_NM")'>
+ 				INST_NM
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MBER_NO")'>
+ 				MBER_NO
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("NM")'>
+ 				NM
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("USID")'>
+ 				USID
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MBTLNUM")'>
+ 				MBTLNUM
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("BRTHDY")'>
+ 				BRTHDY
+ 			</when>
+ 			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("SEXDSTN")'>
+ 				SEXDSTN
+ 			</when>
+ 			<otherwise>
+ 				AUTHOR_CODE DESC, INST_NO, REGIST_DT
+ 			</otherwise>
+ 		</choose>
+ 		<choose>
+			<when test='ODR != null and ODR.equals("ASC")'>
+				ASC
+			</when>
+			<otherwise>
+				DESC
+			</otherwise>
+		</choose> 
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select> 
+	
+	<!-- 관리자 권한 추가 -->
+	<insert id="insertInstChargerInfo" parameterType="hmap">
+		INSERT INTO INST_CHARGER_INFO (
+			   MBER_NO
+			 , INST_NO
+			 , AUTHOR_CODE
+			 , MOMO
+			 , REGIST_DT
+			 , REGIST_ID
+			 , USE_AT
+		<if test="CONECT_LMTT_AT != null and CONECT_LMTT_AT != ''">
+			 , CONECT_LMTT_AT
+		</if>
+		<if test="CONECT_IP != null and CONECT_IP != ''">
+			 , CONECT_IP
+		</if>
+		) VALUES (
+			   #{MBER_NO}
+			 , #{INST_NO}
+			 , #{AUTHOR_CODE}
+			 , #{MOMO}
+			 , NOW()
+			 , #{USID}
+			 , 'Y'
+		<if test="CONECT_LMTT_AT != null and CONECT_LMTT_AT != ''">
+			 , #{CONECT_LMTT_AT}
+		</if>
+		<if test="CONECT_IP != null and CONECT_IP != ''">
+			 , #{CONECT_IP}
+		</if>
+		)
+	</insert>
+	
+	<!-- 관리자 권한 상세조회 -->
+	<select id="selectInstChargerInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   MBER_NO
+			 , INST_NO
+			 , AUTHOR_CODE
+			 , USE_AT
+			 , CONECT_LMTT_AT
+			 , CONECT_IP
+		  FROM INST_CHARGER_INFO
+		 WHERE MBER_NO = #{MBER_NO}
+		<if test="INST_NO != null and INST_NO != ''">
+		   AND INST_NO = #{INST_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+		   AND USE_AT = #{USE_AT}
+		</if>
+		<if test="AUTHOR_CODE != null and AUTHOR_CODE != ''">
+		   AND AUTHOR_CODE = #{AUTHOR_CODE}
+		</if>
+	</select>
+	
+	<!-- 관리자 권한 수정 -->
+	<update id="updateInstChargerInfo" parameterType="hmap">
+		UPDATE INST_CHARGER_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = #{USID}  
+		<if test="AUTHOR_CODE != null and AUTHOR_CODE != ''">
+			 , AUTHOR_CODE = #{AUTHOR_CODE}
+		</if>
+		<if test="MOMO != null and MOMO != ''">
+			 , MOMO = #{MOMO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+	 		 , USE_AT = #{USE_AT}
+		</if>
+		<if test="CONECT_LMTT_AT != null and CONECT_LMTT_AT != ''">
+			 , CONECT_LMTT_AT = #{CONECT_LMTT_AT}
+		</if>
+		<if test="CONECT_IP != null and CONECT_IP != ''">
+			 , CONECT_IP = #{CONECT_IP}
+		</if>
+		WHERE MBER_NO = #{MBER_NO}
+		  AND INST_NO = #{INST_NO}
+	</update> 
+	
+	<!-- 관리자 권한 해제 -->
+	<update id="deleteInstChargerInfo" parameterType="hmap">
+		UPDATE INST_CHARGER_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = #{USID}
+		     , USE_AT = #{USE_AT}
+		 WHERE INST_NO = #{INST_NO}
+		<if test="MBER_NO != null and MBER_NO != ''">
+		   AND MBER_NO = #{MBER_NO}
+		</if>
+	</update>
+	
+	<!-- 연계 권한 건수 조회 -->
+	<select id="selectInstCntcAuthInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MBER_NO
+		     , INST_NO
+		  FROM INST_CHARGER_INFO ICI
+		 WHERE ICI.MBER_NO = #{MBER_NO}
+		   AND ICI.AUTHOR_CODE = 'CNTC'
+		   AND ICI.USE_AT = 'Y'
+		 ORDER BY INST_NO
+	</select>
+	
+	<!-- 소속현황 조회 쿼리 -->
+	<sql id="selectInstInfoListQuery">
+		SELECT
+			   II.INST_NO
+			 , II.INST_NO_1
+			 , II.INST_NO_2
+			 , II.INST_NO_3
+			 , II.UPPER_INST_NO
+		<choose>
+			<when test="INST_NM != null and INST_NM != ''">
+			 , II1.INST_NM INST_NM_1
+			 , CASE WHEN LENGTH(II.INST_NO_2) > 0 THEN II2.INST_NM
+			        ELSE ''
+			    END INST_NM_2
+			</when>
+			<otherwise>
+			 , CASE WHEN II.INST_NO_2 IS NULL OR LENGTH(II.INST_NO_2) = 0 THEN II1.INST_NM
+			        ELSE ''
+			    END INST_NM_1
+			 , CASE WHEN LENGTH(II.INST_NO_2) > 0 AND II.INST_NO_3 IS NULL THEN II2.INST_NM
+			        ELSE ''
+			    END INST_NM_2
+			</otherwise>
+		</choose>
+			 , CASE WHEN LENGTH(II.INST_NO_3) > 0 THEN II.INST_NM
+			        ELSE ''
+			    END INST_NM_3
+			 , II.MBER_CNT
+			 , II.REGIST_DT
+			 , II.REQ_MBER_CNT
+			 , II.BUDGET_ASIGN_AT
+			 , II.BUDGET_ASIGN_AMOUNT
+			 , II.INST_TY_CODE
+		  FROM (
+		        SELECT
+		               II.INST_NO
+		             , II.INST_NM
+		             , II.TOP_INST_NO INST_NO_1
+		             , II.MIDDLE_INST_NO INST_NO_2
+		             , II.BOTTOM_INST_NO INST_NO_3
+		             , IFNULL(MMPI.MBER_CNT, 0) MBER_CNT
+		             , II.REGIST_DT
+		             , IFNULL(MMPI.REQ_MBER_CNT, 0) REQ_MBER_CNT
+		             , IFNULL(BA.BUDGET_ASIGN_AT, 'N') BUDGET_ASIGN_AT
+		             , IFNULL(BA.BUDGET_ASIGN_AMOUNT, 0) BUDGET_ASIGN_AMOUNT
+		             , II.INST_TY_CODE
+		             , II.UPPER_INST_NO
+		          FROM INST_INFO II
+		          LEFT JOIN (
+		                SELECT 
+		                       INST_NO
+		                     , SUM(IF(CONFM_AT = 'Y', 1, 0)) MBER_CNT
+		                     , SUM(IF(CONFM_AT = 'R', 1, 0)) REQ_MBER_CNT
+		                  FROM MBER_PSTINST_INFO
+		                 WHERE SECSN_AT = 'N'
+		                 GROUP BY INST_NO
+		             ) MMPI
+		            ON II.INST_NO = MMPI.INST_NO
+		          LEFT JOIN (
+		                SELECT
+		                       BA.INST_NO
+		                     , BA.BUDGET_ASIGN_AMOUNT
+		                     , CASE WHEN DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN BA.BUDGET_BGNDE AND BA.BUDGET_ENDDE THEN 'Y'
+		                            WHEN DATE_FORMAT(NOW(), '%Y%m%d') <![CDATA[ < ]]> BA.BUDGET_BGNDE THEN 'R'
+		                            ELSE 'N'
+		                        END BUDGET_ASIGN_AT
+		                  FROM BUDGET_ASIGN BA
+		                 INNER JOIN (
+		                        SELECT
+		                               INST_NO
+		                             , MIN(BUDGET_SN) BUDGET_SN 
+		                          FROM BUDGET_ASIGN
+		                         WHERE BUDGET_ENDDE >= DATE_FORMAT(NOW(), '%Y%m%d')
+		                         GROUP BY INST_NO
+		                     ) MBA
+		                    ON BA.INST_NO = MBA.INST_NO
+		                   AND BA.BUDGET_SN = MBA.BUDGET_SN
+		             ) BA
+		            ON II.INST_NO = BA.INST_NO
+		         WHERE II.USE_AT = 'Y'
+		     ) II
+		  LEFT JOIN INST_INFO II1
+		    ON II.INST_NO_1 = II1.INST_NO
+		  LEFT JOIN INST_INFO II2
+		    ON II.INST_NO_2 = II2.INST_NO
+		 WHERE 1 = 1
+		<if test = "INST_NM != null and INST_NM != ''">
+		   AND II.INST_NM LIKE CONCAT('%', #{INST_NM}, '%')
+		</if>
+	</sql>
+	
+	<!-- 소속현황 조회 건수 -->
+	<select id="selectInstInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectInstInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 소속현황 조회 -->
+	<select id="selectInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectInstInfoListQuery" />
+		     ) TBL
+		 ORDER BY INST_NO_1 ASC, INST_NO_2 ASC, INST_NO_3 ASC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 소속 명 중복체크 -->
+	<select id="selectDupInstNmCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT COUNT(*) INST_CNT
+		  FROM INST_INFO
+		 WHERE INST_NM = #{INST_NM}
+		   AND USE_AT = 'Y'
+	</select> 
+	
+	<!-- 트리구조 용 소속 현황 조회 -->
+	<select id="selectTreeInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       INST_NO 
+		     , TOP_INST_NO INST_NO_1
+         	 , IF(INST_NO = TOP_INST_NO, INST_NM, '') INST_NM_1
+		     , MIDDLE_INST_NO INST_NO_2
+         	 , IF(INST_NO = MIDDLE_INST_NO, INST_NM, '') INST_NM_2
+		     , BOTTOM_INST_NO INST_NO_3
+         	 , IF(INST_NO = BOTTOM_INST_NO, INST_NM, '') INST_NM_3
+        <choose>
+			<when test="INST_NO != null and INST_NO != ''">
+         	 , CASE WHEN #{INST_NO} = TOP_INST_NO THEN 'Y' 
+                    ELSE 'N'
+                END CHK_INST_1
+         	 , CASE WHEN #{INST_NO} = TOP_INST_NO THEN 'Y'
+         	 		WHEN #{INST_NO} = MIDDLE_INST_NO THEN 'Y'  
+                    ELSE 'N'
+                END CHK_INST_2
+         	 , CASE WHEN #{INST_NO} = TOP_INST_NO THEN 'Y' 
+         	 		WHEN #{INST_NO} = MIDDLE_INST_NO THEN 'Y' 
+                    WHEN #{INST_NO} = BOTTOM_INST_NO THEN 'Y' 
+                    ELSE 'N'
+                END CHK_INST_3
+			</when>
+			<otherwise>
+			 , 'Y' CHK_INST_1
+			 , 'Y' CHK_INST_2
+			 , 'Y' CHK_INST_3
+			</otherwise>
+        </choose> 	 
+		     , IFNULL(MIDDLE_INST_NO, TOP_INST_NO) UPPER_INST_NO
+		  FROM INST_INFO
+		 WHERE USE_AT = 'Y'
+		   AND NATION_CODE = #{LOCALE}
+		 ORDER BY TOP_INST_NO, MIDDLE_INST_NO, BOTTOM_INST_NO
+	</select>
+	
+	<!-- 상위 소속 현황조회 -->
+	<select id="selectTopInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       II.INST_NO
+		     , II.INST_NM
+		  FROM INST_INFO II
+		<if test="INST_NO != null and INST_NO != ''">		  
+		 INNER JOIN (
+		        SELECT INST_NO
+		          FROM INST_INFO
+		         WHERE USE_AT = 'Y'
+		           AND TOP_INST_NO = #{INST_NO}
+		         UNION ALL
+		        SELECT TOP_INST_NO
+		          FROM INST_INFO
+		         WHERE USE_AT = 'Y'
+		           AND MIDDLE_INST_NO = #{INST_NO}
+		         UNION ALL
+		        SELECT TOP_INST_NO
+		          FROM INST_INFO
+		         WHERE USE_AT = 'Y'
+		           AND BOTTOM_INST_NO = #{INST_NO}
+		     ) MII
+		    ON II.INST_NO = MII.INST_NO
+		</if>
+		 WHERE II.USE_AT = 'Y'
+		   AND II.INST_NO > 1000
+		   AND II.MIDDLE_INST_NO IS NULL
+		 ORDER BY II.SIGUNGU_CD
+	</select>
+	
+	<!-- 하위 소속 현황조회 -->
+	<select id="selectLowInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       II.INST_NO
+		     , II.INST_NM
+		  FROM INST_INFO II
+		 WHERE II.USE_AT = 'Y'
+		   AND II.UPPER_INST_NO = #{INST_NO}
+		 ORDER BY II.SIGUNGU_CD, II.TOP_INST_NO, II.MIDDLE_INST_NO, II.BOTTOM_INST_NO
+	</select>
+	
+	<!-- 소속 등록 시 상위소속 현황 조회 -->
+	<select id="selectUpperInstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       INST_NO 
+		     , INST_NM
+		     , TOP_INST_NO
+		     , MIDDLE_INST_NO
+		     , IFNULL(MIDDLE_INST_NO, TOP_INST_NO) UPPER_INST_NO
+		  FROM INST_INFO
+		 WHERE USE_AT = 'Y'
+		   AND BOTTOM_INST_NO IS NULL
+		   AND NATION_CODE = #{LOCALE}
+		 ORDER BY TOP_INST_NO, MIDDLE_INST_NO
+	</select>
+	
+	<!-- 소속 등록 처리 -->
+	<insert id="insertInstInfo" parameterType="hmap">
+		<selectKey resultType="int" order="BEFORE" keyProperty="INST_NO">
+		SELECT IFNULL(MAX(INST_NO), 0) + 1 INST_NO
+		  FROM INST_INFO
+		</selectKey>
+		INSERT INTO INST_INFO (
+			   INST_NO
+			 , INST_NM
+		<choose>
+			<when test="TOP_INST_NO == null or TOP_INST_NO == ''">
+			, TOP_INST_NO
+			</when>
+			<when test="MIDDLE_INST_NO == null or MIDDLE_INST_NO == ''">
+			, TOP_INST_NO
+			, MIDDLE_INST_NO
+			, UPPER_INST_NO
+			</when>
+			<otherwise>
+			, TOP_INST_NO
+			, MIDDLE_INST_NO
+			, BOTTOM_INST_NO
+			, UPPER_INST_NO
+			</otherwise>
+		</choose>
+			 , NATION_CODE
+			 , INST_TY_CODE
+			 , CLSDR_CODE
+			 , ATCHMNFL_NO
+			 , USE_AT
+			 , REGIST_DT
+			 , REGIST_ID
+			 , SIGUNGU_CD
+			 , BIZ_INFO
+			 , SPUSE_STPLAT_AT
+			 , REPRSNT_TELNO
+		) VALUES (
+			   #{INST_NO}
+			 , #{INST_NM}
+		<choose>
+			<when test="TOP_INST_NO == null or TOP_INST_NO == ''">
+			, #{INST_NO}
+			</when>
+			<when test="MIDDLE_INST_NO == null or MIDDLE_INST_NO == ''">
+			, #{TOP_INST_NO}
+			, #{INST_NO}
+			, #{UPPER_INST_NO}
+			</when>
+			<otherwise>
+			, #{TOP_INST_NO}
+			, #{MIDDLE_INST_NO}
+			, #{INST_NO}
+			, #{UPPER_INST_NO}
+			</otherwise>
+		</choose>
+			 , #{LOCALE}
+			 , #{INST_TY_CODE}
+			 , #{CLSDR_CODE}
+			 , #{ATCHMNFL_NO}
+			 , 'Y'
+			 , NOW()
+			 , #{USID}
+			 , #{SIGUNGU_CD}
+			 , #{BIZ_INFO}
+		<choose>
+			<when test="SPUSE_STPLAT_AT != null and SPUSE_STPLAT_AT != ''">
+			 , #{SPUSE_STPLAT_AT}
+			</when>
+			<otherwise>
+			 , 'N'
+			</otherwise>
+		</choose>
+		<choose>
+			<when test="REPRSNT_TELNO != null and REPRSNT_TELNO != ''">
+			 , #{REPRSNT_TELNO}
+			</when>
+			<otherwise>
+			 , '16446426'
+			</otherwise>
+		</choose>
+		)
+	</insert>
+	
+	<!-- 소속 변경이력 현황 조회 -->
+	<select id="selectInstHistList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       F_STR_FORMAT('DATE', DATE_FORMAT(CHANGE_DT, '%Y%m%d'), #{LOCALE}) CHANGE_DT
+		     , IH.BFE_UPPER_INST_NO
+		     , IFNULL(BII.INST_NM, '상위 소속 없음') BFE_UPPER_INST_NM
+		     , IH.UPPER_INST_NO
+		     , IFNULL(II.INST_NM, '상위 소속 없음') UPPER_INST_NM
+		  FROM INST_HIST IH
+		  LEFT JOIN INST_INFO BII
+		    ON IH.BFE_UPPER_INST_NO = BII.INST_NO
+		  LEFT JOIN INST_INFO II
+		    ON IH.UPPER_INST_NO = II.INST_NO 
+		 WHERE IH.INST_NO = #{INST_NO}
+	</select>
+	
+	<!-- 소속 이력 저장처리 -->
+	<insert id="insertInstHistInfo" parameterType="hmap">
+		INSERT INTO INST_HIST (
+ 			   INST_NO
+ 			 , CHANGE_DT
+ 			 , BFE_TOP_INST_NO
+			 , BFE_MIDDLE_INST_NO
+			 , BFE_BOTTOM_INST_NO
+			 , BFE_UPPER_INST_NO
+		<choose>
+			<when test="TOP_INST_NO == null or TOP_INST_NO == ''">
+			, TOP_INST_NO
+			</when>
+			<when test="MIDDLE_INST_NO == null or MIDDLE_INST_NO == ''">
+			, TOP_INST_NO
+			, MIDDLE_INST_NO
+			, UPPER_INST_NO
+			</when>
+			<otherwise>
+			, TOP_INST_NO
+			, MIDDLE_INST_NO
+			, BOTTOM_INST_NO
+			, UPPER_INST_NO
+			</otherwise>
+		</choose>
+			 , REGIST_DT
+			 , REGIST_ID
+		) VALUES (
+ 			   #{INST_NO}
+ 			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+ 			 , #{BFE_TOP_INST_NO}
+			 , #{BFE_MIDDLE_INST_NO}
+			 , #{BFE_BOTTOM_INST_NO}
+			 , #{BFE_UPPER_INST_NO}
+		<choose>
+			<when test="TOP_INST_NO == null or TOP_INST_NO == ''">
+			, #{INST_NO}
+			</when>
+			<when test="MIDDLE_INST_NO == null or MIDDLE_INST_NO == ''">
+			, #{TOP_INST_NO}
+			, #{INST_NO}
+			, #{UPPER_INST_NO}
+			</when>
+			<otherwise>
+			, #{TOP_INST_NO}
+			, #{MIDDLE_INST_NO}
+			, #{INST_NO}
+			, #{UPPER_INST_NO}
+			</otherwise>
+		</choose>
+			 , NOW()
+			 , #{USID}
+		)
+	</insert>
+	
+	<!-- 소속 수정 처리 -->
+	<update id="updateInstInfo" parameterType="hmap">
+		UPDATE INST_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = #{USID} 
+		<if test="INST_NM != null and INST_NM != ''">
+			 , INST_NM = #{INST_NM}
+		</if>
+		<if test="LOCALE != null and LOCALE != ''">
+			 , NATION_CODE = #{LOCALE}
+		</if>
+		<if test="INST_TY_CODE != null and INST_TY_CODE != ''">
+			 , INST_TY_CODE = #{INST_TY_CODE}
+		</if>
+		<if test="CLSDR_CODE != null and CLSDR_CODE != ''">
+			 , CLSDR_CODE = #{CLSDR_CODE}
+		</if>
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+			 , ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+			 , USE_AT = #{USE_AT}
+		</if>
+		<choose>
+			<when test="TOP_INST_NO == null or TOP_INST_NO == ''">
+			 , TOP_INST_NO = #{INST_NO}
+			 , MIDDLE_INST_NO = NULL
+			 , BOTTOM_INST_NO = NULL
+			 , UPPER_INST_NO = NULL
+			</when>
+			<when test="MIDDLE_INST_NO == null or MIDDLE_INST_NO == ''">
+			 , TOP_INST_NO = #{TOP_INST_NO}
+			 , MIDDLE_INST_NO = #{INST_NO}
+			 , BOTTOM_INST_NO = NULL
+			 , UPPER_INST_NO = #{TOP_INST_NO}
+			</when>
+			<otherwise>
+			 , TOP_INST_NO = #{TOP_INST_NO}
+			 , MIDDLE_INST_NO = #{MIDDLE_INST_NO}
+			 , BOTTOM_INST_NO = #{INST_NO}
+			 , UPPER_INST_NO = #{UPPER_INST_NO}
+			</otherwise>
+		</choose>
+		<if test="SIGUNGU_CD != null and SIGUNGU_CD != ''">
+			 , SIGUNGU_CD = #{SIGUNGU_CD}
+		</if>
+		<if test="BIZ_INFO != null and BIZ_INFO != ''">
+			 , BIZ_INFO = #{BIZ_INFO}
+		</if>
+		<if test="SPUSE_STPLAT_AT != null and SPUSE_STPLAT_AT != ''">
+			 , SPUSE_STPLAT_AT = #{SPUSE_STPLAT_AT}
+		</if>
+		<if test="REPRSNT_TELNO != null and REPRSNT_TELNO != ''">
+			 , REPRSNT_TELNO = #{REPRSNT_TELNO}
+		</if>
+		 WHERE INST_NO = #{INST_NO}
+	</update>
+	
+	<!-- 소속 삭제 처리 -->
+	<update id="deleteInstInfo" parameterType="hmap">
+		UPDATE INST_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = #{USID} 
+			 , USE_AT = #{USE_AT}
+		 WHERE INST_NO = #{INST_NO}
+	</update>
+	
+	<!-- 기관에 소속된 사용자 현황 조회 -->
+	<select id="selectPstinstInfoMberList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MPI.MBER_NO
+		     , MPI.CONFM_AT
+		     , IFNULL(PNS.NTCN_AT, 'Y') SV00_NTCN_AT
+		  FROM MBER_PSTINST_INFO MPI
+		  LEFT JOIN PUSH_NTCN_SETUP PNS
+		    ON MPI.MBER_NO = PNS.MBER_NO
+		   AND PNS.PUSH_CODE = 'SV00'
+		 WHERE MPI.INST_NO = #{INST_NO}
+		   AND MPI.SECSN_AT = 'N'
+	</select>
+	
+	<!-- 소속가입 승인요청 현황조회 쿼리 -->
+	<sql id="selectPstinstRequestInfoListQuery">
+		SELECT 
+		       MPI.MBER_NO
+		     , MI.NM
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, #{LOCALE}) BRTHDY
+		     , IF(MI.SEXDSTN = 'F', '남', '여') SEXDSTN
+		  FROM MBER_PSTINST_INFO MPI
+		 INNER JOIN MBER_INFO MI
+		    ON MPI.MBER_NO = MI.MBER_NO
+		 WHERE INST_NO = #{INST_NO}
+		   AND CONFM_AT = 'R'
+	</sql>
+	
+	<!-- 소속가입 승인요청 현황조회 건수 -->
+	<select id="selectPstinstRequestInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectPstinstRequestInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 소속가입 승인요청 현황조회 -->
+	<select id="selectPstinstRequestInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectPstinstRequestInfoListQuery" />
+		     ) TBL
+		 ORDER BY MBER_NO
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 리워드 예산관리 현황조회 쿼리 -->
+	<sql id="selectBudgetAsignInfoListQuery">
+		<![CDATA[
+		SELECT 
+		       F_STR_FORMAT('DATE', BA.ASIGN_DT, #{LOCALE}) ASIGN_DT
+		     , BA.REGIST_ID
+		     , MI.NM
+		     , F_STR_FORMAT('DATE', BA.BUDGET_BGNDE, #{LOCALE}) BUDGET_BGNDE
+		     , F_STR_FORMAT('DATE', BA.BUDGET_ENDDE, #{LOCALE}) BUDGET_ENDDE
+		     , IFNULL(DATEDIFF(BA.BUDGET_ENDDE, BA.BUDGET_BGNDE), 0) TOT_DAYS
+		     , IFNULL(IF(BA.BUDGET_BGNDE <= NOW(), DATEDIFF(BA.BUDGET_ENDDE, NOW()), 0), 0) DAYS
+		     , CASE WHEN DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN BA.BUDGET_BGNDE AND BA.BUDGET_ENDDE THEN 'ING'
+		            WHEN DATE_FORMAT(NOW(), '%Y%m%d') < BA.BUDGET_BGNDE THEN 'PRE'
+		            WHEN DATE_FORMAT(NOW(), '%Y%m%d') > BA.BUDGET_ENDDE THEN 'END'
+		        END STATUS
+		     , F_STR_FORMAT('NUM', BA.BUDGET_ASIGN_AMOUNT / 10000, #{LOCALE}) BUDGET_ASIGN_AMOUNT
+		  FROM BUDGET_ASIGN BA
+		  LEFT JOIN MBER_INFO MI
+		    ON BA.REGIST_ID = MI.USID
+		 WHERE BA.INST_NO = #{INST_NO}
+		]]>
+	</sql>
+	
+	<!-- 리워드 예산관리 현황조회 건수 -->
+	<select id="selectBudgetAsignInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectBudgetAsignInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 리워드 예산관리 현황조회 -->
+	<select id="selectBudgetAsignInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectBudgetAsignInfoListQuery" />
+		     ) TBL
+		 ORDER BY ASIGN_DT DESC, BUDGET_BGNDE DESC, BUDGET_ENDDE DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 리워드 예산 기관별 룰정보 현황조회 -->
+	<select id="selectBudgetInstRuleInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       RULE_SE_CODE
+		     , F_CODE_NM('IT03', RULE_SE_CODE, #{LOCALE}) RULE_SE_CODE_NM
+		     , IFNULL(1_GRP, 0) 1_GRP
+		     , IFNULL(2_GRP, 0) 2_GRP
+		     , IFNULL(3_GRP, 0) 3_GRP
+		     , IFNULL(4_GRP, 0) 4_GRP
+		     , IFNULL(5_GRP, 0) 5_GRP
+		     , IFNULL(1_GRP, 0) + IFNULL(2_GRP, 0) + IFNULL(3_GRP, 0) + IFNULL(4_GRP, 0) + IFNULL(5_GRP, 0) TOT
+		  FROM BUDGET_INST_RULE_INFO
+		 WHERE INST_NO = #{INST_NO}
+	</select>
+	
+	<!-- 예산 배정 존재여부 확인 -->
+	<select id="selectBudgetAsignCountInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       SUM(BUDGET_CNT) BUDGET_CNT
+		  FROM (
+		        SELECT COUNT(*) BUDGET_CNT 
+		          FROM BUDGET_ASIGN
+		         WHERE INST_NO = #{INST_NO}
+		           AND BUDGET_BGNDE <= #{BUDGET_BGNDE}
+		           AND BUDGET_ENDDE >= #{BUDGET_BGNDE}
+		         GROUP BY INST_NO
+		         UNION ALL
+		        SELECT COUNT(*) BUDGET_CNT 
+		          FROM BUDGET_ASIGN
+		         WHERE INST_NO = #{INST_NO}
+		           AND BUDGET_BGNDE <= #{BUDGET_ENDDE}
+		           AND BUDGET_ENDDE >= #{BUDGET_ENDDE}
+		         GROUP BY INST_NO
+		     ) A
+		]]>
+	</select>
+	
+	<!-- 예산 배정 저장처리 -->
+	<insert id="insertBudgetAsignInfo" parameterType="hmap">
+		<selectKey keyProperty="BUDGET_SN,TOT_DAYS" order="BEFORE" resultType="hmap">
+			SELECT 
+			       IFNULL(BUDGET_SN, 0) + 1 BUDGET_SN
+			     , IFNULL(DATEDIFF(DATE_ADD(#{BUDGET_ENDDE}, INTERVAL 1 DAY), #{BUDGET_BGNDE}), 0) TOT_DAYS
+			  FROM INST_INFO II
+			  LEFT JOIN (
+			      SELECT 
+			             INST_NO
+			           , MAX(BUDGET_SN) BUDGET_SN
+			        FROM BUDGET_ASIGN
+			       WHERE INST_NO = #{INST_NO}
+			       GROUP BY INST_NO
+			     ) BA
+			    ON II.INST_NO = BA.INST_NO
+			   WHERE II.INST_NO = #{INST_NO}
+		</selectKey>
+		INSERT INTO BUDGET_ASIGN (
+		       INST_NO
+		     , BUDGET_SN
+		     , ASIGN_DT
+		     , BUDGET_ASIGN_AMOUNT
+		     , BUDGET_ASIGN_BLCE
+		     , BUDGET_BGNDE
+		     , BUDGET_ENDDE
+		     , REGIST_DT
+		     , REGIST_ID
+		) VALUES (
+		       #{INST_NO}
+		     , #{BUDGET_SN}
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		     , #{BUDGET_ASIGN_AMOUNT}
+		     , #{BUDGET_ASIGN_BLCE}
+		     , #{BUDGET_BGNDE}
+		     , #{BUDGET_ENDDE}
+		     , NOW()
+		     , #{USID}
+		)
+	</insert>
+	
+	<!-- 예산 배정 수정처리 -->
+	<update id="updateBudgetAsignInfo" parameterType="hmap">
+		UPDATE BUDGET_ASIGN SET
+		       INST_NO = INST_NO
+		<if test="ASIGN_DT != null and ASIGN_DT != ''">
+		     , ASIGN_DT = #{ASIGN_DT}
+		</if>		       
+		<if test="BUDGET_ASIGN_AMOUNT != null and BUDGET_ASIGN_AMOUNT != ''">
+		     , BUDGET_ASIGN_AMOUNT = #{BUDGET_ASIGN_AMOUNT}
+		</if>		       
+		<if test="BUDGET_ASIGN_BLCE != null and BUDGET_ASIGN_BLCE != ''">
+		     , BUDGET_ASIGN_BLCE = #{BUDGET_ASIGN_BLCE}
+		</if>		       
+		<if test="BUDGET_BGNDE != null and BUDGET_BGNDE != ''">
+		     , BUDGET_BGNDE = #{BUDGET_BGNDE}
+		</if>		       
+		<if test="BUDGET_ENDDE != null and BUDGET_ENDDE != ''">
+		     , BUDGET_ENDDE = #{BUDGET_ENDDE}
+		</if>		       
+		 WHERE INST_NO = #{INST_NO}
+		   AND BUDGET_SN = #{BUDGET_SN} 
+	</update>
+	
+	<!-- 예산 배정 삭제처리 가능여부 확인  -->
+	<select id="selectBudgetAsignDeleteCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       INST_NO
+		     , BUDGET_SN
+		     , ASIGN_DT
+		     , BUDGET_ASIGN_AMOUNT
+		     , BUDGET_ASIGN_BLCE
+		     , BUDGET_BGNDE
+		     , BUDGET_ENDDE
+		  FROM BUDGET_ASIGN
+		 WHERE INST_NO = #{INST_NO}
+		   AND BUDGET_SN = #{BUDGET_SN}
+		   AND DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN BUDGET_BGNDE AND BUDGET_ENDDE
+	</select>
+	
+	<!-- 예산 배정 삭제처리 -->
+	<delete id="deleteBudgetAsignInfo" parameterType="hmap">
+		DELETE FROM BUDGET_ASIGN
+		 WHERE INST_NO = #{INST_NO}
+		   AND BUDGET_SN = #{BUDGET_SN} 
+	</delete>
+	
+	<!-- 예산 배정 변경 이력 -->
+	<insert id="insertBudgetAsignChangeHistInfo" parameterType="hmap">
+		INSERT INTO BUDGET_ASIGN_CHANGE_HIST (
+			   INST_NO
+			 , BUDGET_SN
+			 , CHANGE_DT
+			 , CHANGE_AMOUNT
+			 , CHANGE_RESN
+			 , REGIST_DT
+			 , REGIST_ID
+		) VALUES (
+			   #{INST_NO}
+			 , #{BUDGET_SN}
+			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+			 , #{CHANGE_AMOUNT}
+			 , #{CHANGE_RESN}
+			 , NOW()
+		     , #{USID}
+		)
+	</insert>
+	
+	<!-- 예산 일별금액 저장처리 -->
+	<insert id="insertBudgetDalyAmountInfo" parameterType="hmap">
+		INSERT INTO BUDGET_DALY_AMOUNT (
+		       INST_NO
+		     , BUDGET_SN
+		     , BUDGET_USE_DE
+		     , BUDGET_AMOUNT
+		     , BUDGET_BLCE
+		     , REGIST_DT
+		     , REGIST_ID
+		) VALUES (
+		       #{INST_NO}
+		     , #{BUDGET_SN}
+		     , DATE_FORMAT(DATE_ADD(#{BUDGET_USE_DE}, INTERVAL #{ADD_DAYS} DAY), '%Y%m%d')
+		     , #{BUDGET_AMOUNT}
+		     , #{BUDGET_BLCE}
+		     , NOW()
+		     , #{USID}
+		)
+	</insert>
+	
+	<!-- SMS 발송용 기관 대표번호, 회원 수 정보 조회 -->
+	<select id="selectSmsInstInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       II.INST_NO
+		     , MPI.MBER_CNT
+		     , II.REPRSNT_TELNO
+		     , II.SIGUNGU_CD
+		  FROM INST_INFO II
+		  LEFT JOIN (
+		        SELECT 
+		               INST_NO
+		             , COUNT(*) MBER_CNT
+		          FROM MBER_PSTINST_INFO
+		         WHERE CONFM_AT = 'Y'
+		           AND SECSN_AT = 'N'
+		         GROUP BY INST_NO
+		     ) MPI
+		    ON II.INST_NO = MPI.INST_NO
+		 WHERE II.USE_AT = 'Y'
+		   AND II.INST_NO = #{INST_NO}
+	</select>
+	
+	<!-- 소속 가입/미가입 회원 리스트 1000은 제외-->
+	<select id="selectInstNoInstList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MI.MBER_NO, 
+			MI.USID,
+			MI.NM,
+			MI.BRTHDY,
+			MI.SEXDSTN,
+			MI.MBTLNUM,
+		    CASE WHEN REG IS NULL THEN 'N'
+				ELSE REG
+			END CONF,
+			MI.MBTLNUM_CRTFC_AT	
+		FROM MBER_INFO MI
+		LEFT JOIN 
+		(
+			SELECT 
+				MBER_NO,
+				CASE 
+					WHEN SECSN_AT = 'Y' THEN 'N'            
+					ELSE 'Y'
+				END REG
+			FROM MBER_PSTINST_INFO
+			WHERE INST_NO = #{INST_NO}
+			GROUP BY MBER_NO
+		) MPI
+		ON MI.MBER_NO = MPI.MBER_NO
+		WHERE 1 = 1
+		<if test="NM != null and NM != ''">
+		AND MI.NM like CONCAT('%', #{NM}, '%')
+		</if>
+	    <if test="BRTHDY != null and BRTHDY != ''">
+		AND MI.BRTHDY like CONCAT(#{BRTHDY}, '%')
+		</if>
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+		AND MI.SEXDSTN = #{SEXDSTN}
+		</if>
+	    <if test="MBTLNUM != null and MBTLNUM != ''">
+		AND MI.MBTLNUM like CONCAT(#{MBTLNUM}, '%')
+		</if>
+		<if test="CONF != null and CONF != ''">
+		AND MPI.REG = #{CONF}
+		</if>
+		AND MI.MBER_SECSN_AT = 'N'
+		LIMIT #{START_PAGE}, 30
+	</select>
+	
+	
+	<!-- 외부 기관 서비스키 확인 -->
+	<select id="selectServiceApiKey" parameterType="hmap" resultType="hmap">
+		SELECT
+			API_KEY,
+			API_CODE
+		FROM API_KEY_MANAGE
+		WHERE API_KEY = #{API_KEY}
+		AND API_CODE = #{API_CODE}
+		AND DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN API_KEY_BGNDE AND API_KEY_ENDDE
+		AND USE_AT = 'Y'		
+	</select>
+</mapper>

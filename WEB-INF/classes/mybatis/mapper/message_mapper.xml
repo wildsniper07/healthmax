@@ -1,0 +1,1147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.MessageMapper">
+
+	<!-- 수신자 회원 정보 조회 -->
+	<select id="selectSendMberInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MI.MBER_NO
+		     , MI.NM
+		     , MI.USID
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		     , MI.SMS_SNDNG_AT
+		<choose>
+			<when test='PUSH_CODE != null and PUSH_CODE.equals("AL00")'>
+		     , IFNULL(PNS.AL00_NTCN_AT, 'Y') AL00_NTCN_AT
+			</when>
+			<when test='PUSH_CODE != null and PUSH_CODE.equals("MC00")'>
+		     , IFNULL(PNS.MC00_NTCN_AT, 'Y') MC00_NTCN_AT
+		    </when>
+			<when test='PUSH_CODE != null and PUSH_CODE.equals("TM00")'> 
+		     , IFNULL(PNS.TM00_NTCN_AT, 'Y') TM00_NTCN_AT
+		    </when>
+			<otherwise>
+		     , IFNULL(PNS.SV00_NTCN_AT, 'Y') SV00_NTCN_AT
+			</otherwise> 
+		</choose>
+		  FROM MBER_INFO MI
+		<if test="INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+	            SELECT MBER_NO
+	              FROM MBER_PSTINST_INFO MPI
+	             INNER JOIN (
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND TOP_INST_NO = #{INST_NO}
+	                     UNION ALL
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND MIDDLE_INST_NO = #{INST_NO}
+	                     UNION ALL
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND BOTTOM_INST_NO = #{INST_NO}
+	                 ) II
+	             WHERE MPI.INST_NO = II.INST_NO
+	               AND CONFM_AT = 'Y'
+	               AND SECSN_AT = 'N'
+	             GROUP BY MBER_NO
+	         ) IMPI
+	        ON MI.MBER_NO = IMPI.MBER_NO
+		</if>  
+		  LEFT JOIN (
+	          SELECT 
+	                 MBER_NO
+	               , MAX(IF(PUSH_CODE = 'AL00', NTCN_AT, NULL)) AL00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'MC00', NTCN_AT, NULL)) MC00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'SV00', NTCN_AT, NULL)) SV00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'TM00', NTCN_AT, NULL)) TM00_NTCN_AT
+	            FROM PUSH_NTCN_SETUP
+	           GROUP BY MBER_NO
+	         ) PNS
+		    ON MI.MBER_NO = PNS.MBER_NO
+		 WHERE MI.MBER_SECSN_AT = 'N'
+		<if test="KEYWORD != null and KEYWORD != ''">
+		   AND (
+			       MI.NM LIKE CONCAT('%', #{KEYWORD}, '%')
+			    OR MI.USID LIKE CONCAT('%', #{KEYWORD}, '%')
+			    OR MI.MBTLNUM LIKE CONCAT('%', #{KEYWORD}, '%')
+		     )
+		</if>
+	</select>
+	
+	<!-- 회원 SMS 발송처리 -->
+	<insert id="insertSmsSndngHistInfo" parameterType="hmap">
+		INSERT INTO SMS_SNDNG_HIST (
+			   MBER_NO
+			 , SNDNG_DT
+			 , MBTLNUM
+			 , SNDNG_NO
+			 , SMS_SJ
+			 , SMS_CN
+			 , SNDNG_STTUS_CODE
+			 , REGIST_DT
+			 , REGIST_ID
+		) VALUES (
+			   #{MBER_NO}
+			 , #{SNDNG_DT}
+			 , REPLACE(#{MBTLNUM}, '-', '')
+			 , REPLACE(#{SNDNG_NO}, '-', '')
+			 , #{SMS_SJ}
+			 , #{SMS_CN}
+			 , #{SNDNG_STTUS_CODE}
+			 , NOW()
+			 , #{USID}
+		)
+	</insert>
+	
+	<!-- 회원 PUSH 발송이력 저장 처리 -->
+	<insert id="insertPushSndngHistInfo" parameterType="hmap">
+		<selectKey keyProperty="SNDNG_SN" order="BEFORE" resultType="int">
+			SELECT 
+			       IFNULL(SNDNG_SN, 0) + 1 SNDNG_SN
+			  FROM MBER_INFO MI
+			  LEFT JOIN (
+			        SELECT 
+			               MBER_NO
+			             , MAX(SNDNG_SN) SNDNG_SN
+			          FROM PUSH_SNDNG_HIST
+			         WHERE MBER_NO = #{MBER_NO}
+			           AND SNDNG_DT = #{SNDNG_DT}
+			         GROUP BY MBER_NO, SNDNG_DT
+			     ) PSH
+			    ON MI.MBER_NO = PSH.MBER_NO
+			 WHERE MI.MBER_NO = #{MBER_NO}
+		</selectKey>
+		INSERT INTO PUSH_SNDNG_HIST (
+			   MBER_NO
+			 , SNDNG_DT
+			 , SNDNG_SN
+			 , PUSH_SJ
+			 , PUSH_CN
+			 , PUSH_CODE
+			 , PARAMTR
+			 , TRNSMIS_DT
+			 , TRNSMIS_STTUS_CODE
+			 , READ_AT
+			 , REGIST_DT 
+		) VALUES (
+			   #{MBER_NO}
+			 , #{SNDNG_DT}
+			 , #{SNDNG_SN}
+			 , #{PUSH_SJ}
+			 , #{PUSH_CN}
+			 , #{PUSH_CODE}
+			 , #{PARAMTR}
+			 , #{TRNSMIS_DT}
+			 , #{TRNSMIS_STTUS_CODE}
+			 , 'N'
+			 , NOW() 
+		)
+	</insert>
+	
+	<!-- 회원 PUSH 발송정보 저장 처리 -->
+	<insert id="insertPushSndngInfo" parameterType="hmap">
+		INSERT INTO PUSH_SNDNG_INFO (
+			   MBER_NO
+			 , SNDNG_DT
+			 , SNDNG_SN
+			 , PUSH_KEY
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{SNDNG_DT}
+			 , #{SNDNG_SN}
+			 , #{PUSH_KEY}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 닥터그램 메세지 발송처리 -->
+	<insert id="insertMberDoctrGramMssageInfo" parameterType="hmap">
+		<selectKey keyProperty="DOCTR_GRAM_SN,DOCTR_GRAM_ENDDT,DOCTR_GRAM_JOB_CODE" order="BEFORE" resultType="hmap">
+			SELECT 
+			       IFNULL(DOCTR_GRAM_SN, 0) + 1 DOCTR_GRAM_SN
+			     , CASE WHEN SUBSTRING(#{DOCTR_GRAM_SE_CODE}, 2, 1) = 'D' AND SUBSTRING(#{DOCTR_GRAM_SE_CODE}, 4, 1) = 'O' THEN CONCAT(DATE_FORMAT(#{DOCTR_GRAM_BGNDT}, '%Y%m%d'), '235959')
+			            ELSE '99991231235959'
+			        END DOCTR_GRAM_ENDDT
+			     , IFNULL(#{DOCTR_GRAM_JOB_CODE}, 'MSCS0F') DOCTR_GRAM_JOB_CODE
+			  FROM MBER_INFO MI
+			  LEFT JOIN (
+			      SELECT 
+			             MBER_NO
+					   , MAX(DOCTR_GRAM_SN) DOCTR_GRAM_SN
+					FROM MBER_DOCTR_GRAM_MSSAGE USE INDEX(IDX_MBER_DOCTR_GRAM_MSSAGE_01)
+				   WHERE MBER_NO = #{MBER_NO}
+					 AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+				   GROUP BY MBER_NO, DOCTR_GRAM_SE_CODE
+			     ) MDGM
+			    ON MI.MBER_NO = MDGM.MBER_NO
+			 WHERE MI.MBER_NO = #{MBER_NO}
+		</selectKey>
+		INSERT INTO MBER_DOCTR_GRAM_MSSAGE (
+			   MBER_NO
+			 , DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+			 , DOCTR_GRAM_JOB_CODE
+			 , DOCTR_GRAM_BGNDT
+			 , DOCTR_GRAM_ENDDT
+			 , DOCTR_GRAM_SJ
+			 , DOCTR_GRAM_CN
+			 , DOCTR_GRAM_URL
+			 , DOCTR_GRAM_READ_AT
+			 , REGIST_DT
+			 , USE_AT 
+		) VALUES (
+			   #{MBER_NO}
+			 , #{DOCTR_GRAM_SE_CODE}
+			 , #{DOCTR_GRAM_SN}
+			 , #{DOCTR_GRAM_JOB_CODE}
+			 , #{DOCTR_GRAM_BGNDT}
+			 , #{DOCTR_GRAM_ENDDT}
+			 , #{DOCTR_GRAM_SJ}
+			 , #{DOCTR_GRAM_CN}
+			 , #{DOCTR_GRAM_URL}
+			 , 'N'
+			 , NOW()
+			 , 'Y'
+		)
+	</insert>
+	
+	<!-- 닥터그램 업무 코드로 발송중인 메세지 현황조회 -->
+	<select id="selectMberDoctrGramMssageInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   MBER_NO
+			 , DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+			 , DOCTR_GRAM_BGNDT
+		  FROM MBER_DOCTR_GRAM_MSSAGE
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND USE_AT = 'Y'
+		   AND DOCTR_GRAM_READ_AT = 'N'
+		<if test="DOCTR_GRAM_SE_CODE != null and DOCTR_GRAM_SE_CODE != ''">
+		   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		</if>
+		<if test="DOCTR_GRAM_JOB_CODE != null and DOCTR_GRAM_JOB_CODE != ''">
+		   AND DOCTR_GRAM_JOB_CODE = #{DOCTR_GRAM_JOB_CODE}
+		</if>
+		<choose>
+			<when test='DAY_GBN != null and DAY_GBN.equals("NEXT")'>
+	     ORDER BY REGIST_DT DESC
+			</when>
+			<otherwise>
+		   AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+			</otherwise>
+		</choose>		   
+	</select>
+	
+	<!-- 닥터그램 메세지 현황 조회 -->
+	<select id="selectDoctrGramMssageInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+		     , DOCTR_GRAM_SJ
+		     , DOCTR_GRAM_URL
+		     , IF(SUBSTRING(DOCTR_GRAM_JOB_CODE, 6, 1) IN ('F', 'M', 'L'), 10, 10) VIEW_SECOND
+		  FROM (
+		        SELECT  
+		               1 ODR
+		       	     , DOCTR_GRAM_SE_CODE
+		        	 , DOCTR_GRAM_SN
+		             , DOCTR_GRAM_SJ
+		             , DOCTR_GRAM_URL
+		             , DOCTR_GRAM_JOB_CODE
+		          FROM MBER_DOCTR_GRAM_MSSAGE
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+		           AND DOCTR_GRAM_SE_CODE LIKE 'F%'
+		           AND DOCTR_GRAM_READ_AT = 'N'
+		           AND USE_AT = 'Y'
+		         UNION ALL
+                SELECT
+                       2 ODR
+              	     , DOCTR_GRAM_SE_CODE
+                	 , DOCTR_GRAM_SN
+                     , DOCTR_GRAM_SJ
+                     , DOCTR_GRAM_URL
+                     , DOCTR_GRAM_JOB_CODE
+                  FROM MBER_DOCTR_GRAM_MSSAGE
+                 WHERE MBER_NO = #{MBER_NO}
+                   AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+                   AND DOCTR_GRAM_SE_CODE LIKE 'R%'
+                   AND DOCTR_GRAM_READ_AT = 'N'
+                   AND USE_AT = 'Y'
+		         UNION ALL
+		        SELECT
+		               3 ODR
+		        	 , DOCTR_GRAM_SE_CODE
+		        	 , DOCTR_GRAM_SN
+		             , DOCTR_GRAM_SJ
+		             , DOCTR_GRAM_URL
+		             , DOCTR_GRAM_JOB_CODE
+		          FROM MBER_DOCTR_GRAM_MSSAGE
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+		           AND DOCTR_GRAM_SE_CODE LIKE 'L%'
+		           AND DOCTR_GRAM_READ_AT = 'N'
+		           AND USE_AT = 'Y'
+		         ORDER BY ODR ASC, DOCTR_GRAM_SN ASC
+		     ) TBL
+	</select>
+	
+	<!-- 닥터그램 메세지 조회 -->
+	<select id="selectDoctrGramMssageInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+		     , DOCTR_GRAM_SJ
+		     , DOCTR_GRAM_URL
+		  FROM (
+		        SELECT  
+		               1 ODR
+		       	     , DOCTR_GRAM_SE_CODE
+		        	 , DOCTR_GRAM_SN
+		             , DOCTR_GRAM_SJ
+		             , DOCTR_GRAM_URL
+		          FROM MBER_DOCTR_GRAM_MSSAGE
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+		           AND DOCTR_GRAM_SE_CODE LIKE 'F%'
+		           AND DOCTR_GRAM_READ_AT = 'N'
+		           AND USE_AT = 'Y'
+		         UNION ALL
+		        SELECT 
+		               ODR
+		        	 , DOCTR_GRAM_SE_CODE
+		        	 , DOCTR_GRAM_SN
+		             , DOCTR_GRAM_SJ
+		             , DOCTR_GRAM_URL
+		          FROM (
+		                SELECT
+		                       2 ODR
+		              	     , DOCTR_GRAM_SE_CODE
+		                	 , DOCTR_GRAM_SN
+		                     , DOCTR_GRAM_SJ
+		                     , DOCTR_GRAM_URL
+		                  FROM MBER_DOCTR_GRAM_MSSAGE
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+		                   AND DOCTR_GRAM_SE_CODE LIKE 'R%'
+		                   AND DOCTR_GRAM_READ_AT = 'N'
+		                   AND USE_AT = 'Y'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) RAN
+		         UNION ALL
+		        SELECT
+		               3 ODR
+		        	 , DOCTR_GRAM_SE_CODE
+		        	 , DOCTR_GRAM_SN
+		             , DOCTR_GRAM_SJ
+		             , DOCTR_GRAM_URL
+		          FROM MBER_DOCTR_GRAM_MSSAGE
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND NOW() BETWEEN DOCTR_GRAM_BGNDT AND DOCTR_GRAM_ENDDT
+		           AND DOCTR_GRAM_SE_CODE LIKE 'L%'
+		           AND DOCTR_GRAM_READ_AT = 'N'
+		           AND USE_AT = 'Y'
+		         ORDER BY ODR ASC, DOCTR_GRAM_SN ASC
+		         LIMIT 1
+		     ) TBL
+	</select>
+	
+	<!-- 닥터그램 메세지 읽음처리 전 시작,종료,읽음여부,사용여부 조회 -->
+	<select id="selectBeforeReadDoctrGramInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   MBER_NO
+			 , DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+			 , CASE WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'D' THEN DOCTR_GRAM_BGNDT
+			        WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'M' THEN CONCAT(DATE_FORMAT(DATE_ADD(CONCAT(SUBSTRING(DOCTR_GRAM_BGNDT, 1, 6), '01'), INTERVAL 1 MONTH), '%Y%m%d'), '000000')
+			        WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'I' AND SUBSTRING(DOCTR_GRAM_SE_CODE, 4, 1) = 'O' THEN CONCAT(DATE_FORMAT(DATE_ADD(SUBSTRING(DOCTR_GRAM_BGNDT, 1, 8), INTERVAL 1 DAY), '%Y%m%d'), '000000')
+			        ELSE DOCTR_GRAM_BGNDT
+			    END DOCTR_GRAM_BGNDT
+			 , CASE WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'D' AND SUBSTRING(DOCTR_GRAM_SE_CODE, 4, 1) = 'O' THEN DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+			        WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'D' AND SUBSTRING(DOCTR_GRAM_SE_CODE, 4, 1) = 'C' THEN DOCTR_GRAM_ENDDT
+			        ELSE DOCTR_GRAM_ENDDT
+			    END DOCTR_GRAM_ENDDT
+			 , CASE WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'D' AND SUBSTRING(DOCTR_GRAM_SE_CODE, 4, 1) = 'O' THEN 'Y'
+			        ELSE 'N'
+			    END DOCTR_GRAM_READ_AT
+			 , CASE WHEN SUBSTRING(DOCTR_GRAM_SE_CODE, 2, 1) = 'D' AND SUBSTRING(DOCTR_GRAM_SE_CODE, 4, 1) = 'O' THEN 'N'
+			        WHEN NOW() >= DOCTR_GRAM_ENDDT THEN 'N'
+			        ELSE 'Y'
+			    END USE_AT
+		  FROM MBER_DOCTR_GRAM_MSSAGE
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		   AND DOCTR_GRAM_SN = #{DOCTR_GRAM_SN}
+		   AND USE_AT = 'Y'
+	</select>
+	
+	<!-- 닥터그램 메세지 수정처리 -->
+	<update id="updateDoctrGramMssageInfo" parameterType="hmap">
+		UPDATE MBER_DOCTR_GRAM_MSSAGE SET
+			   MBER_NO = MBER_NO
+		<if test="DOCTR_GRAM_JOB_CODE != null and DOCTR_GRAM_JOB_CODE != ''">
+		     , DOCTR_GRAM_JOB_CODE = #{DOCTR_GRAM_JOB_CODE}
+		</if>
+		<if test="DOCTR_GRAM_BGNDT != null and DOCTR_GRAM_BGNDT != ''">
+		     , DOCTR_GRAM_BGNDT = #{DOCTR_GRAM_BGNDT}
+		</if>
+		<if test="DOCTR_GRAM_ENDDT != null and DOCTR_GRAM_ENDDT != ''">
+		     , DOCTR_GRAM_ENDDT = #{DOCTR_GRAM_ENDDT}
+		</if>
+		<if test="DOCTR_GRAM_SJ != null and DOCTR_GRAM_SJ != ''">
+		     , DOCTR_GRAM_SJ = #{DOCTR_GRAM_SJ}
+		</if>
+		<if test="DOCTR_GRAM_CN != null and DOCTR_GRAM_CN != ''">
+		     , DOCTR_GRAM_CN = #{DOCTR_GRAM_CN}
+		</if>
+		<if test="DOCTR_GRAM_URL != null and DOCTR_GRAM_URL != ''">
+		     , DOCTR_GRAM_URL = #{DOCTR_GRAM_URL}
+		</if>
+		<if test="DOCTR_GRAM_READ_AT != null and DOCTR_GRAM_READ_AT != ''">
+		     , DOCTR_GRAM_READ_AT = #{DOCTR_GRAM_READ_AT}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">		     
+		     , USE_AT = #{USE_AT}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		<if test="DOCTR_GRAM_SN != null and DOCTR_GRAM_SN != ''">
+		   AND DOCTR_GRAM_SN = #{DOCTR_GRAM_SN}
+		</if>
+		<if test="DOCTR_GRAM_JOB_CODE != null and DOCTR_GRAM_JOB_CODE != ''">
+		   AND DOCTR_GRAM_JOB_CODE = #{DOCTR_GRAM_JOB_CODE}
+		</if>
+	</update>
+	
+	<!-- 닥터그램 메세지 삭제처리 -->
+	<delete id="deleteDoctrGramMssageInfo" parameterType="hmap">
+		DELETE FROM MBER_DOCTR_GRAM_MSSAGE
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND USE_AT = 'Y'
+		   AND DOCTR_GRAM_READ_AT = 'N'
+		   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		<if test="DOCTR_GRAM_SN != null and DOCTR_GRAM_SN != ''">
+		   AND DOCTR_GRAM_SN = #{DOCTR_GRAM_SN}
+		</if>
+		<if test="DOCTR_GRAM_JOB_CODE != null and DOCTR_GRAM_JOB_CODE != ''">
+		   AND DOCTR_GRAM_JOB_CODE = #{DOCTR_GRAM_JOB_CODE}
+		</if>
+	</delete>
+	
+	<!-- 보행수 PUSH, 닥터그램 메세지 발송 전 성명, 목표값,고혈압정보,연속달성수, 보행수 측정 마지막일자 조회 -->
+	<select id="selectStepMssageInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+		       MI.MBER_NO
+		     , MI.NM
+		     , CASE WHEN MEG.GOAL_VALUE IS NOT NULL AND MEG.GOAL_VALUE > 0 THEN TRUNCATE(MEG.GOAL_VALUE, 0)
+		            WHEN CEG.GOAL_VALUE IS NOT NULL AND CEG.GOAL_VALUE > 0 THEN TRUNCATE(CEG.GOAL_VALUE, 0)
+		            ELSE 10000
+		        END STEP_GOAL
+		     , CASE WHEN (IFNULL(SYSTOLIC , 0) >= 120 AND IFNULL(SYSTOLIC , 0) <  140) OR (IFNULL(DIASTOLIC, 0) >=  80 AND IFNULL(DIASTOLIC, 0) <   90) THEN 'HBPS1'
+		            WHEN  IFNULL(SYSTOLIC , 0) >= 140                                  OR  IFNULL(DIASTOLIC, 0) >=  90                                  THEN 'HBPS0'
+		            ELSE 'NOML'
+		        END BP_STATUS
+		     , CASE WHEN (IFNULL(FBS , 0) >= 100 AND IFNULL(FBS , 0) <  126) OR (IFNULL(PP2, 0) >=  140 AND IFNULL(PP2, 0) <   199) THEN 'DABT1'
+		            WHEN  IFNULL(FBS , 0) >= 126                             OR  IFNULL(PP2, 0) >=  200                             THEN 'DABT0'
+		            ELSE 'NOML'
+		        END BS_STATUS	
+		     , STEP_CTNU_ACHIV_DAYCNT
+		     , IFNULL(STEP_CTNU_ACHIV_LAST_DE, '') STEP_CTNU_ACHIV_LAST_DE
+		     , IFNULL(STEP_MESURE_LAST_DE, '') STEP_MESURE_LAST_DE
+		     , IFNULL(LEGACY_STEP, 0) LEGACY_STEP
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , GOAL_VALUE
+		          FROM MBER_ESTBS_GOAL MEG
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4010'
+		     ) MEG
+		    ON MI.MBER_NO = MEG.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , GOAL_VALUE
+		          FROM CCH_ESTBS_GOAL CEG
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4010'
+		     ) CEG
+		    ON MI.MBER_NO = CEG.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , MAX(IF(MIC.MESURE_CODE = '622E', MESURE_DATA, 0)) SYSTOLIC
+				     , MAX(IF(MIC.MESURE_CODE = '622F', MESURE_DATA, 0)) DIASTOLIC
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				          SELECT 
+				                 MIC.MBER_NO
+				               , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+				               , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+				            FROM MESURE_INFO_CMMN MIC
+				           INNER JOIN (
+				                  SELECT 
+				                         MBER_NO
+				                       , MESURE_CODE
+				                       , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+				                       , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+				                    FROM MESURE_INFO_CMMN
+				                   WHERE MBER_NO = #{MBER_NO}
+				                     AND MESURE_CODE IN ('622E', '622F')
+				                   GROUP BY MBER_NO, MESURE_CODE, SUBSTRING(MESURE_DT, 1, 8)
+				               ) MMIC
+				              ON MIC.MBER_NO = MMIC.MBER_NO
+				             AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				             AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+				           GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1, 8)
+				          HAVING COUNT(*) = 2
+				           ORDER BY MESURE_DE DESC
+				           LIMIT 1
+				     ) MMIC 
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+				 GROUP BY MBER_NO
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               MIC.MBER_NO
+		             , MAX(IF(MIC.MESURE_CODE = '624A', MIC.MESURE_DATA, 0)) FBS
+		             , MAX(IF(MIC.MESURE_CODE = '624B', MIC.MESURE_DATA, 0)) PP2
+		          FROM MESURE_INFO_CMMN MIC
+		          INNER JOIN (
+		                SELECT 
+		                       MBER_NO
+		                     , MESURE_CODE
+		                     , IF(MESURE_CODE = '624A', MAX(MESURE_DT), NULL) 624A_DATE
+		                     , IF(MESURE_CODE = '624B', MAX(MESURE_DT), NULL) 624B_DATE
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE IN ('624A', '624B')
+		                 GROUP BY MBER_NO, MESURE_CODE
+		             ) MICS
+		            ON MIC.MBER_NO = MICS.MBER_NO
+		           AND MIC.MESURE_CODE = MICS.MESURE_CODE
+		           AND MIC.MESURE_DT = IF(MIC.MESURE_CODE = '624A', MICS.624A_DATE, MICS.624B_DATE)
+		         GROUP BY MIC.MBER_NO
+		     ) BS_MIC
+		    ON MI.MBER_NO = BS_MIC.MBER_NO  
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , STEP_CTNU_ACHIV_DAYCNT
+		             , STEP_CTNU_ACHIV_LAST_DE
+		             , STEP_MESURE_LAST_DE
+		          FROM MBER_STTBRD
+		         WHERE MBER_NO = #{MBER_NO}
+		     ) MS
+		    ON MI.MBER_NO = MS.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+		               MBER_NO
+                 	 , MAX(CAST(MESURE_DATA AS UNSIGNED)) LEGACY_STEP
+		          FROM MESURE_INFO_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE IN ('4010', '4015')
+                   AND MESURE_BGNDT LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+		         GROUP BY MBER_NO
+		     ) MIA
+		    ON MI.MBER_NO = MIA.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+ 		]]>
+	</select>
+	
+	<!-- 닥터그램 메세지 정보 조회 -->
+	<select id="selectMssageInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   MSSAGE_SE_CODE
+			 , MSSAGE_SN
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+			 , MSSAGE_1_US AS MSSAGE_1
+ 			 , MSSAGE_2_US AS MSSAGE_2
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+			 , MSSAGE_1_ES AS MSSAGE_1
+ 			 , MSSAGE_2_ES AS MSSAGE_2
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+			 , MSSAGE_1_ID AS MSSAGE_1
+ 			 , MSSAGE_2_ID AS MSSAGE_2
+			</when>
+			<otherwise>
+			 , MSSAGE_1
+ 			 , MSSAGE_2			
+			</otherwise>
+		</choose>
+		  FROM MSSAGE_INFO
+		 WHERE MSSAGE_SE_CODE = #{MSSAGE_SE_CODE}
+		 ORDER BY RAND()
+		 LIMIT 1
+	</select>
+	
+	<!-- 메세지 관리 정보 조회 -->
+	<select id="selectMssageManageInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MSSAGE_TY_CODE
+		     , MSSAGE_SE_CODE
+		     , MSSAGE_JOB_CODE
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		     , MSSAGE_US MSSAGE
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+			 , MSSAGE_ES MSSAGE
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+			 , MSSAGE_ID MSSAGE
+			</when>
+			<otherwise>
+		     , MSSAGE
+		    </otherwise>
+		</choose>
+		  FROM MSSAGE_MANAGE
+		 WHERE MSSAGE_TY_CODE = #{MSSAGE_TY_CODE}
+		<if test="MSSAGE_SE_CODE != null and MSSAGE_SE_CODE != ''">
+		   AND MSSAGE_SE_CODE = #{MSSAGE_SE_CODE}
+		</if>
+		<if test="MSSAGE_JOB_CODE != null and MSSAGE_JOB_CODE != ''">
+		   AND MSSAGE_JOB_CODE = #{MSSAGE_JOB_CODE}
+		</if>
+		<if test="MSSAGE_SN != null and MSSAGE_SN != ''">
+		   AND MSSAGE_SN = #{MSSAGE_SN}
+		</if>				 
+		 ORDER BY RAND()
+		 LIMIT 1
+	</select>
+	
+	<!-- PHR 큐레이션 전체 닥터그램 메세지 전송 -->
+	<insert id="insertPhrCurationAllDoctrGramMssageInfo" parameterType="hmap">
+		INSERT INTO MBER_DOCTR_GRAM_MSSAGE (
+			   MBER_NO
+			 , DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+			 , DOCTR_GRAM_JOB_CODE
+			 , DOCTR_GRAM_BGNDT
+			 , DOCTR_GRAM_ENDDT
+			 , DOCTR_GRAM_SJ
+			 , DOCTR_GRAM_CN
+			 , DOCTR_GRAM_URL
+			 , DOCTR_GRAM_READ_AT
+			 , REGIST_DT
+			 , USE_AT 
+		)
+		SELECT 
+		       MB.MBER_NO
+		  	 , 'RDSO07' DOCTR_GRAM_SE_CODE
+		     , DOCTR_GRAM_SN + (@ROW := @ROW + 1) DOCTR_GRAM_SN
+		     , CONCAT(MM.MSSAGE_TY_CODE, MM.MSSAGE_SE_CODE, MM.MSSAGE_JOB_CODE, LPAD(MM.MSSAGE_SN, 2, '0')) DOCTR_GRAM_JOB_CODE
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s') DOCTR_GRAM_BGNDT
+		     , CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '235959') DOCTR_GRAM_ENDDT
+		  	 , MSSAGE DOCTR_GRAM_SJ
+		     , NULL DOCTR_GRAM_CN
+		     , 'MDMN' DOCTR_GRAM_URL
+		     , 'N' DOCTR_GRAM_READ_AT
+		     , NOW() REGIST_DT
+		     , 'Y' USE_AT
+		  FROM MSSAGE_MANAGE MM
+		 INNER JOIN (SELECT @ROW := 0)  R
+		 INNER JOIN (
+		        SELECT 
+		               MI.MBER_NO
+		             , IFNULL(DOCTR_GRAM_SN, 0) DOCTR_GRAM_SN
+		          FROM MBER_INFO MI
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MAX(DOCTR_GRAM_SN) DOCTR_GRAM_SN
+		                  FROM MBER_DOCTR_GRAM_MSSAGE
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		                 GROUP BY MBER_NO, DOCTR_GRAM_SE_CODE
+		            ) MDGM 
+		           ON MI.MBER_NO = MDGM.MBER_NO
+		        WHERE MI.MBER_NO = #{MBER_NO}
+		     ) MB
+		 INNER JOIN ( 
+		    		SELECT 
+		    			   MSSAGE_SE_CODE 
+		    			 , MSSAGE_SN_1
+		    		  FROM PHR_CASE_MSSAGE 
+		    		 WHERE CASE_ID = #{PHR_CASE_ID}
+		    		   AND MSSAGE_STEP = 0 
+		    		   AND USE_AT = 'Y'
+		    		 UNION ALL
+		    		SELECT 
+		    			   MSSAGE_SE_CODE 
+		    			 , MSSAGE_SN_1
+		    		  FROM PHR_CASE_MSSAGE 
+		    		 WHERE CASE_ID = #{PHR_CASE_ID}
+		    		   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		    		   AND USE_AT = 'Y'
+		    		 UNION ALL
+		    		SELECT 
+		    			   MSSAGE_SE_CODE 
+		    			 , MSSAGE_SN_2
+		    		  FROM PHR_CASE_MSSAGE 
+		    		 WHERE CASE_ID = #{PHR_CASE_ID}
+		    		   AND MSSAGE_STEP = 0 
+		    		   AND USE_AT = 'Y'
+		    		 UNION ALL
+		    		SELECT 
+		    			   MSSAGE_SE_CODE 
+		    			 , MSSAGE_SN_2
+		    		  FROM PHR_CASE_MSSAGE 
+		    		 WHERE CASE_ID = #{PHR_CASE_ID}
+		    		   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP} 
+		    		   AND USE_AT = 'Y'
+		     ) PHR
+		    ON MM.MSSAGE_SE_CODE = PHR.MSSAGE_SE_CODE
+		   AND MM.MSSAGE_SN = PHR.MSSAGE_SN_1
+		 WHERE MM.MSSAGE_TY_CODE = 'DP'
+           AND MM.USE_AT = 'Y'
+	</insert>
+	
+	<!-- PHR 큐레이션 랜덤 닥터그램 메세지 전송 -->
+	<insert id="insertPhrCurationRandomDoctrGramMssageInfo" parameterType="hmap">
+		INSERT INTO MBER_DOCTR_GRAM_MSSAGE (
+			   MBER_NO
+			 , DOCTR_GRAM_SE_CODE
+			 , DOCTR_GRAM_SN
+			 , DOCTR_GRAM_JOB_CODE
+			 , DOCTR_GRAM_BGNDT
+			 , DOCTR_GRAM_ENDDT
+			 , DOCTR_GRAM_SJ
+			 , DOCTR_GRAM_CN
+			 , DOCTR_GRAM_URL
+			 , DOCTR_GRAM_READ_AT
+			 , REGIST_DT
+			 , USE_AT 
+		)
+		SELECT 
+		       MB.MBER_NO
+		  	 , 'RDSO07' DOCTR_GRAM_SE_CODE
+		     , DOCTR_GRAM_SN + (@ROW := @ROW + 1) DOCTR_GRAM_SN
+		     , CONCAT(MM.MSSAGE_TY_CODE, MM.MSSAGE_SE_CODE, MM.MSSAGE_JOB_CODE, LPAD(MM.MSSAGE_SN, 2, '0')) DOCTR_GRAM_JOB_CODE
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s') DOCTR_GRAM_BGNDT
+		     , CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '235959') DOCTR_GRAM_ENDDT
+		  	 , MSSAGE DOCTR_GRAM_SJ
+		     , NULL DOCTR_GRAM_CN
+		     , 'MDMN' DOCTR_GRAM_URL
+		     , 'N' DOCTR_GRAM_READ_AT
+		     , NOW() REGIST_DT
+		     , 'Y' USE_AT
+		  FROM MSSAGE_MANAGE MM
+		 INNER JOIN (SELECT @ROW := 0)  R
+		 INNER JOIN (
+		        SELECT 
+		               MI.MBER_NO
+		             , IFNULL(DOCTR_GRAM_SN, 0) DOCTR_GRAM_SN
+		          FROM MBER_INFO MI
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MAX(DOCTR_GRAM_SN) DOCTR_GRAM_SN
+		                  FROM MBER_DOCTR_GRAM_MSSAGE
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND DOCTR_GRAM_SE_CODE = #{DOCTR_GRAM_SE_CODE}
+		                 GROUP BY MBER_NO, DOCTR_GRAM_SE_CODE
+		            ) MDGM 
+		           ON MI.MBER_NO = MDGM.MBER_NO
+		        WHERE MI.MBER_NO = #{MBER_NO}
+		     ) MB
+		 INNER JOIN (
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM PHR_CASE_MSSAGE 
+		         WHERE CASE_ID = #{PHR_CASE_ID}
+		           AND MSSAGE_STEP = 0 
+		           AND USE_AT = 'Y'
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'HTSP'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'HTSP'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) HTSP
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'HTNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'HTNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) HTNT
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DBSP'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DBSP'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) DBSP
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DBNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DBNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) DBNT
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DSSP'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DSSP'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) DSSP
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DSNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'DSNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) DSNT
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'OBSP'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'OBSP'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) OBSP
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'OBNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'OBNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) OBNT
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'BFNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'BFNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) BFNT
+		         UNION ALL  
+		        SELECT 
+		               MSSAGE_SE_CODE
+		             , MSSAGE_SN_1
+		          FROM (
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_1
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'EMNT'
+		                 UNION ALL
+		                SELECT
+		                       MSSAGE_SE_CODE
+		                     , MSSAGE_SN_2
+		                  FROM PHR_CASE_MSSAGE 
+		                 WHERE CASE_ID = #{PHR_CASE_ID}
+		                   AND MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		                   AND USE_AT = 'Y'
+		                   AND MSSAGE_SE_CODE = 'EMNT'
+		                 ORDER BY RAND()
+		                 LIMIT 1
+		             ) EMNT
+		     ) PHR
+		    ON MM.MSSAGE_SE_CODE = PHR.MSSAGE_SE_CODE
+		   AND MM.MSSAGE_SN = PHR.MSSAGE_SN_1
+		 WHERE MM.MSSAGE_TY_CODE = 'DP'
+           AND MM.USE_AT = 'Y'
+	</insert>
+	
+	<!-- 혈압정보, 혈당정보, 콜레스테롤 정보(LDL-C), 오늘 하루 식사 횟수 조회, 권장 칼로리 초과, 미만정보 -->
+	<select id="selectMealDiaryMessageInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+		       MI.MBER_NO
+		     , MI.NM
+		     , CASE WHEN (IFNULL(SYSTOLIC , 0) >= 120 AND IFNULL(SYSTOLIC , 0) <  140) OR (IFNULL(DIASTOLIC, 0) >=  80 AND IFNULL(DIASTOLIC, 0) <   90) THEN 'HBPS1'
+		            WHEN  IFNULL(SYSTOLIC , 0) >= 140                                  OR  IFNULL(DIASTOLIC, 0) >=  90                                  THEN 'HBPS0'
+		            ELSE 'NOML'
+		        END BP_STATUS
+		     , CASE WHEN (IFNULL(FBS , 0) >= 100 AND IFNULL(FBS , 0) <  126) OR (IFNULL(PP2, 0) >=  140 AND IFNULL(PP2, 0) <   199) THEN 'DABT1'
+		            WHEN  IFNULL(FBS , 0) >= 126                             OR  IFNULL(PP2, 0) >=  200                             THEN 'DABT0'
+		            ELSE 'NOML'
+		        END BS_STATUS
+		     , CASE WHEN IFNULL(LDLC , 0) >= 130 THEN 'DSPD'
+		            ELSE 'NOML'
+		        END BC_STATUS        
+		     , IFNULL(MEAL_CNT, 0) MEAL_CNT
+		     , ROUND(IFNULL(MEAL_CALORIE, 0), 0) MEAL_CALORIE
+		     , ROUND(IFNULL(UP_CALORIE, 0), 0) UP_CALORIE
+		     , ROUND(IFNULL(DW_CALORIE, 0), 0) DW_CALORIE
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        	SELECT 
+		        	       MIC.MBER_NO
+		        	     , MAX(IF(MIC.MESURE_CODE = '622E', MESURE_DATA, 0)) SYSTOLIC
+		        	     , MAX(IF(MIC.MESURE_CODE = '622F', MESURE_DATA, 0)) DIASTOLIC
+		        	  FROM MESURE_INFO_CMMN MIC
+		        	 INNER JOIN (
+		        	          SELECT 
+		        	                 MIC.MBER_NO
+		        	               , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		        	               , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+		        	            FROM MESURE_INFO_CMMN MIC
+		        	           INNER JOIN (
+		        	                  SELECT 
+		        	                         MBER_NO
+		        	                       , MESURE_CODE
+		        	                       , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		        	                       , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+		        	                    FROM MESURE_INFO_CMMN
+		        	                   WHERE MBER_NO = #{MBER_NO}
+		        	                     AND MESURE_CODE IN ('622E', '622F')
+		        	                   GROUP BY MBER_NO, MESURE_CODE, SUBSTRING(MESURE_DT, 1, 8)
+		        	               ) MMIC
+		        	              ON MIC.MBER_NO = MMIC.MBER_NO
+		        	             AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		        	             AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		        	           GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1, 8)
+		        	          HAVING COUNT(*) = 2
+		        	           ORDER BY MESURE_DE DESC
+		        	           LIMIT 1
+		        	     ) MMIC 
+		        	    ON MIC.MBER_NO = MMIC.MBER_NO
+		        	   AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		        	 GROUP BY MBER_NO
+		     ) BP_MIC
+		    ON MI.MBER_NO = BP_MIC.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               MIC.MBER_NO
+		             , MAX(IF(MIC.MESURE_CODE = '624A', MIC.MESURE_DATA, 0)) FBS
+		             , MAX(IF(MIC.MESURE_CODE = '624B', MIC.MESURE_DATA, 0)) PP2
+		          FROM MESURE_INFO_CMMN MIC
+		          INNER JOIN (
+		                SELECT 
+		                       MBER_NO
+		                     , MESURE_CODE
+		                     , IF(MESURE_CODE = '624A', MAX(MESURE_DT), NULL) 624A_DATE
+		                     , IF(MESURE_CODE = '624B', MAX(MESURE_DT), NULL) 624B_DATE
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE IN ('624A', '624B')
+		                 GROUP BY MBER_NO, MESURE_CODE
+		             ) MICS
+		            ON MIC.MBER_NO = MICS.MBER_NO
+		           AND MIC.MESURE_CODE = MICS.MESURE_CODE
+		           AND MIC.MESURE_DT = IF(MIC.MESURE_CODE = '624A', MICS.624A_DATE, MICS.624B_DATE)
+		         GROUP BY MIC.MBER_NO
+		     ) BS_MIC
+		    ON MI.MBER_NO = BS_MIC.MBER_NO  
+		  LEFT JOIN (
+		        SELECT
+		               MIC.MBER_NO
+		             , MAX(MIC.MESURE_DATA) LDLC
+		          FROM MESURE_INFO_CMMN MIC
+		          INNER JOIN (
+		                SELECT 
+		                       MBER_NO
+		                     , MESURE_CODE
+		                     , MAX(MESURE_DT) MESURE_DT
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE = '624F'
+		                 GROUP BY MBER_NO, MESURE_CODE
+		             ) MICS
+		            ON MIC.MBER_NO = MICS.MBER_NO
+		           AND MIC.MESURE_CODE = MICS.MESURE_CODE
+		           AND MIC.MESURE_DT = MICS.MESURE_DT
+		         GROUP BY MIC.MBER_NO
+		     ) BC_MIC
+		    ON MI.MBER_NO = BC_MIC.MBER_NO  
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , COUNT(*) MEAL_CNT
+		             , SUM(MEAL_CALORIE) MEAL_CALORIE
+		             , MAX(RECMND_CALORIE) RECMND_CALORIE
+		             , MAX(RECMND_CALORIE) + (5 * (MAX(RECMND_CALORIE) * 0.01)) UP_CALORIE
+		             , MAX(RECMND_CALORIE) - (5 * (MAX(RECMND_CALORIE) * 0.01)) DW_CALORIE
+		          FROM MBER_MEAL_DIARY
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MEAL_DT LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+		         GROUP BY MBER_NO
+		     ) MEAL_MIC
+		    ON MI.MBER_NO = MEAL_MIC.MBER_NO  
+		 WHERE MI.MBER_NO = #{MBER_NO}
+		]]>
+	</select>
+</mapper>

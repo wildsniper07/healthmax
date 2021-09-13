@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:mybatis="http://mybatis.org/schema/mybatis-spring"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/util
+	http://www.springframework.org/schema/util/spring-util-4.0.xsd
+	http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+	http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+	http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+	http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+  http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring.xsd">
+	
+	<!-- Root Context: defines shared resources visible to all other web components -->
+	<util:properties id="dbProperties" location="classpath:properties/db.properties"></util:properties>
+	<util:properties id="pathProperties" location="classpath:properties/path.properties"></util:properties>
+	
+	<!-- Maria DB -->	
+	<bean id="dataSourceSpied" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close"> 
+		<property name="driverClassName" value="#{dbProperties['jdbc.driver']}"/> 
+		<property name="url" value="#{dbProperties['jdbc.url']}"/> 
+		<property name="username" value="#{dbProperties['jdbc.username']}"/> 
+		<property name="password" value="#{dbProperties['jdbc.password']}"/>
+		
+		<property name="initialSize" value="20"/>
+        <property name="maxActive" value="200"/>
+ 	<property name="maxIdle" value="100"/>
+        <property name="minIdle" value="20"/>
+        <property name="maxWait" value="3000"/>
+        <property name="poolPreparedStatements" value="true"></property>
+        <property name="maxOpenPreparedStatements" value="50"></property>          
+
+        <!-- 특정 시간마다 validationQuery를 실행 셋팅 시작 -->
+        <property name="validationQuery" value="select 1"/>
+        <property name="testWhileIdle" value="true"/>
+        <property name="timeBetweenEvictionRunsMillis" value="7200000"/>
+        <!-- 특정 시간마다 validationQuery를 실행 셋팅 끝 -->
+	</bean>
+	
+	<!-- Log4jproxy 를 통해서 Datasource 대입, 쿼리 로그를 뿌리기 위함. -->
+    <bean id="dataSource" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+		<constructor-arg ref="dataSourceSpied" />
+	  	<!-- log4j -->
+	  	<!-- 
+	  	<property name="logFormatter">
+            <bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+                <property name="loggingType" value="MULTI_LINE" />
+                <property name="sqlPrefix" value="SQL         :  "/>
+            </bean>
+        </property>
+         -->         
+	</bean>
+	
+	<!--jdbc 트랜젝션을 처리 하기 위한 빈 설정 -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+	 	<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+	<!-- MyBatis Session Factory -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="configLocation" value="classpath:mybatis/mybatis-config.xml" />
+        <property name="dataSource" ref="dataSource"/>
+        <property name="mapperLocations">
+	     	<array>
+	       		<value>classpath:/mybatis/**/*_mapper.xml</value>
+     		</array>
+	   	</property>	   	
+    </bean>
+    
+   	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+		<constructor-arg ref="sqlSessionFactory"></constructor-arg>		
+	</bean>
+	
+	
+	<!-- transactional -->
+	<tx:annotation-driven transaction-manager="transactionManager"/>
+	
+	<!-- mapper scan -->
+	<mybatis:scan base-package="com.healthmax.biogram.mapper" />
+	
+	<!-- trans mapper scan -->
+	<mybatis:scan base-package="com.healthmax.biogram.trans.mapper" />
+	
+</beans>

@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.HomeMapper">
+	
+	<!-- 특허, 회원, 바이오그램 존 수를 반환 -->
+	<select id="selectBiogramStateInfo" resultType="hmap">
+		SELECT 
+			UZM.GR,
+		    ZONE,
+		    CP,
+		    MBER
+		FROM 
+		(
+			SELECT 
+				1 GR,
+				COUNT(UHEALTH_ZONE_NO) ZONE
+			FROM  UHEALTH_ZONE_MANAGE
+		    WHERE USE_AT = 'Y'
+		)  UZM
+		JOIN
+		(
+			SELECT 
+				1 GR,
+				COUNT(PT_NM) CP
+			FROM CP_PATIENT_INFO
+		    WHERE USE_AT = 'Y'
+		) CPI
+		JOIN
+		(
+			SELECT 
+				1 GR,
+				COUNT(MBER_NO) MBER
+			FROM MBER_INFO
+		    WHERE MBER_SECSN_AT = 'N'
+		) MBI
+	</select>
+	
+	<!-- 홈페이지 제휴 문의 -->
+	<insert id="insertCompanyAlliance" parameterType="hmap">
+		INSERT INTO CP_ALLIANCE_INFO
+		(
+			CPNM,
+		    POS_NM,
+		    TEL,
+		    EMAIL,
+		    SUBJECT,
+		    POLICY,
+		    CONTENTS
+		)
+		VALUES
+		(
+			#{CPNM},
+		    #{POS_NM},
+		    REPLACE(#{TEL}, '-', ''),
+		    #{EMAIL},
+		    #{SUBJECT},
+		    #{POLICY},
+		    #{CONTENTS}
+		)
+		ON DUPLICATE KEY UPDATE
+			CPNM = #{CPNM},
+		    POS_NM = #{POS_NM},
+		    TEL = REPLACE(#{TEL}, '-', ''),
+		    EMAIL = #{EMAIL},
+		    SUBJECT = #{SUBJECT},
+		    POLICY = #{POLICY},
+		    CONTENTS = #{CONTENTS}
+		
+	</insert>
+	
+	<!-- 제휴문의 카운트 -->
+	<select id="selectCompanyAllianceTOT" parameterType="hmap" resultType="hmap">
+		SELECT 
+			COUNT(CP_IDX) TOT
+		FROM CP_ALLIANCE_INFO		
+		WHERE 1=1
+		<if test='POS_NM != null and POS_NM !=""'>
+			AND POS_NM like CONCAT( '%', #{POS_NM}, '%')
+		</if>
+		<if test='CPNM != null and CPNM !=""'>
+			AND CPNM like CONCAT( '%', #{CPNM}, '%')
+		</if>
+		<if test='SUBJECT != null and SUBJECT !=""'>
+			AND `SUBJECT` like CONCAT( '%', #{SUBJECT}, '%')
+		</if>
+		<if test='ISREAD != null and ISREAD !=""'>
+			AND ISREAD = CONCAT( '%', #{ISREAD}, '%')
+		</if>
+		ORDER BY CP_IDX
+		LIMIT #{START_PAGE}, #{ITEM_COUNT}
+	</select>
+	
+	<!-- 제휴 문의  -->
+	<select id="selectCompanyAlliance" parameterType="hmap" resultType="hmap">
+		SELECT 
+			CP_IDX,
+			CPNM,
+			POS_NM,
+			TEL,
+			EMAIL,
+			`SUBJECT`,
+			ISREAD
+		FROM CP_ALLIANCE_INFO
+		WHERE 1=1
+		<if test='POS_NM != null and POS_NM !=""'>
+			AND POS_NM like CONCAT( '%', #{POS_NM}, '%')
+		</if>
+		<if test='CPNM != null and CPNM !=""'>
+			AND CPNM like CONCAT( '%', #{CPNM}, '%')
+		</if>
+		<if test='SUBJECT != null and SUBJECT !=""'>
+			AND `SUBJECT` like CONCAT( '%', #{SUBJECT}, '%')
+		</if>
+		<if test='ISREAD != null and ISREAD !=""'>
+			AND ISREAD = CONCAT( '%', #{ISREAD}, '%')
+		</if>
+		ORDER BY CP_IDX
+		LIMIT #{START_PAGE}, #{ITEM_COUNT}
+	</select>
+	
+	<!-- 제휴 문의 상세 -->
+	<select id="selectCompanyAllianceDetail" parameterType="hmap" resultType="hmap">
+		SELECT 
+			CP_IDX,
+			CPNM,
+			POS_NM,
+			TEL,
+			EMAIL,
+			`SUBJECT`,
+			CONTENTS,
+			ISREAD
+		FROM CP_ALLIANCE_INFO
+		WHERE CP_IDX = #{CP_IDX}
+	</select>
+	
+	<!-- 제휴 문의 읽음 업데이트 -->
+	<update id="updateReadCompanyAllianceDetail" parameterType="hmap">
+		UPDATE
+		CP_ALLIANCE_INFO
+		SET ISREAD = 'Y'
+		WHERE CP_IDX = #{CP_IDX}
+	</update>
+	
+	
+	<!-- 채용 게시판 총카운트 -->
+	<select id="selectCompanyEmployTOT" parameterType="hmap" resultType="hmap">
+		SELECT 
+			COUNT(EMP_NO) TOT
+		FROM CP_EMPLOY
+		WHERE 1=1 
+		<if test='USE_AT != "A"'>
+			AND USE_AT = #{USE_AT}		
+		</if>
+		<if test='EMP_CODE != null and EMP_CODE != ""'>
+ 		 	AND EMP_CODE = #{EMP_CODE}
+		</if>
+	</select>
+	
+	<!-- 채용 게시판 조회 -->
+	<select id="selectCompanyEmploy" parameterType="hmap" resultType="hmap">
+		SELECT 
+			EMP_NO,
+			EMP_CODE,
+		    SUBJECT,		    
+		    EMP_TYPE,		    
+		    DATE_FORMAT(REGIST_DT, '%Y%m%d') REGDT
+		FROM CP_EMPLOY
+		WHERE 1=1 
+		<if test='USE_AT != "A"'>
+			AND USE_AT = #{USE_AT}		
+		</if>
+		<if test='EMP_CODE != null and EMP_CODE != ""'>
+ 		 	AND EMP_CODE = #{EMP_CODE}
+		</if>
+		ORDER BY EMP_NO
+		LIMIT #{START_PAGE}, #{ITEM_COUNT}
+	</select>
+	
+	<!-- 채용 게시판 조회 -->
+	<select id="selectCompanyEmployDetail" parameterType="hmap" resultType="hmap">
+		SELECT 
+			EMP_NO,
+			EMP_CODE,
+		    SUBJECT,
+		    INTRODUCE,
+		    EMP_TYPE,
+		    ROLL,
+		    QUALIFY,
+		    PREFERENTIAL,
+		    DATE_FORMAT(REGIST_DT, '%Y%m%d') REGDT,
+		    USE_AT
+		FROM CP_EMPLOY
+		WHERE EMP_NO = #{EMP_NO}
+	</select>
+	
+	<!-- 공지 게시판 총 카운트 조회 (TRGET_SVC_CODE 1 : 공지, TRGET_SVC_CODE 2 : 보도자료)-->
+	<select id="selectCompanyNoticeTOT" parameterType="hmap" resultType="hmap">
+		SELECT 
+			COUNT(NOTICE_NO) TOT
+		FROM NOTICE
+		WHERE 1=1 
+		<if test='USE_AT != "A"'>
+			AND USE_AT = #{USE_AT}		
+		</if>
+		<if test='TRGET_SVC_CODE != null and TRGET_SVC_CODE != ""'>
+ 		 	AND TRGET_SVC_CODE = #{TRGET_SVC_CODE}
+		</if>
+	</select>
+	
+	<!-- 공지 게시판 조회 (TRGET_SVC_CODE 1 : 공지, TRGET_SVC_CODE 2 : 보도자료)-->
+	<select id="selectCompanyNotice" parameterType="hmap" resultType="hmap">
+		SELECT 
+			NOTICE_NO,
+		    TRGET_SVC_CODE,
+		    NOTI_DT,
+		    NOTICE_SJ,		    
+		    DATE_FORMAT(REGIST_DT, '%Y%m%d') REGDT
+		FROM NOTICE
+		WHERE 1=1 
+		<if test='USE_AT != "A"'>
+			AND USE_AT = #{USE_AT}		
+		</if>
+		<if test='TRGET_SVC_CODE != null and TRGET_SVC_CODE != ""'>
+ 		 	AND TRGET_SVC_CODE = #{TRGET_SVC_CODE}
+		</if>
+		ORDER BY NOTICE_NO
+		LIMIT #{START_PAGE}, #{ITEM_COUNT}
+	</select>
+	
+	<!-- 공지 게시판 상세 조회-->
+	<select id="selectCompanyNoticeDetail" parameterType="hmap" resultType="hmap">
+		SELECT 
+			NOTICE_NO,
+		    TRGET_SVC_CODE,
+		    NOTI_DT,
+		    NOTICE_SJ,		    
+		    NOTICE_CN,		    
+		    DATE_FORMAT(REGIST_DT, '%Y%m%d') REGDT,
+		    USE_AT
+		FROM NOTICE
+		WHERE NOTICE_NO = #{NOTICE_NO}
+	</select>
+	
+	<!-- NEWS 최신 -->
+	<select id="selectNoticeTopThree" parameterType="hmap" resultType="hmap">
+		SELECT 
+			NOTICE_NO,
+		    TRGET_SVC_CODE,
+		    NOTI_DT,
+		    NOTICE_SJ,
+		    NOTICE_CN
+		FROM NOTICE
+		WHERE USE_AT = 'Y'
+		ORDER BY NOTICE_NO DESC
+		LIMIT 3		
+	</select>
+	
+	
+	<!-- 공지 등록 -->
+	<insert id="insertCompanyNotice" parameterType="hmap">
+		INSERT INTO NOTICE
+		(
+			TRGET_SVC_CODE,
+			NOTI_DT,
+		    NOTICE_SJ,
+		    NOTICE_CN,
+		    REGIST_ID,
+		    USE_AT
+		)
+		VALUES(
+			#{TRGET_SVC_CODE},
+			#{NOTI_DT},
+		    #{NOTICE_SJ},
+		    #{NOTICE_CN},
+		    #{REGIST_ID},
+		    #{USE_AT}
+		)
+		<selectKey order="AFTER" keyProperty="NOTICE_NO" resultType="int">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	
+	
+	<!-- 공지사항 업데이트 -->
+	<update id="updateCompanyNotice" parameterType="hmap">
+		UPDATE NOTICE SET
+		TRGET_SVC_CODE = #{TRGET_SVC_CODE},
+		NOTI_DT = #{NOTI_DT},
+	    NOTICE_SJ = #{NOTICE_SJ},
+	    NOTICE_CN = #{NOTICE_CN},
+	    REGIST_ID = #{REGIST_ID},
+	    USE_AT = #{USE_AT}
+	    WHERE NOTICE_NO = #{NOTICE_NO}   
+	</update>
+	
+	
+	<!-- 채용등록 -->
+	<insert id="insertCompanyEmploy" parameterType="hmap">
+		INSERT INTO CP_EMPLOY
+		(
+			EMP_CODE,
+		    `SUBJECT`,
+		    INTRODUCE,
+		    EMP_TYPE,
+		    ROLL,
+		    QUALIFY,
+		    PREFERENTIAL,
+		    USE_AT
+		)
+		VALUES
+		(
+			#{EMP_CODE},
+		    #{SUBJECT},
+		    #{INTRODUCE},
+		    #{EMP_TYPE},
+		    #{ROLL},
+		    #{QUALIFY},
+		    #{PREFERENTIAL},
+		    #{USE_AT}
+		)
+		<selectKey order="AFTER" keyProperty="EMP_NO" resultType="int">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	
+	<!-- 채용수정 -->
+	<update id="updateCompanyEmploy" parameterType="hmap">
+		UPDATE CP_EMPLOY SET
+		EMP_CODE = #{EMP_CODE},
+	    `SUBJECT` = #{SUBJECT},
+	    INTRODUCE = #{INTRODUCE},
+	    EMP_TYPE = #{EMP_TYPE},
+	    ROLL = #{ROLL},
+	    QUALIFY = #{QUALIFY},
+	    USE_AT = #{USE_AT},
+	    PREFERENTIAL = #{PREFERENTIAL}
+	    WHERE EMP_NO = #{EMP_NO}   
+	</update>
+	
+</mapper>

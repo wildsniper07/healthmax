@@ -1,0 +1,5503 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.DataMapper">
+
+	<!-- 관리자 용 유헬스 존 현황조회 쿼리 -->
+	<sql id="selectChargerUhealthZoneListQuery">
+		SELECT 
+		       UZM.UHEALTH_ZONE_NO
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(UZM.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		     , UZM.INSTL_PLACE
+		     , UZM.INSTL_ADRES
+		     , UZM.EXTRL_PERSON_USE_AT
+		     , 'O' NET_STATUS
+		     , IFNULL(MHRLS_CNT, 0) MHRLS_CNT
+		     , IFNULL(MHRLS_NM, '') MHRLS_NM
+		  FROM UHEALTH_ZONE_MANAGE UZM
+		  LEFT JOIN (
+		        SELECT 
+		               UHEALTH_ZONE_NO
+		             , COUNT(*) MHRLS_CNT
+		          FROM UHEALTH_ZONE_MHRLS_INFO
+		         GROUP BY UHEALTH_ZONE_NO
+		     ) MHRLS
+		    ON UZM.UHEALTH_ZONE_NO = MHRLS.UHEALTH_ZONE_NO
+		  LEFT JOIN (
+		        SELECT
+		               UHEALTH_ZONE_NO
+		             , GROUP_CONCAT(MHRLS_CODE_NM ORDER BY MHRLS_CODE_NM SEPARATOR ',') MHRLS_NM
+		         FROM (
+		              SELECT 
+		                     UHEALTH_ZONE_NO
+		                   , F_CODE_NM('MS00', MHRLS_CODE, #{LOCALE}) MHRLS_CODE_NM
+		                FROM UHEALTH_ZONE_MHRLS_INFO
+		             ) UZMI
+		         GROUP BY UHEALTH_ZONE_NO
+		     ) UZMI
+		    ON UZM.UHEALTH_ZONE_NO = UZMI.UHEALTH_ZONE_NO
+		 WHERE UZM.USE_AT = 'Y'
+	</sql>
+	
+	<!-- 관리자 용 유헬스 존 현황조회 건수 -->
+	<select id="selectChargerUhealthZoneListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectChargerUhealthZoneListQuery" />
+		     ) TBL
+	</select>
+
+	<!-- 관리자 용 유헬스 존 현황조회 -->
+	<select id="selectChargerUhealthZoneList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectChargerUhealthZoneListQuery" />
+		     ) TBL
+		 ORDER BY REGIST_DT DESC, UHEALTH_ZONE_NO
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 관리자 유헬스존 상호명 중복체크 -->
+	<select id="selectDupCheckInstlPlaceInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   COUNT(*) INSTL_PLACE_CNT
+		  FROM UHEALTH_ZONE_MANAGE
+		 WHERE USE_AT = 'Y'
+		   AND INSTL_PLACE = #{INSTL_PLACE}
+		 GROUP BY UHEALTH_ZONE_NO
+	</select>
+	
+	<!-- 유헬스존 번호로 기관번호 조회 -->
+	<select id="selectInstNoByZoneNo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       INST_NO 
+		  FROM UHEALTH_ZONE_MANAGE 
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+	</select>
+	
+	<!-- 유헬스존 저장처리 -->
+	<insert id="insertUhealthZoneManageInfo" parameterType="hmap">
+		<selectKey keyProperty="UHEALTH_ZONE_NO" order="BEFORE" resultType="int">
+			SELECT IFNULL(MAX(UHEALTH_ZONE_NO), 0) + 1 UHEALTH_ZONE_NO
+			  FROM UHEALTH_ZONE_MANAGE
+		</selectKey>
+		INSERT INTO UHEALTH_ZONE_MANAGE (
+			   UHEALTH_ZONE_NO
+			 , INSTL_ADRES
+			 , INSTL_PLACE
+			 , TELNO
+			 , MAP_ADRES
+			 , LO
+			 , LA
+			 , APPLC_CSS
+			 , USE_AT
+			 , MESSAGE
+			 , LOGIN_AT
+			 , EXTRL_PERSON_USE_AT
+			 , OPEN_AT
+			 , PRINT_AT
+			 , BEACON_MAC_ADRES
+			 , ADVRTS_MVP
+			 , LOGO_ATCHMNFL_NO
+			 , BCRN_ATCHMNFL_NO
+			 , INST_NO
+			 , REGIST_DT
+		) VALUES (
+			   #{UHEALTH_ZONE_NO}
+			 , #{INSTL_ADRES}
+			 , #{INSTL_PLACE}
+			 , #{TELNO}
+			 , #{MAP_ADRES}
+			 , #{LO}
+			 , #{LA}
+			 , #{APPLC_CSS}
+			 , 'Y'
+			 , #{MESSAGE}
+			 , #{LOGIN_AT}
+			 , #{EXTRL_PERSON_USE_AT}
+			 , #{OPEN_AT}
+			 , #{PRINT_AT}
+			 , #{BEACON_MAC_ADRES}
+			 , #{ADVRTS_MVP}
+			 , #{LOGO_ATCHMNFL_NO}
+			 , #{BCRN_ATCHMNFL_NO}
+			 , #{INST_NO}
+			 , NOW()
+		)
+	</insert>
+
+	<!-- 유헬스존 기기정보 저장처리 -->	
+	<insert id="insertUhealthZoneMhrlsInfo" parameterType="hmap">
+		INSERT INTO UHEALTH_ZONE_MHRLS_INFO (
+			   UHEALTH_ZONE_NO
+			 , MHRLS_CODE
+			 , REGIST_DT
+		) VALUES (
+			   #{UHEALTH_ZONE_NO}
+			 , #{MHRLS_CODE}
+			 , NOW()
+		)
+	</insert>
+
+	<!-- 유헬스존 운영요일 저장처리 -->	
+	<insert id="insertUhealthZoneOperWik" parameterType="hmap">
+		INSERT INTO UHEALTH_ZONE_OPER_WIK (
+			   UHEALTH_ZONE_NO
+			 , TIME_KND_CODE
+			 , WIK_SE_CODE
+			 , WIK_CODE
+			 , REGIST_DT
+		) VALUES (
+			   #{UHEALTH_ZONE_NO}
+			 , #{TIME_KND_CODE}
+			 , #{WIK_SE_CODE}
+			 , #{WIK_CODE}
+			 , NOW()
+		)
+	</insert>
+
+	<!-- 유헬스존 운영시간 저장처리 -->	
+	<insert id="insertUhealthZoneOperTime" parameterType="hmap">
+		INSERT INTO UHEALTH_ZONE_OPER_TIME (
+			   UHEALTH_ZONE_NO
+			 , TIME_KND_CODE
+			 , TIME_SE_CODE
+			 , BEGIN_TIME
+			 , END_TIME
+			 , REGIST_DT
+		) VALUES (
+			   #{UHEALTH_ZONE_NO}
+			 , #{TIME_KND_CODE}
+			 , #{TIME_SE_CODE}
+			 , #{BEGIN_TIME}
+			 , #{END_TIME}
+			 , NOW()
+		)
+	</insert>
+	
+
+	<!-- 유헬스 존 현황조회 -->
+	<select id="selectUhealthZoneList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       UZM.UHEALTH_ZONE_NO
+		     , UZM.INSTL_PLACE
+		     , UZM.INSTL_ADRES
+		     , UZM.EXTRL_PERSON_USE_AT
+		     , UZM.LO
+		     , UZM.LA
+			 , IFNULL(UZM.LOGO_ATCHMNFL_NO, 0) LOGO_ATCHMNFL_NO
+			 , IFNULL(UZM.BCRN_ATCHMNFL_NO, 0) BCRN_ATCHMNFL_NO
+			 , F_FILE_PATH(AI.ATCHMNFL_NM) LOGO_ATCHMNFL_PATH
+			 , F_FILE_PATH(AI2.ATCHMNFL_NM) BCRN_ATCHMNFL_PATH
+		  FROM UHEALTH_ZONE_MANAGE UZM
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON UZM.LOGO_ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN ATCHMNFL_INFO AI2
+		    ON UZM.BCRN_ATCHMNFL_NO = AI2.ATCHMNFL_NO
+		 WHERE UZM.USE_AT = 'Y'
+		   AND UZM.LO IS NOT NULL
+		   AND UZM.LA IS NOT NULL
+	</select>
+	
+	<!-- 유헬스 존 상세 조회 -->
+	<select id="selectUhealthZoneInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       UZM.UHEALTH_ZONE_NO
+		     , UZM.INSTL_PLACE
+		     , UZM.INSTL_ADRES
+		     , F_CODE_NM('CM00', UZM.EXTRL_PERSON_USE_AT, #{LOCALE}) EXTRL_PERSON_USE_AT_NM
+		     , UZM.EXTRL_PERSON_USE_AT
+			 , IFNULL(UZM.LOGO_ATCHMNFL_NO, 0) LOGO_ATCHMNFL_NO
+			 , IFNULL(UZM.BCRN_ATCHMNFL_NO, 0) BCRN_ATCHMNFL_NO
+			 , F_FILE_PATH(AI.ATCHMNFL_NM) LOGO_ATCHMNFL_PATH
+			 , F_FILE_PATH(AI2.ATCHMNFL_NM) BCRN_ATCHMNFL_PATH
+		  FROM UHEALTH_ZONE_MANAGE UZM
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON UZM.LOGO_ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN ATCHMNFL_INFO AI2
+		    ON UZM.BCRN_ATCHMNFL_NO = AI2.ATCHMNFL_NO
+		 WHERE UZM.UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		   AND UZM.USE_AT = 'Y'
+	</select>
+	
+	<!-- 유헬스 존 영업시간 조회 -->
+	<select id="selectUhealthZoneOperTimeList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       UZOT.UHEALTH_ZONE_NO
+		     , UZOT.TIME_KND_CODE_NM
+		     , CASE WHEN UZOT.TIME_KND_CODE IN ('WD', 'ED') THEN CONCAT(UZOW.BD_WIK_CODE_NM, ' ', UZOT.BEGIN_TIME, ' ~ ', UZOT.END_TIME, ' (', UZOW.RD_WIK_CODE_NM, ')')
+		     		WHEN UZOT.TIME_KND_CODE IN ('BSTM', 'BMTM') AND UZOT.TIME_SE_CODE = 'WD' AND UZOW.BD_WIK_CODE = 15 THEN CONCAT(UZOT.TIME_SE_CODE_NM, ' ', UZOT.BEGIN_TIME, ' ~ ', UZOT.END_TIME, ' (', UZOW.RD_WIK_CODE_NM, ')')
+		            ELSE CONCAT(UZOT.TIME_SE_CODE_NM, ' ', UZOW.BD_WIK_CODE_NM, ' ', UZOT.BEGIN_TIME, ' ~ ', UZOT.END_TIME, ' (', UZOW.RD_WIK_CODE_NM, ')')
+		        END OPER_TIME
+		  FROM (
+		        SELECT
+		               UHEALTH_ZONE_NO
+		             , TIME_KND_CODE
+		             , F_CODE_NM('UH02', TIME_KND_CODE, #{LOCALE}) TIME_KND_CODE_NM
+		             , TIME_SE_CODE
+		             , F_CODE_NM('UH03', TIME_SE_CODE, #{LOCALE}) TIME_SE_CODE_NM
+		             , F_STR_FORMAT('TIME', BEGIN_TIME, #{LOCALE}) BEGIN_TIME
+		             , F_STR_FORMAT('TIME', END_TIME, #{LOCALE}) END_TIME
+		          FROM UHEALTH_ZONE_OPER_TIME
+		         WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		     ) UZOT
+		 LEFT JOIN (    
+		        SELECT
+		               UHEALTH_ZONE_NO
+		             , TIME_KND_CODE
+		             , MAX(IF(WIK_SE_CODE = 'BD', WIK_CODE, '')) BD_WIK_CODE
+		             , MAX(IF(WIK_SE_CODE = 'RD', WIK_CODE, '')) RD_WIK_CODE
+		             , MAX(IF(WIK_SE_CODE = 'BD', WIK_CODE_NM, '')) BD_WIK_CODE_NM
+		             , MAX(IF(WIK_SE_CODE = 'RD', WIK_CODE_NM, '')) RD_WIK_CODE_NM
+		          FROM (
+		                SELECT 
+		                       UHEALTH_ZONE_NO
+		                     , TIME_KND_CODE
+		                     , WIK_SE_CODE
+		                     , WIK_SE_CODE_NM
+		                     , GROUP_CONCAT(WIK_CODE ORDER BY WIK_CODE SEPARATOR ', ') WIK_CODE
+		                     , GROUP_CONCAT(WIK_CODE_NM ORDER BY WIK_CODE SEPARATOR ', ') WIK_CODE_NM
+		                  FROM (
+		                        SELECT 
+		                               UHEALTH_ZONE_NO
+		                             , TIME_KND_CODE
+		                             , WIK_SE_CODE
+		                             , F_CODE_NM('UH04', WIK_SE_CODE, #{LOCALE}) WIK_SE_CODE_NM
+		                             , WIK_CODE
+		                             , F_CODE_NM('UH05', WIK_CODE, #{LOCALE}) WIK_CODE_NM
+		                          FROM UHEALTH_ZONE_OPER_WIK
+		                         WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		                     ) A
+		                 GROUP BY UHEALTH_ZONE_NO, TIME_KND_CODE, WIK_SE_CODE, WIK_SE_CODE_NM
+		             ) UZOW
+		         GROUP BY UHEALTH_ZONE_NO, TIME_KND_CODE
+		     ) UZOW
+		    ON UZOT.UHEALTH_ZONE_NO = UZOW.UHEALTH_ZONE_NO
+		   AND UZOT.TIME_KND_CODE = UZOW.TIME_KND_CODE
+		 ORDER BY TIME_KND_CODE_NM
+	</select>
+	
+	<!-- 유헬스 존 운영시간 상세조회  -->
+	<select id="selectUhealthZoneOperTimeInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       UHEALTH_ZONE_NO
+		     , TIME_KND_CODE
+		     , F_CODE_NM('UH02', TIME_KND_CODE, #{LOCALE}) TIME_KND_CODE_NM
+		     , F_CODE_NM('UH03', TIME_SE_CODE, #{LOCALE}) TIME_SE_CODE_NM
+		     , F_STR_FORMAT('TIME', BEGIN_TIME, #{LOCALE}) BEGIN_TIME
+         	 , SUBSTRING(BEGIN_TIME, 1, 2) BEGIN_TIME_H
+         	 , SUBSTRING(BEGIN_TIME, 3, 4) BEGIN_TIME_M
+		     , F_STR_FORMAT('TIME', END_TIME, #{LOCALE}) END_TIME
+		     , SUBSTRING(END_TIME, 1, 2) END_TIME_H
+         	 , SUBSTRING(END_TIME, 3, 4) END_TIME_M 
+		  FROM UHEALTH_ZONE_OPER_TIME
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		   AND TIME_KND_CODE = #{TIME_KND_CODE}
+	</select>
+	
+	<!-- 유헬스 존 운영요일 현황조회  -->
+	<select id="selectUhealthZoneOperWikList" parameterType="hmap" resultType="hmap">
+		SELECT 
+               UHEALTH_ZONE_NO
+             , TIME_KND_CODE
+             , WIK_SE_CODE
+             , F_CODE_NM('UH04', WIK_SE_CODE, #{LOCALE}) WIK_SE_CODE_NM
+             , WIK_CODE
+             , F_CODE_NM('UH05', WIK_CODE, #{LOCALE}) WIK_CODE_NM
+          FROM UHEALTH_ZONE_OPER_WIK
+         WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+           AND TIME_KND_CODE = #{TIME_KND_CODE}
+    	<if test="WIK_SE_CODE != null and WIK_SE_CODE != ''">
+    	   AND WIK_SE_CODE = #{WIK_SE_CODE}
+    	</if>
+	</select>
+	
+	<!-- 유헬스 존 측정기기 목록 조회 -->
+	<select id="selectUhealthZoneMhrlsList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       UHEALTH_ZONE_NO
+		     , MHRLS_CODE
+		     , CONCAT(@ROW_NUM := @ROW_NUM + 1, '. ', F_CODE_NM('MS00', MHRLS_CODE, #{LOCALE})) MHRLS_CODE_NM
+		  FROM UHEALTH_ZONE_MHRLS_INFO
+		 INNER JOIN (SELECT @ROW_NUM := 0) R
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		 ORDER BY MHRLS_CODE
+	</select>
+	
+	<!-- 유헬스존 수정처리 -->
+	<update id="updateUhealthZoneManageInfo" parameterType="hmap">
+		UPDATE UHEALTH_ZONE_MANAGE SET
+		       UPDT_DT = NOW()
+		<if test="INSTL_PLACE != null and INSTL_PLACE != ''">
+			 , INSTL_PLACE = #{INSTL_PLACE}
+		</if>
+		<if test="INSTL_ADRES != null and INSTL_ADRES != ''">
+			 , INSTL_ADRES = #{INSTL_ADRES}
+		</if>
+		<if test="EXTRL_PERSON_USE_AT != null and EXTRL_PERSON_USE_AT != ''">
+			 , EXTRL_PERSON_USE_AT = #{EXTRL_PERSON_USE_AT}
+		</if>
+		<if test="LOGO_ATCHMNFL_NO != null and LOGO_ATCHMNFL_NO != ''">
+			 , LOGO_ATCHMNFL_NO = #{LOGO_ATCHMNFL_NO}
+		</if>
+		<if test="BCRN_ATCHMNFL_NO != null and BCRN_ATCHMNFL_NO != ''">
+			 , BCRN_ATCHMNFL_NO = #{BCRN_ATCHMNFL_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+			 , USE_AT = #{USE_AT}
+		</if>
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+	</update>
+	
+	<!-- 유헬스존 운영시간 수정처리 -->
+	<update id="updateUhealthZoneOperTimeInfo" parameterType="hmap">
+		UPDATE UHEALTH_ZONE_OPER_TIME SET
+			   UHEALTH_ZONE_NO = UHEALTH_ZONE_NO
+		<if test="TIME_SE_CODE != null and TIME_SE_CODE != ''">
+			 , TIME_SE_CODE = #{TIME_SE_CODE}
+		</if>
+		<if test="BEGIN_TIME != null and BEGIN_TIME != ''">
+			 , BEGIN_TIME = #{BEGIN_TIME}
+		</if>	
+		<if test="END_TIME != null and END_TIME != ''">
+			 , END_TIME = #{END_TIME}
+		</if>	
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		   AND TIME_KND_CODE = #{TIME_KND_CODE}
+	</update>
+	
+	<!-- 유헬스존 기기정보 삭제처리 -->
+	<delete id="deleteUhealthZoneMhrlsInfo" parameterType="hmap">
+		DELETE FROM UHEALTH_ZONE_MHRLS_INFO
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+	</delete>
+	
+	<!-- 유헬스존 운용요일 삭제처리 -->
+	<delete id="deleteUhealthZoneOperWikInfo" parameterType="hmap">
+		DELETE FROM UHEALTH_ZONE_OPER_WIK
+		 WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+	</delete>
+	
+	<!-- 보행수 장치 연결 여부 정보 조회 -->
+	<select id="selectStepDeviceCnncAtInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       IFNULL(MI.EXTRL_DATA_INTRLCK_AT, 'N') EXTRL_DATA_INTRLCK_AT
+		     , IF(IFNULL(DC.BAND_CNNC_CNT, 0) = 0, 'N', 'Y') BAND_CNNC_AT
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , COUNT(*) BAND_CNNC_CNT
+		          FROM MESURE_DEVICE_CNNC MDC
+		         INNER JOIN MESURE_DEVICE MD
+		            ON MDC.DEVICE_CODE = MD.DEVICE_CODE
+		           AND MD.DEVICE_TY_CODE = 'BD'
+		         WHERE MDC.MBER_NO = #{MBER_NO}
+		         GROUP BY MDC.MBER_NO
+		     ) DC
+		    ON MI.MBER_NO = DC.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 특정일자로 스마트 폰 보행수 데이터 목록 조회 -->
+	<select id="selectMoblphonStepsDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , IFNULL(MIAT.MESURE_DT, #{MESURE_DE}) MESURE_DT
+		     , IFNULL(MIAT.SPORTS_TOT_STEPS, 0) SPORTS_TOT_STEPS
+		     , IFNULL(MEG.GOAL_VALUE, 0) GOAL_VALUE
+		     , IFNULL(ROUND(IFNULL(MIAT.SPORTS_TOT_STEPS, 0) / (MEG.GOAL_VALUE * 0.01), 0), 0) RATE
+		  FROM MBER_INFO MI
+	      LEFT JOIN (
+			        SELECT 
+			               MBER_NO
+			             , GOAL_VALUE
+			          FROM MBER_ESTBS_GOAL 
+			         WHERE MBER_NO = #{MBER_NO}
+			           AND MESURE_CODE = '4010'
+			 ) MEG
+	        ON MI.MBER_NO = MEG.MBER_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_BGNDT MESURE_DT
+		             , MESURE_DATA SPORTS_TOT_STEPS
+		          FROM MESURE_INFO_ACTV_TRCK 
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4015'
+		           AND MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+		     ) MIAT
+		    ON MI.MBER_NO = MIAT.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 오늘날짜 기준 90일 스마트 폰 보행수 데이터 목록 조회 -->
+	<select id="selectMoblphonStepsDataListByToday90Days" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , MIAT.MESURE_DT
+		     , IFNULL(MIAT.MOBLPHON_STEPS, 0) MOBLPHON_STEPS
+		     , IFNULL(MEG.GOAL_VALUE, 0) GOAL_VALUE
+		     , IFNULL(ROUND(IFNULL(MIAT.MOBLPHON_STEPS, 0) / (MEG.GOAL_VALUE * 0.01), 0), 0) RATE
+		  FROM MBER_INFO MI
+	      LEFT JOIN (
+			        SELECT 
+			               MBER_NO
+			             , GOAL_VALUE
+			          FROM MBER_ESTBS_GOAL 
+			         WHERE MBER_NO = #{MBER_NO}
+			           AND MESURE_CODE = '4010'
+			 ) MEG
+	        ON MI.MBER_NO = MEG.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               IFNULL(MBER_NO, #{MBER_NO}) MBER_NO
+		             , DATE_FORMAT(DATE, '%Y%m%d') MESURE_DT
+		             , IFNULL(MOBLPHON_STEPS, 0) MOBLPHON_STEPS
+		          FROM CALENDAR_DATA CD
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MESURE_DE
+		                     , MOBLPHON_STEPS
+		                  FROM MESURE_INFO_CMMN_DALY
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_DE >= DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -90 DAY), "%Y%m%d")
+		                   AND MOBLPHON_STEPS > 0
+		             ) MICD
+		            ON DATE_FORMAT(DATE, '%Y%m%d') = MICD.MESURE_DE
+		         WHERE CD.DATE >= DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -90 DAY), "%Y%m%d")
+		     ) MIAT
+		    ON MI.MBER_NO = MIAT.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+		 ORDER BY MESURE_DT DESC
+	</select>
+		
+	<!-- 특정일자로 활동량계 보행수 정보조회 -->
+	<select id="selectBandStepsInfoByDate" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , IFNULL(MESURE_DE, '') MESURE_DE
+		     , IFNULL(SPORTS_TOT_STEPS, 0) SPORTS_TOT_STEPS
+		     , IFNULL(PRE_AVG_SPORTS_TOT_STEPS, 0) PRE_AVG_SPORTS_TOT_STEPS
+		     , IFNULL(YESTD_SPORTS_TOT_STEPS, 0) YESTD_SPORTS_TOT_STEPS
+		     , IFNULL(INCRS_STEPS, 0) INCRS_STEPS
+		     , IFNULL(YESTD_RATE, 0) YESTD_RATE
+		     , IFNULL(F_BAND_STEP_JDGMNT(YESTD_SPORTS_TOT_STEPS, INCRS_STEPS, YESTD_RATE, #{LOCALE}), '') JDGMNT_TXT
+		  FROM (
+		        SELECT 
+	    		       MI.MBER_NO
+	    		     , MICD.MESURE_DE 
+	    		     , PRE_AVG_SPORTS_TOT_STEPS
+	    		     , MICD.SPORTS_TOT_STEPS 
+	    		     , IFNULL(YESTD_MICD.SPORTS_TOT_STEPS, 0) YESTD_SPORTS_TOT_STEPS
+	                 , IFNULL(YESTD_MICD.SPORTS_TOT_STEPS, 0) - PRE_AVG_SPORTS_TOT_STEPS AS INCRS_STEPS
+	    		     , ROUND((IFNULL(YESTD_MICD.SPORTS_TOT_STEPS, 0) - PRE_AVG_SPORTS_TOT_STEPS) / (PRE_AVG_SPORTS_TOT_STEPS * 0.01), 0) YESTD_RATE
+	    		  FROM MBER_INFO MI
+	    		  LEFT JOIN (
+			    		SELECT 
+				    		   MBER_NO
+				    		 , MESURE_DE
+				    		 , SPORTS_TOT_STEPS
+			    		  FROM MESURE_INFO_CMMN_DALY MICD
+			    		 WHERE MICD.MBER_NO = #{MBER_NO}
+			    		   AND MICD.MESURE_DE = #{MESURE_DE}
+	    		     ) MICD
+	    		    ON MI.MBER_NO = MICD.MBER_NO
+	    		  LEFT JOIN (
+	    		        SELECT 
+	    		               MBER_NO
+	    		             , SPORTS_TOT_STEPS
+	    		          FROM MESURE_INFO_CMMN_DALY
+	    		         WHERE MBER_NO = #{MBER_NO}
+	    		           AND MESURE_DE = DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d')
+	    		     ) YESTD_MICD
+	    		    ON MI.MBER_NO = YESTD_MICD.MBER_NO
+	    		  LEFT JOIN (
+	    		        SELECT 
+	    		               MBER_NO
+	    		             , ROUND(AVG(SPORTS_TOT_STEPS), 0) PRE_AVG_SPORTS_TOT_STEPS
+	    		          FROM (
+	    		                SELECT 
+	    		                       MBER_NO
+	    		                     , MESURE_DE
+	    		                     , IFNULL(SPORTS_TOT_STEPS, 0) SPORTS_TOT_STEPS
+	    		                  FROM MESURE_INFO_CMMN_DALY
+	    		                 WHERE MBER_NO = #{MBER_NO}
+	    		                   AND MESURE_DE BETWEEN DATE_FORMAT(DATE_ADD(DATE_ADD(#{MESURE_DE}, INTERVAL -7 DAY), INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+	    		                		             AND DATE_FORMAT(DATE_ADD(DATE_ADD(#{MESURE_DE}, INTERVAL -7 DAY), INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+	    		                   AND SPORTS_TOT_STEPS > 0
+	    		             ) A 
+	    		     ) PW_MICD
+	    		    ON MI.MBER_NO = PW_MICD.MBER_NO
+	    		 WHERE MI.MBER_NO = #{MBER_NO}
+		     ) TBL
+	</select>
+	
+	<!-- 특정일자로 활동량계 보행수 데이터 목록 조회 -->
+	<select id="selectBandStepsDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MIAT.MBER_NO
+		     , MIAT.MESURE_BGNDT MESURE_DT
+		     , MIAT.MESURE_DATA SPORTS_TOT_STEPS
+		  FROM MESURE_INFO_ACTV_TRCK MIAT
+	     INNER JOIN (
+	            SELECT
+	                   MBER_NO
+	                 , MESURE_CODE
+	                 , SUBSTRING(MESURE_BGNDT, 1, 10) MESURE_DE
+	                 , MAX(SUBSTRING(MESURE_BGNDT, 11, 4)) MESURE_TIME
+	              FROM MESURE_INFO_ACTV_TRCK
+	             WHERE MBER_NO = #{MBER_NO}
+	               AND MESURE_CODE = '4010'
+	               AND MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+	             GROUP BY MBER_NO, MESURE_CODE, SUBSTRING(MESURE_BGNDT, 1, 10)
+	         ) MMIAT
+	        ON MIAT.MBER_NO = MMIAT.MBER_NO
+	       AND MIAT.MESURE_CODE = MMIAT.MESURE_CODE
+	       AND MIAT.MESURE_BGNDT = CONCAT(MMIAT.MESURE_DE, MMIAT.MESURE_TIME)
+		 WHERE MIAT.MBER_NO = #{MBER_NO}
+		   AND MIAT.MESURE_CODE = '4010'
+		   AND MIAT.MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+		 ORDER BY MIAT.MESURE_BGNDT ASC
+	</select>
+	
+	<!-- 최근 측정일자로 활동량계 보행수 정보조회 -->
+	<select id="selectBandStepsInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MI.MBER_NO
+		     , MIAT.MESURE_DT
+		     , IFNULL(MIAT.SPORTS_TOT_STEPS, 0) MOBLPHON_STEPS
+		     , MEG.GOAL_VALUE
+		     , ROUND(IFNULL(MIAT.SPORTS_TOT_STEPS, 0) / (MEG.GOAL_VALUE * 0.01), 0) RATE
+		  FROM MBER_INFO MI
+      	  LEFT JOIN (
+		        SELECT 
+		               MI.MBER_NO
+		             , IFNULL(MEG.GOAL_VALUE, 0) GOAL_VALUE
+		          FROM MBER_INFO MI
+		          LEFT JOIN MBER_ESTBS_GOAL MEG
+		            ON MI.MBER_NO = MEG.MBER_NO
+		         WHERE MI.MBER_NO = #{MBER_NO}
+		           AND MEG.MESURE_CODE = '4010'
+		     ) MEG
+		    ON MI.MBER_NO = MEG.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , MESURE_BGNDT MESURE_DT
+		             , MESURE_DATA SPORTS_TOT_STEPS
+		          FROM MESURE_INFO_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4010'
+		         ORDER BY MESURE_BGNDT DESC
+		         LIMIT 1
+		     ) MIAT
+		    ON MI.MBER_NO = MIAT.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+		 ORDER BY MESURE_DT DESC
+	</select>
+	
+	<!-- 최근 순으로 활동량계 운동모드 데이터 목록 조회 -->
+	<select id="selectBandSportsDataList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_BGNDT
+		     , SPORTS_TOT_STEPS
+		     , SPORTS_TIME
+		     , CNSMP_CALORIE
+		     , AVRG_HR
+		     , MXMM_HR
+		     , MNTBY_AVRG_STEPS
+		     , MNTBY_MXMM_STEPS
+		  FROM MESURE_INFO_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = '4020'
+		 ORDER BY MESURE_BGNDT DESC
+	</select>
+	
+	<!-- 최근 측정일자로 활동량계 운동모드 정보 조회 -->
+	<select id="selectBandSportsInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_BGNDT MESURE_DT
+		     , SPORTS_TIME
+		  FROM MESURE_INFO_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = '4020'
+		 ORDER BY MESURE_BGNDT DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 특정일자로 활동량계 수면 정보 조회 -->
+	<select id="selectBandSleepInfoByDate" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       MBER_NO
+		     , IFNULL(TOT_SLEEP_TIME, 0) TOT_SLEEP_TIME
+		     , IFNULL(AWAKE_SLEEP_TIME, 0) AWAKE_SLEEP_TIME
+		     , IFNULL(LIGHT_SLEEP_TIME, 0) LIGHT_SLEEP_TIME
+		     , IFNULL(DEEP_SLEEP_TIME, 0) DEEP_SLEEP_TIME
+		     , IFNULL(F_BAND_SLEEP_JDGMNT(SLEEP_TIME_GBN, GETUP_TIME_GBN, #{LOCALE}), '') JDBMNT_TXT
+		  FROM (
+		        SELECT
+		               MI.MBER_NO
+		             , MESURE_BGNDT
+		             , MESURE_ENDDT
+		             , AWAKE_SLEEP_TIME
+		             , LIGHT_SLEEP_TIME
+		             , DEEP_SLEEP_TIME
+		             , AWAKE_SLEEP_TIME + LIGHT_SLEEP_TIME + DEEP_SLEEP_TIME TOT_SLEEP_TIME 
+		             , GOAL_VALUE
+		             , IF (GOAL_BEGIN_TIME IS NOT NULL AND LENGTH(GOAL_BEGIN_TIME) = 4, CONCAT(SUBSTRING(MESURE_BGNDT, 1, 8), GOAL_BEGIN_TIME, '00'), '') GOAL_SLEEP_TIME
+		             , IF (GOAL_END_TIME   IS NOT NULL AND LENGTH(GOAL_END_TIME)   = 4, CONCAT(SUBSTRING(MESURE_ENDDT, 1, 8), GOAL_END_TIME  , '00'), '') GOAL_GETUP_TIME
+		             , CASE WHEN GOAL_BEGIN_TIME IS NOT NULL AND LENGTH(GOAL_BEGIN_TIME) = 4 THEN IF(ABS(TIMESTAMPDIFF(MINUTE, CONCAT(SUBSTRING(MESURE_BGNDT, 1, 8), GOAL_BEGIN_TIME, '00'), MESURE_BGNDT)) <= 60, 0, 1)
+		                    ELSE -1
+		                END SLEEP_TIME_GBN
+		             , CASE WHEN GOAL_END_TIME IS NOT NULL AND LENGTH(GOAL_END_TIME) = 4 THEN IF(ABS(TIMESTAMPDIFF(MINUTE, CONCAT(SUBSTRING(MESURE_ENDDT, 1, 8), GOAL_END_TIME, '00'), MESURE_ENDDT)) <= 60, 0, 1)
+		                    ELSE -1
+		                END GETUP_TIME_GBN
+		          FROM MBER_INFO MI
+		          LEFT JOIN (
+		                SELECT 
+		                       MBER_NO
+		                     , MIN(MESURE_BGNDT) MESURE_BGNDT
+		                     , MAX(MESURE_ENDDT) MESURE_ENDDT
+		                     , SUM(AWAKE_SLEEP_TIME) AWAKE_SLEEP_TIME
+		                     , SUM(LIGHT_SLEEP_TIME) LIGHT_SLEEP_TIME
+		                     , SUM(DEEP_SLEEP_TIME) DEEP_SLEEP_TIME
+		                     , SUM(AWAKE_SLEEP_TIME) + SUM(LIGHT_SLEEP_TIME) + SUM(DEEP_SLEEP_TIME) TOT_SLEEP_TIME
+		                  FROM MESURE_INFO_ACTV_TRCK
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE = '4040'
+		                   AND MESURE_BGNDT BETWEEN CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d'), '120000')
+		                                        AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 DAY), '%Y%m%d'), '115959')
+		                   AND MESURE_ENDDT BETWEEN CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d'), '120000')
+		                                        AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 DAY), '%Y%m%d'), '115959')
+		                 GROUP BY MBER_NO
+		             ) MIAT
+		            ON MI.MBER_NO = MIAT.MBER_NO                  
+		          LEFT JOIN (                        
+		                SELECT 
+		                       MBER_NO
+		                     , GOAL_VALUE
+		                     , GOAL_BEGIN_TIME
+		                     , GOAL_END_TIME
+		                  FROM MBER_ESTBS_GOAL 
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE = '4040'
+		             ) MEG
+		            ON MI.MBER_NO = MEG.MBER_NO
+		         WHERE MI.MBER_NO = #{MBER_NO}
+		     ) SLEEP
+		]]>
+	</select>
+	
+	<!-- 특정일자로 활동량계 수면 데이터 목록 조회 -->
+	<select id="selectBandSleepListByDate" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , BEGIN_DT
+		     , END_DT
+		     , SLEEP_STTUS_CODE
+		     , CNTNC_TIME
+		  FROM MESURE_DETAIL_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = '4040'
+		   AND BEGIN_DT BETWEEN CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d'), '120000')
+		                    AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 DAY), '%Y%m%d'), '115959')
+		   AND END_DT   BETWEEN CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d'), '120000')
+		                    AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 DAY), '%Y%m%d'), '115959')
+		 ORDER BY BEGIN_DT
+	</select>	
+	
+	<!-- 최근 측정일자로 활동량계 수면 정보 조회 -->
+	<select id="selectBandSleepInfoByLatest" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       MBER_NO
+         	 , MESURE_BGNDT
+		     , CAST(SUM(AWAKE_SLEEP_TIME) AS SIGNED INTEGER) AWAKE_SLEEP_TIME
+		     , CAST(SUM(LIGHT_SLEEP_TIME) AS SIGNED INTEGER) LIGHT_SLEEP_TIME
+		     , CAST(SUM(DEEP_SLEEP_TIME) AS SIGNED INTEGER) DEEP_SLEEP_TIME
+		     , CAST(SUM(AWAKE_SLEEP_TIME) + SUM(LIGHT_SLEEP_TIME) + SUM(DEEP_SLEEP_TIME) AS SIGNED INTEGER) TOT_SLEEP_TIME
+		  FROM (
+		        SELECT
+		               MDAT.MBER_NO
+                 	 , DATE_FORMAT(DATE_ADD(MDAT.MESURE_BGNDT, INTERVAL (MMDAT.TIME_CAL) day), '%Y%m%d') MESURE_BGNDT
+		             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME		             
+		          FROM MESURE_DETAIL_ACTV_TRCK MDAT
+	             INNER JOIN (
+	                    SELECT 
+	                           MBER_NO
+	                         , SUBSTRING(BEGIN_DT, 1, 8) BEGIN_DT
+	                         , IF(SUBSTRING(BEGIN_DT, 9, 2) > '12', 1, 0) TIME_CAL
+	                      FROM MESURE_DETAIL_ACTV_TRCK
+	                     WHERE MBER_NO = #{MBER_NO}
+	        		       AND MESURE_CODE = '4040' 
+	                     ORDER BY BEGIN_DT DESC
+	                     LIMIT 1
+	                 ) MMDAT
+		         WHERE MDAT.MBER_NO = #{MBER_NO}             
+		           AND MDAT.MESURE_CODE = '4040'
+		           AND MDAT.BEGIN_DT >= CONCAT(DATE_FORMAT(DATE_ADD(MMDAT.BEGIN_DT, INTERVAL (MMDAT.TIME_CAL-1) day), '%Y%m%d'), '120000')
+		           AND MDAT.END_DT   <= CONCAT(DATE_FORMAT(DATE_ADD(MMDAT.BEGIN_DT, INTERVAL (MMDAT.TIME_CAL-0) day), '%Y%m%d'), '120000')     
+		     ) A
+		 GROUP BY MBER_NO, MESURE_BGNDT
+		 ORDER BY MBER_NO, MESURE_BGNDT
+		 LIMIT 1
+		 ]]>
+	</select>
+	
+	<!-- 운동 심박 판정을 위한 평균심박 정보조회 -->
+	<select id="selectMesureHRInfoStdrList" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+		       MBER_NO
+		     , AGE
+		     , PULS
+		     , TRUNCATE((220 - AGE) * 50 * 0.01, 0) AS MILD_FAT_BURNING
+		     , TRUNCATE((220 - AGE) * 60 * 0.01, 0) AS FAT_BURNING
+		     , TRUNCATE((220 - AGE) * 70 * 0.01, 0) AS ENDURANCE
+		     , TRUNCATE((220 - AGE) * 85 * 0.01, 0) AS SUPER
+		  FROM (
+		        SELECT
+		               MI.MBER_NO
+		             , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') < SUBSTR(BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+		             , MI.SEXDSTN
+		             , IFNULL(BP.PULS, IF(MI.SEXDSTN = 'M', 70, 80)) PULS
+		          FROM MBER_INFO MI
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MESURE_DE
+		                     , PULS
+		                  FROM MESURE_INFO_CMMN_DALY
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_DE <= #{MESURE_DE}
+		                   AND PULS != 0
+		                 ORDER BY MESURE_DE DESC
+		                 LIMIT 1
+		             ) BP
+		            ON MI.MBER_NO = BP.MBER_NO
+		         WHERE MI.MBER_NO = #{MBER_NO}
+		     ) MI
+		]]>
+	</select>
+	
+	<!-- 특정일자로 활동량계 심박수 정보조회 -->
+	<select id="selectBandHRInfoByDate" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       MI.MBER_NO
+		     , IFNULL(MDAT.HR, 0) HR
+		     , IFNULL(F_BAND_HR_JDGMNT(MILD_FAT_BURNING + FAT_BURNING + ENDURANCE + SUPER, #{LOCALE}), '') JDGMNT_TXT
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , HR
+		          FROM MESURE_DETAIL_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+		           AND MESURE_CODE = '4030'
+		           AND HR != 0
+		         ORDER BY MESURE_BGNDT DESC
+		         LIMIT 1
+		     ) MDAT
+		    ON MI.MBER_NO = MDAT.MBER_NO
+		  LEFT JOIN (  
+		        SELECT
+		               MBER_NO
+		             , MESURE_DE
+		             , @LATEST_MESURE_DT LATEST_MESURE_DT  
+		             , @LATEST_HR LATEST_HR
+		             , @STABLE STABLE
+		             , @MILD_BURN MILD_FAT_BURNING
+		             , @FAT_BURN FAT_BURNING
+		             , @ENDURANCE_BURN ENDURANCE
+		             , @SUPER_BURN SUPER
+		          FROM (      
+		                SELECT
+		                       MBER_NO
+		                     , SUBSTR(MESURE_BGNDT, 1, 8) MESURE_DE
+		                     , @LATEST_MESURE_DT := MESURE_BGNDT
+		                     , @LATEST_HR := HR
+		                     , @HR_TOTAL := @HR_TOTAL + HR
+		                     , IF(@HR_MAX < HR, @HR_MAX := HR, @HR_MAX := @HR_MAX)
+		                     , IF(@HR_MIN > HR, @HR_MIN := HR, @HR_MIN := @HR_MIN)
+		                     , CASE WHEN #{MILD_FAT_BURNING} > 0 AND #{FAT_BURNING} > 0 AND #{MILD_FAT_BURNING} <= HR AND HR < #{FAT_BURNING} THEN @MILD_BURN      := @MILD_BURN      + 5
+		                            WHEN #{FAT_BURNING}      > 0 AND #{ENDURANCE}   > 0 AND #{FAT_BURNING}      <= HR AND HR < #{ENDURANCE}   THEN @FAT_BURN       := @FAT_BURN       + 5
+		                            WHEN #{ENDURANCE}        > 0 AND #{SUPER}       > 0 AND #{ENDURANCE}        <= HR AND HR < #{SUPER}       THEN @ENDURANCE_BURN := @ENDURANCE_BURN + 5
+		                            WHEN #{SUPER}            > 0                        AND #{SUPER}            <= HR                         THEN @SUPER_BURN     := @SUPER_BURN     + 5
+		                            ELSE @STABLE := @STABLE + 5
+		                        END 
+		                  FROM MESURE_DETAIL_ACTV_TRCK
+		                 INNER JOIN (SELECT @LATEST_HR := 0, @LATEST_MESURE_DT := 0, @HR_MAX := 0, @STABLE := 0, @HR_MIN := 0, @MILD_BURN := 0, @FAT_BURN := 0, @ENDURANCE_BURN := 0, @SUPER_BURN := 0) R
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_BGNDT LIKE CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 DAY), '%Y%m%d'), '%')
+		                   AND MESURE_CODE = '4030'
+		                   AND HR != 0
+		        		) CAL_MDAT
+		        	LIMIT 1
+		      ) YSTD
+		    ON MI.MBER_NO = YSTD.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+    	]]>
+	</select>
+	
+	<!-- 특정일자로  활동량계 심박수 데이터 목록 조회 -->
+	<select id="selectBandHRDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MESURE_BGNDT AS MESURE_DT
+		     , HR DATAS
+		  FROM MESURE_DETAIL_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = '4030'
+		   AND MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+		 GROUP BY MESURE_BGNDT, HR
+		 ORDER BY MESURE_BGNDT ASC
+	</select>
+	
+	<!-- 최근 측정일자로 활동량계 심박수 정보 조회 -->
+	<select id="selectBandSHRInfoByLatest" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       MESURE_DE
+		     , @LATEST_MESURE_DT LATEST_MESURE_DT  
+		     , @LATEST_HR LATEST_HR
+		     , @STABLE STABLE
+		     , @MILD_BURN MILD_FAT_BURNING
+		     , @FAT_BURN FAT_BURNING
+		     , @ENDURANCE_BURN ENDURANCE
+		     , @SUPER_BURN SUPER
+		  FROM (
+		        SELECT 
+		               SUBSTR(MESURE_BGNDT, 1, 8) MESURE_DE
+		             , @LATEST_MESURE_DT := MESURE_BGNDT
+		             , @LATEST_HR := HR
+		             , @HR_TOTAL := @HR_TOTAL + HR
+		             , IF(@HR_MAX < HR, @HR_MAX := HR, @HR_MAX := @HR_MAX)
+		             , IF(@HR_MIN > HR, @HR_MIN := HR, @HR_MIN := @HR_MIN)
+		             , CASE WHEN #{MILD_FAT_BURNING} > 0 AND #{FAT_BURNING} > 0 AND #{MILD_FAT_BURNING} <= HR AND HR < #{FAT_BURNING} THEN @MILD_BURN      := @MILD_BURN      + 5
+		                    WHEN #{FAT_BURNING}      > 0 AND #{ENDURANCE}   > 0 AND #{FAT_BURNING}      <= HR AND HR < #{ENDURANCE}   THEN @FAT_BURN       := @FAT_BURN       + 5
+		                    WHEN #{ENDURANCE}        > 0 AND #{SUPER}       > 0 AND #{ENDURANCE}        <= HR AND HR < #{SUPER}       THEN @ENDURANCE_BURN := @ENDURANCE_BURN + 5
+		                    WHEN #{SUPER}            > 0                        AND #{SUPER}            <= HR                         THEN @SUPER_BURN     := @SUPER_BURN     + 5
+		                    ELSE @STABLE := @STABLE + 5
+		                END 
+		          FROM MESURE_DETAIL_ACTV_TRCK
+		         INNER JOIN (SELECT @LATEST_HR := 0, @LATEST_MESURE_DT := 0, @HR_MAX := 0, @HR_MIN := 0, @STABLE := 0, @MILD_BURN := 0, @FAT_BURN := 0, @ENDURANCE_BURN := 0, @SUPER_BURN := 0) R
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4030'
+		]]>
+		<if test="MESURE_DE != null and MESURE_DE != ''">
+		           AND MESURE_BGNDT LIKE CONCAT(#{MESURE_DE}, '%')
+		</if>
+		           AND HR != 0
+		         ORDER BY MESURE_BGNDT ASC
+		      ) CAL_MDAT
+		  LIMIT 1
+	</select>
+	
+	<!-- 최근 6개 혈압 정보 조회 -->
+	<select id="selectMesureBpInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MBER_NO
+		     , MESURE_DE
+		     , MAX(IF(MESURE_CODE = '622E', DATA, 0)) SYSTOLIC_DATA
+		     , MAX(IF(MESURE_CODE = '622E', DATA2, 0)) SYSTOLIC_DATA2
+		     , MAX(IF(MESURE_CODE = '622F', DATA, 0)) DIASTOLIC_DATA
+		     , MAX(IF(MESURE_CODE = '622F', DATA2, 0)) DIASTOLIC_DATA2
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , SUBSTRING(MESURE_DT, 1,8) MESURE_DE
+		             , MESURE_CODE
+		             , MAX(MESURE_DATA) DATA
+		             , IF(COUNT(*) > 1, MIN(MESURE_DATA), 0) DATA2
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '622E'
+		         GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1,8), MESURE_CODE
+		         UNION ALL
+		        SELECT 
+		               MBER_NO
+		             , SUBSTRING(MESURE_DT, 1,8)
+		             , MESURE_CODE
+		             , MAX(MESURE_DATA) DATA
+		             , IF(COUNT(*) > 1, MIN(MESURE_DATA), 0) DATA2
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '622F'
+		         GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1,8), MESURE_CODE
+		     ) A
+		 GROUP BY MBER_NO, MESURE_DE
+		 ORDER BY MESURE_DE DESC
+		 LIMIT 6
+	</select>
+	
+	<!-- 측정코드로 측정정보 조회 쿼리 -->
+	<sql id="selectMesureInfoListByMesureCodeQuery">
+		SELECT
+			   MBER_NO
+			 , MESURE_MTHD
+			 , MESURE_MTHD_NM
+			 , MESURE_DT
+			 , DATAS
+			 , GD_STDR.MNVL
+			 , GD_STDR.MVL
+			 , F_MESURE_GRAD_NM(MIC.MBER_NO, MIC.MESURE_CODE, MIC.DATAS, #{LOCALE}) MESURE_GRAD_NM
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_CODE
+                     , MESURE_MTHD
+                     , F_CODE_NM('MS01', MESURE_MTHD, #{LOCALE}) MESURE_MTHD_NM
+                     , F_STR_FORMAT('DATE', SUBSTRING(MESURE_DT, 1, 12), #{LOCALE}) MESURE_DT
+		             , MESURE_DATA DATAS
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+			<if test="START_DE != null and START_DE != ''">
+		           AND MESURE_DT >= CONCAT(SUBSTR(#{START_DE}, 1, 8), '000000')
+			</if>		           
+			<if test="END_DE != null and END_DE != ''">
+		           AND MESURE_DT <![CDATA[ <= ]]> CONCAT(SUBSTR(#{END_DE}, 1, 8), '235959')
+			</if>
+		         ORDER BY MESURE_DT DESC
+		     ) MIC
+		  LEFT JOIN (
+		        SELECT 
+		               MESURE_CODE
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MIN(MNVL), 2)
+		             	    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MIN(MNVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MIN(MNVL) * 0.01, 2)
+			</if>
+		                    ELSE MIN(MNVL)
+		                END MNVL
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MAX(MVL), 2)
+		                    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MAX(MVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MAX(MVL) * 0.01, 2)
+			</if>
+		                    ELSE MAX(MVL)
+		                END MVL
+		          FROM MESURE_INFO_STDR MIS
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+	             INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        	</if>
+		         WHERE MESURE_CODE = #{MESURE_CODE}
+			<if test="SEXDSTN != null and SEXDSTN != ''">
+		           AND SEXDSTN = #{SEXDSTN}
+		    </if>
+		    <if test="AGE != null and AGE != ''">
+				   AND #{AGE} BETWEEN BEGIN_AGE AND END_AGE
+			</if>
+		    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+		           AND BEGIN_AGE >= #{BEGIN_AGE}
+		    </if>
+		    <if test="END_AGE != null and END_AGE != ''">
+		           AND END_AGE <![CDATA[<=]]> #{END_AGE}
+			</if>
+		           AND COLOR_CODE_VALUE = '6FCD48'
+		         GROUP BY MESURE_CODE
+		     ) GD_STDR
+		    ON MIC.MESURE_CODE = GD_STDR.MESURE_CODE
+	</sql>
+	
+	<!-- 측정코드로 측정정보 조회 건수 -->
+	<select id="selectMesureInfoListByMesureCodeCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectMesureInfoListByMesureCodeQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 측정코드로 측정정보 조회 -->
+	<select id="selectMesureInfoListByMesureCode" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectMesureInfoListByMesureCodeQuery" />
+		     ) TBL
+		 ORDER BY MESURE_DT DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 특정일자로 측정정보 조회 -->
+	<select id="selectMesureInfoByDate" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_DT
+		     , DATAS
+		     , ROUND(DATAS / (TOT_STDR.MVL * 0.01), 2) RATE
+		     , MIS.MESURE_GRAD_NM
+		     , MIS.COLOR_CODE_VALUE
+		     , TOT_STDR.MNVL MIN_MNVL
+		     , TOT_STDR.MVL MAX_MVL
+		     , GD_STDR.MNVL GOOD_MNVL
+		     , GD_STDR.MVL GOOD_MVL
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_CODE
+		             , MESURE_DT
+		             , MESURE_DATA DATAS
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+		           AND MESURE_DT LIKE CONCAT(#{MESURE_DE}, '%')
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1
+		     ) MIC
+ 		 LEFT JOIN (
+               SELECT 
+                      MESURE_CODE
+                    , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MNVL, 2)
+                           WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MNVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+						   WHEN MESURE_CODE = '8010'					  THEN ROUND(AVG_BDWGH * MNVL * 0.01, 2)
+		</if>
+		                   ELSE MNVL
+		               END MNVL
+		            , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MVL, 2)
+		                   WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    	   WHEN MESURE_CODE = '8010'					  THEN ROUND(AVG_BDWGH * MVL * 0.01, 2)
+		</if>
+		                   ELSE MVL
+		               END MVL
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		    , MESURE_GRAD_NM_US MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			, MESURE_GRAD_NM_ES MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			, MESURE_GRAD_NM_ID MESURE_GRAD_NM
+			</when>
+			<otherwise>
+	    			, MESURE_GRAD_NM
+			</otherwise>
+		</choose>
+                    , COLOR_CODE_VALUE
+                 FROM MESURE_INFO_STDR MIS
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+                INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        </if>
+                WHERE MESURE_CODE = #{MESURE_CODE}
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+               	  AND SEXDSTN = #{SEXDSTN}
+   		</if>
+   		<if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+                  AND BEGIN_AGE >= #{BEGIN_AGE}
+   		</if>
+   		<if test="END_AGE != null and END_AGE != ''">
+              	  AND END_AGE <![CDATA[<=]]> #{END_AGE}
+		</if>
+             ) MIS
+            ON MIC.MESURE_CODE = MIS.MESURE_CODE
+           AND MIC.DATAS BETWEEN MIS.MNVL AND MIS.MVL
+		  LEFT JOIN (
+		        SELECT 
+		               MESURE_CODE
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MIN(MNVL), 2)
+		             	    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MIN(MNVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MIN(MNVL) * 0.01, 2)
+			</if>
+		                    ELSE MIN(MNVL)
+		                END MNVL
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MAX(MVL), 2)
+		                    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MAX(MVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MAX(MVL) * 0.01, 2)
+			</if>
+		                    ELSE MAX(MVL)
+		                END MVL
+		          FROM MESURE_INFO_STDR MIS
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+                 INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        	</if>
+		         WHERE MESURE_CODE = #{MESURE_CODE}
+			<if test="SEXDSTN != null and SEXDSTN != ''">
+		           AND SEXDSTN = #{SEXDSTN}
+		    </if>
+		    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+		           AND BEGIN_AGE >= #{BEGIN_AGE}
+		    </if>
+		    <if test="END_AGE != null and END_AGE != ''">
+		           AND END_AGE <![CDATA[<=]]> #{END_AGE}
+			</if>
+		         GROUP BY MESURE_CODE
+		     ) TOT_STDR
+		    ON MIC.MESURE_CODE = TOT_STDR.MESURE_CODE
+		  LEFT JOIN (
+		        SELECT 
+		               MESURE_CODE
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MIN(MNVL), 2)
+		             	    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MIN(MNVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MIN(MNVL) * 0.01, 2)
+			</if>
+		                    ELSE MIN(MNVL)
+		                END MNVL
+		             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MAX(MVL), 2)
+		                    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MAX(MVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    		WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MAX(MVL) * 0.01, 2)
+			</if>
+		                    ELSE MAX(MVL)
+		                END MVL
+		          FROM MESURE_INFO_STDR MIS
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+                 INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        	</if>
+		         WHERE MESURE_CODE = #{MESURE_CODE}
+			<if test="SEXDSTN != null and SEXDSTN != ''">
+		           AND SEXDSTN = #{SEXDSTN}
+		    </if>
+		    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+		           AND BEGIN_AGE >= #{BEGIN_AGE}
+		    </if>
+		    <if test="END_AGE != null and END_AGE != ''">
+		           AND END_AGE <![CDATA[<=]]> #{END_AGE}
+			</if>
+		           AND COLOR_CODE_VALUE = '6FCD48'
+		         GROUP BY MESURE_CODE
+		     ) GD_STDR
+		    ON MIC.MESURE_CODE = GD_STDR.MESURE_CODE
+	</select>
+	
+	<!-- 최근 측정일자로 측정정보 조회 -->
+	<select id="selectMesureInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       IFNULL(MIC.MESURE_DT, '') MESURE_DT
+		     , IFNULL(MIC.MESURE_CODE, #{MESURE_CODE}) MESURE_CODE
+		     , F_MESURE_CODE_NM(IFNULL(MIC.MESURE_CODE, #{MESURE_CODE}), #{LOCALE}) MESURE_CODE_NM
+		     , IFNULL(MIC.MESURE_MTHD_NM, '') MESURE_MTHD_NM
+		     , CAST(CASE WHEN MIC.MESURE_CODE = '6026' OR SUBSTRING(MIC.MESURE_CODE, 1, 3) = '622' OR SUBSTRING(MIC.MESURE_CODE, 1, 3) = '624' OR SUBSTRING(MIC.MESURE_CODE, 1, 3) = '701' THEN IFNULL(TRUNCATE(MIC.DATAS, 0), NULL)
+				    ELSE IFNULL(ROUND(MIC.DATAS, 1), NULL)
+				END AS CHAR) DATAS
+		     , CASE WHEN LEGACY_MIC.DATAS IS NULL THEN ''
+		     		WHEN MIC.DATAS - IFNULL(LEGACY_MIC.DATAS, 0) <![CDATA[>]]> 0 THEN '+'
+		     		WHEN MIC.DATAS - IFNULL(LEGACY_MIC.DATAS, 0) <![CDATA[<]]> 0 THEN '-'
+		     		ELSE '=' 
+		        END AS INCRS_QY
+		     , F_MESURE_GRAD_NM(MI.MBER_NO, IFNULL(MIC.MESURE_CODE, #{MESURE_CODE}), MIC.DATAS, #{LOCALE}) MESURE_GRAD_NM
+		     , F_MESURE_GRAD_COLOR(MI.MBER_NO, IFNULL(MIC.MESURE_CODE, #{MESURE_CODE}), MIC.DATAS, #{LOCALE}) COLOR_CODE_VALUE
+		     , IFNULL(MIS.MNVL, '') MNVL       
+         	 , IFNULL(MIS.MVL, '') MVL 
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_CODE
+		             , MESURE_MTHD
+                     , F_CODE_NM('MS01', MESURE_MTHD, #{LOCALE}) MESURE_MTHD_NM
+		             , MESURE_DT
+		             , MESURE_DATA DATAS
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+				 UNION ALL
+				SELECT 
+				       MIC.MBER_NO
+				     , '8010' MESURE_CODE
+				     , MESURE_MTHD
+				     , F_CODE_NM('MS01', '8010', 'KO') MESURE_MTHD_NM
+				     , MESURE_DT
+				     , ROUND(MESURE_DATA * BDWGH * 0.01, 2) DATAS
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				        SELECT 
+					           MBER_NO
+					         , MESURE_DATA BDWGH
+				          FROM MESURE_INFO_CMMN
+				         WHERE MBER_NO = #{MBER_NO}
+				           AND MESURE_CODE = '6021'
+				         ORDER BY MESURE_DT DESC
+				         LIMIT 1
+				     ) MICW
+				    ON MIC.MBER_NO = MICW.MBER_NO
+				 WHERE MIC.MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '6022'
+		</if>
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1
+		    ) MIC
+		   ON MI.MBER_NO = MIC.MBER_NO
+		 LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_CODE
+		             , MESURE_DT
+		             , MESURE_DATA DATAS
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1, 1	 
+		    ) LEGACY_MIC
+		   ON MIC.MBER_NO = LEGACY_MIC.MBER_NO
+ 		 LEFT JOIN (
+               SELECT 
+                      MESURE_CODE
+                    , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MNVL, 2)
+                    	   WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MNVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+                    	   WHEN MESURE_CODE = '8010' THEN ROUND(AVG_BDWGH * MNVL * 0.01, 2)
+		</if>
+                    	   WHEN MESURE_CODE = '6026' THEN TRUNCATE(MNVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '622' THEN TRUNCATE(MNVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '624' THEN TRUNCATE(MNVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '701' THEN TRUNCATE(MNVL, 0)
+		                   ELSE ROUND(MNVL, 2)
+		               END MNVL
+		            , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MVL, 2)
+		                   WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+                    	   WHEN MESURE_CODE = '8010' THEN ROUND(AVG_BDWGH * MVL * 0.01, 2)
+		</if>
+                    	   WHEN MESURE_CODE = '6026' THEN TRUNCATE(MVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '622' THEN TRUNCATE(MVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '624' THEN TRUNCATE(MVL, 0)
+                    	   WHEN SUBSTRING(MESURE_CODE, 1, 3) = '701' THEN TRUNCATE(MVL, 0)
+		                   ELSE ROUND(MVL, 2)
+		               END MVL
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		    , MESURE_GRAD_NM_US MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			, MESURE_GRAD_NM_ES MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			, MESURE_GRAD_NM_ID MESURE_GRAD_NM
+			</when>
+			<otherwise>
+	    			, MESURE_GRAD_NM
+			</otherwise>
+		</choose>
+                    , COLOR_CODE_VALUE
+                 FROM MESURE_INFO_STDR MIS
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+                INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        </if>
+                WHERE MESURE_CODE = #{MESURE_CODE}
+                  AND COLOR_CODE_VALUE = '6FCD48'
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+               	  AND SEXDSTN = #{SEXDSTN}
+   		</if>
+   		<if test="AGE != null and AGE != ''">
+				  AND #{AGE} BETWEEN BEGIN_AGE AND END_AGE
+		</if>
+   		<if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+                  AND BEGIN_AGE >= #{BEGIN_AGE}
+   		</if>
+   		<if test="END_AGE != null and END_AGE != ''">
+              	  AND END_AGE <![CDATA[<=]]> #{END_AGE}
+		</if>
+             ) MIS
+            ON MIC.MESURE_CODE = MIS.MESURE_CODE
+         WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 최근 측정일자로 체형판정 조회 -->
+	<select id="selectBypJdgmntByLatest" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , IFNULL(SLM, 0) SLM
+		     , IFNULL(F_SLM_SCORE(SEXDSTN, SLM / KCM * 1000), 0) SLM_SCORE
+		     , IFNULL(PBF, 0) PBF
+		     , CASE WHEN F_PBF_SCORE(AGE, SEXDSTN, PBF) = 1 THEN 1
+		            WHEN F_PBF_SCORE(AGE, SEXDSTN, PBF) IN (2, 3) THEN 2
+		            WHEN F_PBF_SCORE(AGE, SEXDSTN, PBF) IN (4, 5) THEN 3
+		            ELSE 0
+		        END PBF_SCORE
+		     , IFNULL(F_BYP_JDGMNT(AGE, SEXDSTN, PBF, SLM / KCM * 1000, 'T', #{LOCALE}), '') BYP_JDGMNT_TXT
+     		 , IFNULL(F_BYP_JDGMNT(AGE, SEXDSTN, PBF, SLM / KCM * 1000, 'D', #{LOCALE}), '') BYP_JDGMNT_DC
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , SEXDSTN
+		             , BRTHDY
+		             , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTRING(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTRING(BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+		          FROM MBER_INFO
+		         WHERE MBER_NO = #{MBER_NO}
+		     ) MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , ROUND((HEIGHT * 0.01) * (HEIGHT * 0.01), 1) KM
+		             , ROUND((HEIGHT * HEIGHT), 1) KCM
+		          FROM MESURE_INFO_CMMN_DALY
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND HEIGHT != 0
+		         ORDER BY MESURE_DE DESC
+		         LIMIT 1
+		     ) HT
+		    ON MI.MBER_NO = HT.MBER_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_DE
+		             , BDWGH
+		             , PBF
+		             , SLM
+		          FROM MESURE_INFO_CMMN_DALY
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND BDWGH != 0
+                   AND PBF != 0
+                   AND SLM != 0
+		         ORDER BY MESURE_DE DESC
+		         LIMIT 1
+		     ) MICD
+		    ON MI.MBER_NO = MICD.MBER_NO
+	</select>
+	
+	<!-- 측정코드 별 그래프 정보 -->
+	<select id="selectMesureInfoStdrList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MESURE_GRAD
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 	 , MESURE_GRAD_NM_US MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 	 , MESURE_GRAD_NM_ES MESURE_GRAD_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  	 , MESURE_GRAD_NM_ID MESURE_GRAD_NM
+			</when>
+			<otherwise>
+	    	 , MESURE_GRAD_NM
+			</otherwise>
+		</choose>
+			 , CASE WHEN MESURE_CODE = '6021'                      THEN ROUND(IFNULL(#{KM}, 0) * MNVL, 2)
+                    WHEN MESURE_CODE = '6023'                      THEN ROUND(IFNULL(#{KCM}, 0) * MNVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    WHEN MESURE_CODE = '8010'					   THEN ROUND(AVG_BDWGH * MNVL * 0.01, 2)
+		</if>
+                    ELSE MNVL
+                END MNVL
+             , CASE WHEN MESURE_CODE = '6021'                      THEN ROUND(IFNULL(#{KM}, 0) * MVL, 2)
+                    WHEN MESURE_CODE = '6023'                      THEN ROUND(IFNULL(#{KCM}, 0) * MVL * 0.001, 2)
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    WHEN MESURE_CODE = '8010'					   THEN ROUND(AVG_BDWGH * MVL * 0.01, 2)
+		</if>
+                    ELSE MVL
+                END MVL
+		     , COLOR_CODE_VALUE
+		  FROM MESURE_INFO_STDR MIS
+		<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+         INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        </if> 
+		 WHERE MESURE_CODE = #{MESURE_CODE}
+	 	<if test="SEXDSTN != null and SEXDSTN != ''">
+	       AND SEXDSTN = #{SEXDSTN}
+	    </if>
+	    <if test="AGE != null and AGE != ''">
+		   AND #{AGE} BETWEEN BEGIN_AGE AND END_AGE
+		</if>
+	    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+	       AND BEGIN_AGE >= #{BEGIN_AGE}
+	    </if>
+	    <if test="END_AGE != null and END_AGE != ''">
+	       AND END_AGE <![CDATA[<=]]> #{END_AGE}
+		</if>
+	</select>
+	
+	<!-- 신장 판정치 정보 조회 -->
+	<select id="selectMesureHeightInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+               MBER_NO
+     		 , F_STR_FORMAT('DATE', MESURE_DE, #{LOCALE}) MESURE_DT
+             , ROUND((HEIGHT * 0.01) * (HEIGHT * 0.01), 1) KM
+             , ROUND((HEIGHT * HEIGHT), 1) KCM
+             , HEIGHT
+          FROM MESURE_INFO_CMMN_DALY
+         WHERE MBER_NO = #{MBER_NO}
+           AND HEIGHT > 0
+        <!--    
+		<if test="MESURE_DE != null and MESURE_DE != ''">
+		   AND DATE_FORMAT(MESURE_DE, '%Y%m%d') <![CDATA[ <= ]]> #{MESURE_DE}
+		</if>
+		 -->
+         ORDER BY MESURE_DE DESC
+         LIMIT 1
+	</select>
+	
+	<!-- 상세화면용 최근 측정한 측정정보 공통 정보 조회 -->
+	<select id="selectDetailMesureCmmnInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   MBER_NO
+			 , MESURE_CODE
+			 , DATAS
+			 , MESURE_GRAD_NM
+			 , MIN_MNVL
+			 , MAX_MVL
+			 , GOOD_MNVL
+			 , GOOD_MVL
+			 , COLOR_CODE_VALUE
+			 , ROUND(DATAS / (A.MAX_MVL * 0.01), 2) RATE
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , TBL.MESURE_CODE
+		             , DATAS
+		             , MESURE_GRAD_NM
+					 , IFNULL(MMIS.MNVL, 0) MIN_MNVL
+					 , IFNULL(MMIS.MVL, 0) MAX_MVL
+					 , IFNULL(GMIS.MNVL, 0) GOOD_MNVL
+					 , IFNULL(GMIS.MVL, 0) GOOD_MVL
+		             , COLOR_CODE_VALUE		             
+		          FROM (
+		                SELECT 
+		                       MICT.MBER_NO
+		                     , MICT.MESURE_CODE
+		                     , CASE WHEN MICT.MESURE_CODE = '6026' OR SUBSTRING(MICT.MESURE_CODE, 1, 3) = '622' OR SUBSTRING(MICT.MESURE_CODE, 1, 3) = '624' OR SUBSTRING(MICT.MESURE_CODE, 1, 3) = '701' THEN IFNULL(CONVERT(TRUNCATE(MICT.DATAS, 0), UNSIGNED), NULL)
+								    ELSE IFNULL(CONVERT(ROUND(MICT.DATAS, 1), DECIMAL(6,1)), NULL)
+								END DATAS
+							 , F_MESURE_GRAD_NM(MICT.MBER_NO, MICT.MESURE_CODE, MICT.DATAS, #{LOCALE}) MESURE_GRAD_NM
+							 , F_MESURE_GRAD_COLOR(MICT.MBER_NO, MICT.MESURE_CODE, MICT.DATAS, #{LOCALE}) COLOR_CODE_VALUE	                   
+		                  FROM (
+		                        SELECT 
+		                               MBER_NO
+		                             , #{MESURE_CODE} MESURE_CODE
+		                             , F_MESURE_FORMAT(
+				<choose>
+					<when test='DAY_SE_CODE != null and (DAY_SE_CODE.equals("W") or DAY_SE_CODE.equals("Y"))'>
+							       AVG(
+		            </when>
+		        </choose>
+				<if test="MESURE_CODE != null and MESURE_CODE != ''">
+					<choose>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+					 				 BDWGH
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+					 				 FAT_MAS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+					  				 PBF
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+					 				 SLM
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+					 				 EST_BN_MAS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+					 				 VFL
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+					 				 BMR
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+					 				 BMI
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+					 				 HEIGHT
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+					 				 SYSTOLIC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+					 				 DIASTOLIC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+					 				 PULS
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+					 				 FBS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+					 				 PP2
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+					 				 T_CHOL
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+					 				 TG
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+					 				 HDLC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+					 				 LDLC
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+					 				 STRS_SCORE
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+					 				 PHYSIC_STRS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+					 				 MNTL_STRS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+					 				 STRS_CNTRMSR_ABLTY
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+					 				 BLDVSS_STEP
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+					 				 CAD_OUTPUT_IN
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+					 				 ELSTC_DGREE
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+					 				 RBV_QY
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+					 				 WAIST_CRCMFRNC
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+					 				 BDHEAT
+						</when>
+						
+						<otherwise>
+				    				  0
+						</otherwise>
+					</choose>
+					<choose>
+						<when test='DAY_SE_CODE != null and (DAY_SE_CODE.equals("W") or DAY_SE_CODE.equals("Y"))'>
+								       )
+			            </when>
+			        </choose>
+				</if>                  , #{MESURE_CODE}) AS DATAS
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+							       FROM MESURE_INFO_CMMN_DALY
+						          WHERE MBER_NO = #{MBER_NO}
+						            AND MESURE_DE = #{MESURE_DE}
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+							       FROM MESURE_INFO_CMMN_DALY
+							      WHERE MBER_NO = #{MBER_NO}
+							        AND MESURE_DE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+		                 							  AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+						           FROM MESURE_INFO_CMMN_MNBY
+						          WHERE MBER_NO = #{MBER_NO}
+						            AND MESURE_MT = SUBSTR(#{MESURE_DE}, 1, 6)
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+						           FROM MESURE_INFO_CMMN_MNBY
+						          WHERE MBER_NO = #{MBER_NO}
+						            AND MESURE_MT BETWEEN CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '01')
+		                   							  AND CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '12')
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("L")'>		            	
+		             	FROM MESURE_INFO_CMMN_DALY
+						WHERE MBER_NO = #{MBER_NO}
+		            </when>
+
+		        </choose>   
+					<choose>
+						<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+								 ORDER BY MESURE_DE DESC
+				                 LIMIT 1
+			            </when>
+			            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+								 GROUP BY MBER_NO
+			            </when>
+			            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+							     ORDER BY MESURE_MT DESC
+				                 LIMIT 1
+			            </when>
+			            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+							     GROUP BY MBER_NO, SUBSTRING(MESURE_MT, 1, 4)
+			            </when>
+			            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("L")'>	
+			            		AND		            		 
+			            		 <choose>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+						 				 BDWGH
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+								 		 FAT_MAS
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+								  		 PBF
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+								 		 SLM
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+								 		 EST_BN_MAS
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+								 		 VFL
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+								 		 BMR
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+								 		 BMI
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+								 		 HEIGHT
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+								 		SYSTOLIC
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+								 		DIASTOLIC
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+								 		PULS
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+								 		FBS
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+								 		PP2
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+								 		T_CHOL
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+								 		TG
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+								 		HDLC
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+								 		LDLC
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+								 		STRS_SCORE
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+								 		PHYSIC_STRS
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+								 		MNTL_STRS
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+								 		STRS_CNTRMSR_ABLTY
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+								 		BLDVSS_STEP
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+								 		CAD_OUTPUT_IN
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+								 		ELSTC_DGREE
+									</when>
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+								 		RBV_QY
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+								 		WAIST_CRCMFRNC
+									</when>
+									
+									<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+								 		BDHEAT
+									</when>
+								</choose>
+								 is NOT NULL
+							     ORDER BY MESURE_DE DESC
+				                 LIMIT 1
+			            </when>
+			        </choose> 	
+		                     ) MICT
+		             ) TBL
+		          LEFT JOIN (
+		                SELECT 
+		                       MESURE_CODE
+				             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MIN(MNVL), 2)
+				             	    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MIN(MNVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    				WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MIN(MNVL) * 0.01, 2)
+			</if>
+				                    ELSE MIN(MNVL)
+				                END MNVL
+				             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MAX(MVL), 2)
+				                    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MAX(MVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    				WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MAX(MVL) * 0.01, 2)
+			</if>
+				                    ELSE MAX(MVL)
+				                END MVL
+		                  FROM MESURE_INFO_STDR MIS
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+                		 INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        	</if>
+		                 WHERE MESURE_CODE = #{MESURE_CODE}
+			<if test="SEXDSTN != null and SEXDSTN != ''">
+		                     AND SEXDSTN = #{SEXDSTN}
+		    </if>
+		    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+		                     AND BEGIN_AGE >= #{BEGIN_AGE}
+		    </if>
+		    <if test="END_AGE != null and END_AGE != ''">
+		                    AND END_AGE <![CDATA[<=]]> #{END_AGE}
+			</if>
+		                 GROUP BY MESURE_CODE
+		             ) MMIS
+		            ON TBL.MESURE_CODE = MMIS.MESURE_CODE
+		          LEFT JOIN (
+		                  SELECT 
+		                         MESURE_CODE
+				             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MIN(MNVL), 2)
+				             	    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MIN(MNVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    				WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MIN(MNVL) * 0.01, 2)
+			</if>
+				                    ELSE MIN(MNVL)
+				                END MNVL
+				             , CASE WHEN MESURE_CODE = '6021' THEN ROUND(IFNULL(#{KM}, 0) * MAX(MVL), 2)
+				                    WHEN MESURE_CODE = '6023' THEN ROUND(IFNULL(#{KCM}, 0) * MAX(MVL) * 0.001, 2)
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'> 
+                    				WHEN MESURE_CODE = '8010'					   THEN ROUND(MAX(AVG_BDWGH) * MAX(MVL) * 0.01, 2)
+			</if>
+				                    ELSE MAX(MVL)
+				                END MVL
+		                    FROM MESURE_INFO_STDR MIS
+			<if test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>                 
+            			   INNER JOIN (SELECT MESURE_DATA AVG_BDWGH FROM MESURE_INFO_CMMN WHERE MBER_NO = #{MBER_NO} AND MESURE_CODE = '6021' ORDER BY MESURE_DT DESC LIMIT 1) AB
+        	</if>
+		                   WHERE MESURE_CODE = #{MESURE_CODE}
+			<if test="SEXDSTN != null and SEXDSTN != ''">
+		                     AND SEXDSTN = #{SEXDSTN}
+		    </if>
+		    <if test="BEGIN_AGE != null and BEGIN_AGE != ''">
+		                     AND BEGIN_AGE >= #{BEGIN_AGE}
+		    </if>
+		    <if test="END_AGE != null and END_AGE != ''">
+		                     AND END_AGE <![CDATA[<=]]> #{END_AGE}
+			</if>
+		                     AND COLOR_CODE_VALUE = '6FCD48'
+		                   GROUP BY MESURE_CODE
+		             ) GMIS
+		            ON TBL.MESURE_CODE = GMIS.MESURE_CODE
+		     ) A
+	</select>
+	
+	<!-- 상세화면용 특정일자로 공통 데이터 목록 조회 -->
+	<select id="selectDetailMesureCmmnDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+			   MESURE_DT
+			 , IFNULL(DATAS, 0) DATAS
+		  FROM (
+			</when>		
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+			   DATE_FORMAT(DATE, '%Y%m') MESURE_DT
+			 , IFNULL(ROUND(AVG(DATAS), 1), 0) DATAS
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</when>
+			<otherwise>
+			   DATE_FORMAT(DATE, '%Y%m%d') MESURE_DT
+			 , IFNULL(ROUND(AVG(DATAS), 1), 0) DATAS
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</otherwise>
+		</choose>
+				SELECT
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+		               MESURE_DT
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		               CONCAT(MESURE_MT, '01') MESURE_DT
+		            </when>
+		            <otherwise>
+		       		   MESURE_DE MESURE_DT
+		            </otherwise>
+		        </choose>  
+				<if test="MESURE_CODE != null and MESURE_CODE != ''">
+					<choose>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+					 , BDWGH
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+					 , FAT_MAS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+					 , PBF
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+					 , SLM
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+					 , EST_BN_MAS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+					 , VFL
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+					 , BMR
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+					 , BMI
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+					 , HEIGHT
+						</when>
+						
+					    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+					 , SYSTOLIC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+					 , DIASTOLIC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 		 , PULS
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+					 , FBS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+					 , PP2
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+					 , T_CHOL
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+					 , TG
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+					 , HDLC
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+					 , LDLC
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+					 , STRS_SCORE
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+					 , PHYSIC_STRS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+					 , MNTL_STRS
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+					 , STRS_CNTRMSR_ABLTY
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+					 , BLDVSS_STEP
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+					 , CAD_OUTPUT_IN
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+					 , ELSTC_DGREE
+						</when>
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+					 , RBV_QY
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+					 , WAIST_CRCMFRNC
+						</when>
+						
+						<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+					 , BDHEAT
+						</when>
+						<otherwise>
+				     , ''
+						</otherwise>
+					</choose>
+				</if>
+				       AS DATAS
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+			       FROM MESURE_INFO_CMMN_DALY
+			      WHERE MBER_NO = #{MBER_NO}
+			        AND MESURE_DE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY), '%Y%m%d') 
+		                              AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY), '%Y%m%d')
+		            </when>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+			       FROM MESURE_INFO_CMMN_DALY
+			      WHERE MBER_NO = #{MBER_NO}
+			        AND MESURE_DE BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                              AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		           FROM MESURE_INFO_CMMN_MNBY
+		          WHERE MBER_NO = #{MBER_NO}
+		            AND MESURE_MT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '%')
+		            </when>		            
+		            <otherwise>
+			       FROM MESURE_INFO_CMMN_TIME
+		          WHERE MBER_NO = #{MBER_NO}
+		            AND MESURE_DT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 8), '%')
+		            </otherwise>
+		        </choose>   
+				 ORDER BY MESURE_DT DESC
+		     ) MIC
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY), "%Y%m%d") 
+		                   AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY), "%Y%m%d")
+		   
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m%d')
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                   AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m%d')
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'), "%Y%m%d")
+		                   AND DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'), "%Y%m%d")
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m')
+		    </when>
+		    <when test='MESURE_CODE != null and (MESURE_CODE.equals("7013") or MESURE_CODE.equals("7014"))'>
+		 WHERE MIC.DATAS IS NOT NULL   
+		    </when>
+		    <otherwise>  
+		 WHERE MIC.DATAS > 0 
+		    </otherwise>
+		</choose>
+		ORDER BY MESURE_DT
+	</select>
+	
+	<!-- 평균 측정정보 활동량 보행수 정보 조회 -->
+	<select id="selectDetailBandStepsInfoByAvg" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MIAT.MBER_NO
+		     , MIAT.MESURE_DT
+		     , MIAT.SPORTS_TOT_STEPS
+		     , MIAT.SPORTS_DSTNC
+		     , MIAT.CNSMP_CALORIE
+		     , IFNULL(MEG.GOAL_VALUE, 0) GOAL_VALUE
+		     , ROUND(IFNULL(MIAT.SPORTS_TOT_STEPS, 0) / (IFNULL(MEG.GOAL_VALUE, 0) * 0.01), 2) RATE
+		  FROM (
+		        SELECT 
+		               MBER_NO
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+		             , MESURE_DT
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		             , MESURE_MT MESURE_DT
+		            </when>
+		            <otherwise>
+		             , MESURE_DE MESURE_DT
+		            </otherwise>
+		        </choose> 
+		             , IFNULL(SPORTS_TOT_STEPS, 0) SPORTS_TOT_STEPS
+		             , IFNULL(ROUND(SPORTS_DSTNC * 0.001, 2), 0) SPORTS_DSTNC
+		             , IFNULL(CNSMP_CALORIE, 0) CNSMP_CALORIE
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+				  FROM (
+						SELECT 
+						       MBER_NO
+						     , MESURE_DE MESURE_DT
+						     , SPORTS_TOT_STEPS
+						     , SPORTS_DSTNC
+						     , CNSMP_CALORIE
+						  FROM MESURE_INFO_CMMN_DALY
+						 WHERE MBER_NO = #{MBER_NO}
+						   AND MESURE_DE = #{MESURE_DE}
+				     ) MIAT
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		          FROM (
+						SELECT 
+						       MBER_NO
+						     , SUBSTRING(MESURE_MT, 1, 4) MESURE_MT
+						     , ROUND(AVG(SPORTS_TOT_STEPS), 0) SPORTS_TOT_STEPS
+						     , AVG(SPORTS_DSTNC) SPORTS_DSTNC
+						     , AVG(CNSMP_CALORIE) CNSMP_CALORIE
+						  FROM MESURE_INFO_CMMN_MNBY
+						 WHERE MBER_NO = #{MBER_NO}
+						   AND MESURE_MT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '%')
+						   AND SPORTS_TOT_STEPS IS NOT NULL
+						 GROUP BY MBER_NO, SUBSTRING(MESURE_MT, 1, 4)
+		             ) MIAT
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+		          FROM (
+						SELECT 
+						       MBER_NO
+						     , SUBSTRING(MESURE_DE, 1, 6) MESURE_DE
+						     , ROUND(AVG(SPORTS_TOT_STEPS), 0) SPORTS_TOT_STEPS
+						     , AVG(SPORTS_DSTNC) SPORTS_DSTNC
+						     , AVG(CNSMP_CALORIE) CNSMP_CALORIE
+						  FROM MESURE_INFO_CMMN_DALY
+						 WHERE MBER_NO = #{MBER_NO}
+						   AND MESURE_DE LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '%')
+						   AND SPORTS_TOT_STEPS IS NOT NULL
+						 GROUP BY MBER_NO, SUBSTRING(MESURE_DE, 1, 6)		          
+		             ) MIAT  
+		            </when>
+		            <otherwise>
+			      FROM (
+						SELECT 
+						       MBER_NO
+						     , MIN(MESURE_DE) MESURE_DE
+						     , ROUND(AVG(SPORTS_TOT_STEPS), 0) SPORTS_TOT_STEPS
+						     , AVG(SPORTS_DSTNC) SPORTS_DSTNC
+						     , AVG(CNSMP_CALORIE) CNSMP_CALORIE
+						  FROM MESURE_INFO_CMMN_DALY
+						 WHERE MBER_NO = #{MBER_NO}
+						   AND MESURE_DE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+								             AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+						   AND SPORTS_TOT_STEPS IS NOT NULL
+						 GROUP BY MBER_NO
+			         ) MIAT
+		            </otherwise>
+		        </choose>   
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1
+		     ) MIAT
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , GOAL_VALUE
+		          FROM MBER_ESTBS_GOAL
+		         WHERE MBER_NO = #{MBER_NO} 
+		           AND MESURE_CODE = 4010
+		     ) MEG
+		    ON MIAT.MBER_NO = MEG.MBER_NO
+	</select>
+	
+	<!-- 상세화면용 특정일자로 활동량계 보행수 데이터 목록 조회 -->
+	<select id="selectDetailBandStepsDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+			   MESURE_DT
+			 , IFNULL(DATAS, 0) DATAS
+		  FROM (
+			</when>		
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+			   DATE_FORMAT(DATE, '%Y%m') MESURE_DT
+			 , IFNULL(ROUND(AVG(DATAS), 1), 0) DATAS
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</when>
+			<otherwise>
+			   DATE_FORMAT(DATE, '%Y%m%d') MESURE_DT
+			 , IFNULL(ROUND(AVG(DATAS), 1), 0) DATAS
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</otherwise>
+		</choose>
+				SELECT
+				<choose>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+		       		   MESURE_DE MESURE_DT
+					 , SPORTS_TOT_STEPS AS DATAS
+			      FROM MESURE_INFO_CMMN_DALY
+			     WHERE MBER_NO = #{MBER_NO}
+			       AND MESURE_DE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY), '%Y%m%d') 
+		                             AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY), '%Y%m%d')
+		            </when>
+					<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+		       		   MESURE_DE MESURE_DT
+					 , SPORTS_TOT_STEPS AS DATAS
+  		          FROM MESURE_INFO_CMMN_DALY
+			     WHERE MBER_NO = #{MBER_NO}
+			       AND MESURE_DE BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                             AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+		            </when>
+		            <when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		               CONCAT(MESURE_MT, '01') MESURE_DT
+					 , SPORTS_TOT_STEPS AS DATAS
+		          FROM MESURE_INFO_CMMN_MNBY
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_MT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '%')
+		            </when>
+		            <otherwise>
+				       MIAT.MESURE_BGNDT MESURE_DT
+				     , IF(MIAT.MESURE_CODE = '4010', MIAT.SPORTS_TOT_STEPS, MIAT.MESURE_DATA) AS DATAS
+				  FROM MESURE_INFO_ACTV_TRCK MIAT
+				 INNER JOIN (
+				        SELECT 
+				               MBER_NO
+				             , MESURE_CODE
+				             , SUBSTRING(MESURE_BGNDT, 1, 10) MESURE_BGNDT
+				             , MAX(SUBSTRING(MESURE_BGNDT, 11, 4)) MESURE_BGNTIME
+				          FROM MESURE_INFO_ACTV_TRCK
+				         WHERE MBER_NO = #{MBER_NO}
+				           AND MESURE_CODE = #{MESURE_CODE}
+				           AND MESURE_BGNDT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 8), '%')
+				         GROUP BY MBER_NO, MESURE_CODE, SUBSTRING(MESURE_BGNDT, 1, 10)
+				     ) MMIAT
+				    ON MIAT.MBER_NO = MMIAT.MBER_NO
+				   AND MIAT.MESURE_CODE = MMIAT.MESURE_CODE
+				   AND MIAT.MESURE_BGNDT = CONCAT(MMIAT.MESURE_BGNDT, MMIAT.MESURE_BGNTIME)
+				 WHERE MIAT.MBER_NO = #{MBER_NO}
+				   AND MIAT.MESURE_BGNDT LIKE CONCAT(SUBSTR(#{MESURE_DE}, 1, 8), '%')
+		            </otherwise>
+		        </choose>   
+				 ORDER BY MESURE_DT DESC
+		     ) MIC
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+		                   AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m%d')
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                   AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m%d')
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		    ON CD.DATE = MIC.MESURE_DT
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'),"%Y%m%d")
+		                   AND DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'),"%Y%m%d")
+		 GROUP BY DATE_FORMAT(DATE, '%Y%m')
+		    </when>
+		    <otherwise>   
+		    </otherwise>
+		</choose>
+		ORDER BY MESURE_DT
+	</select>
+	
+	<!-- 상세화면용 최근 측정한 활동량계 수면 정보 조회 -->
+	<select id="selectDetailBandSleepInfoByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>       
+		     , #{MESURE_DE} MESUER_DE
+		    </when>
+		    <otherwise>
+		     , CONCAT(BEGIN_DE, ' ~ ', END_DE) MESURE_DE
+		     , BEGIN_DE
+		     , END_DE
+		    </otherwise>
+		</choose>
+		     , CAST(SUM(AWAKE_SLEEP_TIME) AS SIGNED INTEGER) AWAKE_SLEEP_TIME
+		     , CAST(SUM(LIGHT_SLEEP_TIME) AS SIGNED INTEGER) LIGHT_SLEEP_TIME
+		     , CAST(SUM(DEEP_SLEEP_TIME) AS SIGNED INTEGER) DEEP_SLEEP_TIME
+		     , CAST(SUM(AWAKE_SLEEP_TIME) + SUM(LIGHT_SLEEP_TIME) + SUM(DEEP_SLEEP_TIME) AS SIGNED INTEGER) TOT_SLEEP_TIME
+		  FROM (
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+				<![CDATA[
+		        SELECT
+		               MBER_NO
+		             , MESURE_BGNDT
+		             , BEGIN_DT
+		             , END_DT
+		             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME		             
+		          FROM MESURE_DETAIL_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4040'
+		           AND BEGIN_DT >= CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000')
+		           AND END_DT   <= CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '120000')               
+		         UNION ALL
+		        SELECT 
+		               MBER_NO
+		             , MESURE_BGNDT
+		             , CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000') BEGIN_DT
+		             , END_DT
+		             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME
+		          FROM MESURE_DETAIL_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4040'
+		           AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000') BETWEEN BEGIN_DT and END_DT               
+		         UNION ALL
+		        SELECT 
+		               MBER_NO
+		             , MESURE_BGNDT
+		             , BEGIN_DT
+		             , CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '115959') END_DT
+		             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+		             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME
+		          FROM MESURE_DETAIL_ACTV_TRCK
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = '4040'
+		           AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '120000') BETWEEN BEGIN_DT AND END_DT
+ 				]]>
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+				SELECT 
+				       MBER_NO
+				     , DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') MESURE_DE
+				     , DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") BEGIN_DE
+				     , DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d") END_DE
+				     , AWAKE_SLEEP_TIME
+				     , LIGHT_SLEEP_TIME
+				     , DEEP_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+		                                                                                  AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+				SELECT 
+				       MBER_NO
+				     , DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') MESURE_DE
+				     , DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d') BEGIN_DE
+				     , DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d') END_DE
+				     , AWAKE_SLEEP_TIME
+				     , LIGHT_SLEEP_TIME
+				     , DEEP_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                   																  AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+				SELECT 
+				       MBER_NO
+				     , DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') MESURE_DE
+				     , DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'),"%Y%m%d") BEGIN_DE
+				     , DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'),"%Y%m%d") END_DE
+				     , AWAKE_SLEEP_TIME
+				     , LIGHT_SLEEP_TIME
+				     , DEEP_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'),"%Y%m%d")
+		                   																  AND DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'),"%Y%m%d")
+ 			</when>
+ 		</choose>
+		     ) A
+		 GROUP BY MBER_NO
+	</select>
+	
+	<!-- 상세화면용 특정일자로 활동량계 수면 데이터 목록 조회 -->
+	<select id="selectDetailBandSleepDataListByDate" parameterType="hmap" resultType="hmap">
+		SELECT
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+			   BEGIN_DT
+			 , END_DT
+			 , IFNULL(AWAKE_SLEEP_TIME, 0) AWAKE_SLEEP_TIME
+		     , IFNULL(LIGHT_SLEEP_TIME, 0) LIGHT_SLEEP_TIME
+		     , IFNULL(DEEP_SLEEP_TIME, 0) DEEP_SLEEP_TIME
+		     , IFNULL(TOT_SLEEP_TIME, 0) TOT_SLEEP_TIME
+		  FROM (
+			</when>		
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+			   CONCAT(DATE_FORMAT(DATE, '%Y%m'), '01') BEGIN_DT
+       		 , DATE_FORMAT(LAST_DAY(CONCAT(DATE_FORMAT(DATE, '%Y%m'), '01')), '%Y%m%d') END_DT
+			 , SUM(IFNULL(AWAKE_SLEEP_TIME, 0)) AWAKE_SLEEP_TIME
+		     , SUM(IFNULL(LIGHT_SLEEP_TIME, 0)) LIGHT_SLEEP_TIME
+		     , SUM(IFNULL(DEEP_SLEEP_TIME, 0)) DEEP_SLEEP_TIME
+		     , SUM(IFNULL(TOT_SLEEP_TIME, 0)) TOT_SLEEP_TIME
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</when>
+			<otherwise>
+			   DATE_FORMAT(DATE, '%Y%m%d') BEGIN_DT
+			 , IFNULL(AWAKE_SLEEP_TIME, 0) AWAKE_SLEEP_TIME
+		     , IFNULL(LIGHT_SLEEP_TIME, 0) LIGHT_SLEEP_TIME
+		     , IFNULL(DEEP_SLEEP_TIME, 0) DEEP_SLEEP_TIME
+		     , IFNULL(TOT_SLEEP_TIME, 0) TOT_SLEEP_TIME
+		  FROM CALENDAR_DATA CD
+		  LEFT JOIN (
+			</otherwise>
+		</choose>
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("D")'>
+				<![CDATA[
+				SELECT 
+				       MBER_NO
+				     , BEGIN_DT
+				     , END_DT
+				     , CAST(AWAKE_SLEEP_TIME AS SIGNED INTEGER) AWAKE_SLEEP_TIME
+				     , CAST(LIGHT_SLEEP_TIME AS SIGNED INTEGER) LIGHT_SLEEP_TIME
+				     , CAST(DEEP_SLEEP_TIME AS SIGNED INTEGER) DEEP_SLEEP_TIME
+				     , CAST(AWAKE_SLEEP_TIME + LIGHT_SLEEP_TIME + DEEP_SLEEP_TIME AS SIGNED INTEGER) TOT_SLEEP_TIME
+				  FROM (
+				        SELECT
+				               MBER_NO
+				             , MESURE_BGNDT
+				             , BEGIN_DT
+				             , END_DT
+				             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME		             
+				          FROM MESURE_DETAIL_ACTV_TRCK
+				         WHERE MBER_NO = #{MBER_NO}
+				           AND MESURE_CODE = '4040'
+				           AND BEGIN_DT >= CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000')
+				           AND END_DT   <= CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '120000')               
+				         UNION
+				        SELECT 
+				               MBER_NO
+				             , MESURE_BGNDT
+				             , CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000') BEGIN_DT
+				             , END_DT
+				             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME
+				          FROM MESURE_DETAIL_ACTV_TRCK
+				         WHERE MBER_NO = #{MBER_NO}
+				           AND MESURE_CODE = '4040'
+				           AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -1 day), '%Y%m%d'), '120000') BETWEEN BEGIN_DT and END_DT               
+				         UNION
+				        SELECT 
+				               MBER_NO
+				             , MESURE_BGNDT
+				             , BEGIN_DT
+				             , CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '115959') END_DT
+				             , IF(SLEEP_STTUS_CODE  = 'A', CNTNC_TIME, 0) AWAKE_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'L', CNTNC_TIME, 0) LIGHT_SLEEP_TIME
+				             , IF(SLEEP_STTUS_CODE  = 'D', CNTNC_TIME, 0) DEEP_SLEEP_TIME
+				          FROM MESURE_DETAIL_ACTV_TRCK
+				         WHERE MBER_NO = #{MBER_NO}
+				           AND MESURE_CODE = '4040'
+				           AND CONCAT(DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL -0 day), '%Y%m%d'), '120000') BETWEEN BEGIN_DT AND END_DT
+				     ) A
+				 ORDER BY BEGIN_DT
+ 				]]>
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+				SELECT 
+				       MBER_NO
+				     , DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') MESURE_DE
+				     , AWAKE_SLEEP_TIME
+				     , LIGHT_SLEEP_TIME
+				     , DEEP_SLEEP_TIME
+				     , AWAKE_SLEEP_TIME + LIGHT_SLEEP_TIME + DEEP_SLEEP_TIME TOT_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+		                                                                                  AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+				SELECT 
+				       MBER_NO
+				     , DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') MESURE_DE
+				     , AWAKE_SLEEP_TIME
+				     , LIGHT_SLEEP_TIME
+				     , DEEP_SLEEP_TIME
+				     , AWAKE_SLEEP_TIME + LIGHT_SLEEP_TIME + DEEP_SLEEP_TIME TOT_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                   																  AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+ 			</when>
+ 			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+				SELECT 
+				       MBER_NO
+				     , CONCAT(SUBSTRING(DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d'), 1, 6), '01') MESURE_DE
+				     , SUM(AWAKE_SLEEP_TIME) AWAKE_SLEEP_TIME
+				     , SUM(LIGHT_SLEEP_TIME) LIGHT_SLEEP_TIME
+				     , SUM(DEEP_SLEEP_TIME) DEEP_SLEEP_TIME
+				     , SUM(AWAKE_SLEEP_TIME) + SUM(LIGHT_SLEEP_TIME) + SUM(DEEP_SLEEP_TIME) TOT_SLEEP_TIME
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = '4040'
+				   AND DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d') BETWEEN DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'),"%Y%m%d")
+		                   																  AND DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'),"%Y%m%d")
+		         GROUP BY MBER_NO, CONCAT(SUBSTRING(DATE_FORMAT(DATE_ADD(MESURE_BGNDT, INTERVAL +1 day), '%Y%m%d'), 1, 6), '01')
+ 			</when>
+ 		</choose>
+				     
+			 ) MIC
+		<choose>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("W")'>
+		    ON CD.DATE = MIC.MESURE_DE
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL-(DAYOFWEEK(#{MESURE_DE})-1    ) DAY),"%Y%m%d") 
+		                   AND DATE_FORMAT(DATE_ADD(#{MESURE_DE}, INTERVAL (7 - (DAYOFWEEK(#{MESURE_DE}))) DAY),"%Y%m%d")
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("M")'>
+		    ON CD.DATE = MIC.MESURE_DE
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(         CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01') , '%Y%m%d')
+		                   AND DATE_FORMAT(LAST_DAY(CONCAT(SUBSTR(#{MESURE_DE}, 1, 6), '01')), '%Y%m%d')
+		    </when>
+			<when test='DAY_SE_CODE != null and DAY_SE_CODE.equals("Y")'>
+		    ON CD.DATE = MIC.MESURE_DE
+		 WHERE CD.DATE BETWEEN DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '0101'),"%Y%m%d")
+		                   AND DATE_FORMAT(CONCAT(SUBSTR(#{MESURE_DE}, 1, 4), '1231'),"%Y%m%d")
+		 GROUP BY BEGIN_DT, END_DT
+		    </when>
+		    <otherwise>   
+		    </otherwise>
+		</choose>
+		ORDER BY BEGIN_DT
+	</select>
+	
+	<!-- 측정정보 공통 데이터 존재여부 확인 -->
+	<select id="selectMesureInfoCmmnCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_DT
+		  FROM MESURE_INFO_CMMN
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		<if test="MESURE_MTHD != null and MESURE_MTHD != ''">
+		   AND MESURE_MTHD = #{MESURE_MTHD}
+		</if>		   
+		   AND MESURE_DT LIKE CONCAT(#{MESURE_DT}, '%')		   
+		 ORDER BY MESURE_DT DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 측정정보 공통 저장 처리 -->
+	<insert id="insertMesureInfoCmmnInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN (
+		       MBER_NO
+		     , MESURE_CODE
+		     , MESURE_MTHD
+		     , MESURE_DT
+		     , MESURE_DATA
+		     , DEVICE_MODEL
+		     , MESURE_ZONE_NO
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{MESURE_CODE}
+		     , #{MESURE_MTHD}
+		     , #{MESURE_DT}
+		     , #{MESURE_DATA}
+		     , #{DEVICE_MODEL}
+		     , #{MESURE_ZONE_NO}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 측정정보 공통 수정처리 -->
+	<update id="updateMesureInfoCmmnInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN SET
+		       MESURE_DATA = #{MESURE_DATA}
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_MTHD = #{MESURE_MTHD}
+		   AND MESURE_DT = #{MESURE_DT}
+	</update>
+	
+	<!-- 측정정보 공통 시간대별 데이터 존재여부 확인 -->
+	<select id="selectMesureInfoCmmnTimeCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_DT
+		  FROM MESURE_INFO_CMMN_TIME
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_DT = #{MESURE_DT}
+		 ORDER BY MESURE_DT DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 측정정보 공통 시간대별 데이터 등록 처리 -->
+	<insert id="insertMesureInfoCmmnTimeInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_TIME (
+		       MBER_NO
+		     , MESURE_DT
+			<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , BDHEAT
+				</when>
+			</choose>
+		     , REGIST_DT
+		)
+		SELECT 
+		       MBER_NO
+		     , MESURE_DT
+		     , MESURE_DATA
+		     , NOW()
+		  FROM MESURE_INFO_CMMN
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_DT = #{MESURE_DT}
+		   AND MESURE_DATA > '0000'
+		 ORDER BY MESURE_DT DESC
+		 LIMIT 1
+	</insert>
+	
+	<!-- 측정정보 공통 시간대별 데이터 수정 처리 -->
+	<update id="updateMesureInfoCmmnTimeInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN_TIME MICT 
+		 INNER JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MESURE_DT
+		             , MESURE_DATA DATAS
+		             , NOW()
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+		           AND MESURE_DT = #{MESURE_DT}
+		           AND MESURE_DATA > '0000'
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1
+		     ) MIC 
+		    ON MICT.MBER_NO = MIC.MBER_NO 
+		   AND MICT.MESURE_DT = MIC.MESURE_DT
+		   SET MICT.UPDT_DT = NOW()
+			<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , MICT.BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , MICT.FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , MICT.PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , MICT.SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , MICT.EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , MICT.VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , MICT.BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , MICT.BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , MICT.HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , MICT.SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , MICT.DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , MICT.PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , MICT.FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , MICT.PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , MICT.T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , MICT.TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , MICT.HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , MICT.LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , MICT.STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , MICT.PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MICT.MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , MICT.STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , MICT.BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , MICT.CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , MICT.ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , MICT.RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , MICT.WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , MICT.BDHEAT
+				</when>
+			</choose>
+   	 		   = DATAS
+	</update>
+	
+	<!-- 측정정보 공통 일별 데이터 존재여부 확인 -->
+	<select id="selectMesureInfoCmmnDalyCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_DE
+		  FROM MESURE_INFO_CMMN_DALY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_DE = SUBSTRING(#{MESURE_DT}, 1, 8)
+		 ORDER BY MESURE_DE DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 측정정보 공통 일별 데이터 등록 처리 -->
+	<insert id="insertMesureInfoCmmnDalyInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_DALY (
+		       MBER_NO
+		     , MESURE_DE
+			<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , BDHEAT
+				</when>
+			</choose>
+		     , REGIST_DT
+		)
+		SELECT 
+		       MBER_NO
+		     , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		     , MESURE_DATA
+		     , NOW()
+		  FROM MESURE_INFO_CMMN
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+		   AND MESURE_DATA > '0000'
+		 ORDER BY MESURE_DT DESC
+		 LIMIT 1
+	</insert>
+	
+	<!-- 측정정보 공통 일별 데이터 수정 처리 -->
+	<update id="updateMesureInfoCmmnDalyInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN_DALY MICT 
+		 INNER JOIN (
+		        SELECT 
+		               MBER_NO
+		             , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		             , MESURE_DATA DATAS
+		             , NOW()
+		          FROM MESURE_INFO_CMMN
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND MESURE_CODE = #{MESURE_CODE}
+		           AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+		           AND MESURE_DATA > '0000'
+		         ORDER BY MESURE_DT DESC
+		         LIMIT 1
+		     ) MIC 
+		    ON MICT.MBER_NO = MIC.MBER_NO 
+		   AND MICT.MESURE_DE = MIC.MESURE_DE
+		   SET MICT.UPDT_DT = NOW()
+		<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , MICT.BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , MICT.FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , MICT.PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , MICT.SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , MICT.EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , MICT.VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , MICT.BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , MICT.BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , MICT.HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , MICT.SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , MICT.DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , MICT.PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , MICT.FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , MICT.PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , MICT.T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , MICT.TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , MICT.HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , MICT.LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , MICT.STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , MICT.PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MICT.MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , MICT.STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , MICT.BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , MICT.CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , MICT.ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , MICT.RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , MICT.WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , MICT.BDHEAT
+				</when>
+			</choose>
+   	 		   = DATAS
+	</update>
+	
+	<!-- 측정정보 활동량 일별 데이터 등록 처리 -->
+	<insert id="insertMesureInfoActvTrckDalyInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_DALY (
+		       MBER_NO
+		     , MESURE_DE
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+			 , SPORTS_TOT_STEPS
+			 , CNSMP_CALORIE
+			 , SPORTS_DSTNC
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4015")'>
+			 , MOBLPHON_STEPS
+		 	</when>
+		</choose>
+		     , REGIST_DT
+		)
+		SELECT 
+		       MBER_NO
+		     , SUBSTRING(MESURE_BGNDT, 1, 8) MESURE_DE
+		     , MESURE_DATA
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+		     , CNSMP_CALORIE
+			 , SPORTS_DSTNC
+			</when>
+		</choose>			
+		     , NOW()
+		  FROM MESURE_INFO_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_BGNDT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+		 ORDER BY MESURE_BGNDT DESC
+		 LIMIT 1
+	</insert>
+	
+	<!-- 측정정보 활동량 일별 데이터 수정 처리 -->
+	<update id="updateMesureInfoActvTrckDalyInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN_DALY MICT 
+		 INNER JOIN (
+		        SELECT 
+				       MBER_NO
+				     , SUBSTRING(MESURE_BGNDT, 1, 8) MESURE_DE
+				     , MESURE_DATA DATAS
+				<choose>
+					<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+				     , CNSMP_CALORIE
+					 , SPORTS_DSTNC
+					</when>
+				</choose>			
+				     , NOW()
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = #{MESURE_CODE}
+				   AND MESURE_BGNDT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+				 ORDER BY MESURE_BGNDT DESC
+				 LIMIT 1
+		     ) MIC 
+		    ON MICT.MBER_NO = MIC.MBER_NO 
+		   AND MICT.MESURE_DE = MIC.MESURE_DE
+		   SET MICT.UPDT_DT = NOW()
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+			 , MICT.SPORTS_TOT_STEPS = MIC.DATAS
+			 , MICT.CNSMP_CALORIE = MIC.CNSMP_CALORIE
+			 , MICT.SPORTS_DSTNC = MIC.SPORTS_DSTNC
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4015")'>
+			 , MICT.MOBLPHON_STEPS = MIC.DATAS
+			</when>
+		</choose>
+	</update>
+	
+	<!-- 측정정보 공통 월별 데이터 존재여부 확인 -->
+	<select id="selectMesureInfoCmmnMnbyCheckInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , MESURE_MT
+		  FROM MESURE_INFO_CMMN_MNBY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_MT = SUBSTRING(#{MESURE_DT}, 1, 6)
+		 ORDER BY MESURE_MT DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 측정정보 공통 월별 데이터 등록 처리 -->
+	<insert id="insertMesureInfoCmmnMnbyInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_MNBY (
+		       MBER_NO
+		     , MESURE_MT
+			<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , BDHEAT
+				</when>
+			</choose>
+		     , REGIST_DT
+		)
+		SELECT
+		       MBER_NO
+		     , SUBSTRING(MESURE_DE, 1, 6) MESURE_MT
+		     , F_MESURE_FORMAT(AVG(MESURE_DATA), MESURE_CODE)
+		     , NOW()
+		  FROM (
+		        SELECT 
+		               MIC.MBER_NO
+		             , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		             , MESURE_CODE
+		             , MIC.MESURE_DATA MESURE_DATA
+		          FROM MESURE_INFO_CMMN MIC
+		         INNER JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		                     , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND MESURE_CODE = #{MESURE_CODE}
+		                   AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 6), '%')
+		                   AND MESURE_DATA > '0000'
+		                 GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1, 8)
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		         WHERE MIC.MBER_NO = #{MBER_NO}
+		           AND MIC.MESURE_CODE = #{MESURE_CODE}
+		           AND MIC.MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 6), '%')
+		           AND MIC.MESURE_DATA > '0000'
+		     ) TBL
+		 GROUP BY MBER_NO, SUBSTRING(MESURE_DE, 1, 6)
+	</insert>
+	
+	<!-- 측정정보 공통 월별 데이터 수정 처리 -->
+	<update id="updateMesureInfoCmmnMnbyInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN_MNBY MICT 
+		 INNER JOIN (
+				SELECT
+				       MBER_NO
+				     , SUBSTRING(MESURE_DE, 1, 6) MESURE_MT
+				     , F_MESURE_FORMAT(AVG(MESURE_DATA), MESURE_CODE) DATAS
+				     , NOW()
+				  FROM (
+				        SELECT 
+				               MIC.MBER_NO
+				             , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+				             , MESURE_CODE
+				             , MIC.MESURE_DATA MESURE_DATA
+				          FROM MESURE_INFO_CMMN MIC
+				         INNER JOIN (
+				                SELECT
+				                       MBER_NO
+				                     , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+				                     , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+				                  FROM MESURE_INFO_CMMN
+				                 WHERE MBER_NO = #{MBER_NO}
+				                   AND MESURE_CODE = #{MESURE_CODE}
+				                   AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 6), '%')
+				                   AND MESURE_DATA > '0000'
+				                 GROUP BY MBER_NO, SUBSTRING(MESURE_DT, 1, 8)
+				             ) MMIC
+				            ON MIC.MBER_NO = MMIC.MBER_NO
+				           AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+				         WHERE MIC.MBER_NO = #{MBER_NO}
+				           AND MIC.MESURE_CODE = #{MESURE_CODE}
+				           AND MIC.MESURE_DT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 6), '%')
+				           AND MIC.MESURE_DATA > '0000'
+				     ) TBL
+				 GROUP BY MBER_NO, SUBSTRING(MESURE_DE, 1, 6)
+		     ) MIC 
+		    ON MICT.MBER_NO = MIC.MBER_NO 
+		   AND MICT.MESURE_MT = MIC.MESURE_MT
+		   SET MICT.UPDT_DT = NOW()
+		<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , MICT.BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , MICT.FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , MICT.PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , MICT.SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , MICT.EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , MICT.VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , MICT.BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , MICT.BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , MICT.HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , MICT.SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , MICT.DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , MICT.PULS
+				</when>
+				
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , MICT.FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , MICT.PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , MICT.T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , MICT.TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , MICT.HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , MICT.LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , MICT.STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , MICT.PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MICT.MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , MICT.STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , MICT.BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , MICT.CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , MICT.ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , MICT.RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , MICT.WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , MICT.BDHEAT
+				</when>
+			</choose>
+   	 		   = DATAS
+	</update>
+	
+	<!-- 측정정보 활동량 월별 데이터 등록 처리 -->
+	<insert id="insertMesureInfoActvTrckMnbyInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_MNBY (
+		       MBER_NO
+		     , MESURE_MT
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+			 , SPORTS_TOT_STEPS
+			 , CNSMP_CALORIE
+			 , SPORTS_DSTNC
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4015")'>
+			 , MOBLPHON_STEPS
+		 	</when>
+		</choose>
+		     , REGIST_DT
+		)
+		SELECT
+		       MBER_NO
+		     , SUBSTRING(MESURE_DE, 1, 6) MESURE_MT
+		     , F_MESURE_FORMAT(AVG(MESURE_DATA), MESURE_CODE) MESURE_DATA
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+		     , F_MESURE_FORMAT(AVG(CNSMP_CALORIE), MESURE_CODE) CNSMP_CALORIE
+		     , F_MESURE_FORMAT(AVG(SPORTS_DSTNC), MESURE_CODE) SPORTS_DSTNC
+		    </when>
+		</choose>
+		     , NOW()
+		  FROM (
+				SELECT 
+				       MBER_NO
+				     , MESURE_CODE
+				     , SUBSTRING(MESURE_BGNDT, 1, 8) MESURE_DE
+				     , MESURE_DATA MESURE_DATA
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+				     , CNSMP_CALORIE
+					 , SPORTS_DSTNC
+			</when>
+		</choose>			
+				     , NOW()
+				  FROM MESURE_INFO_ACTV_TRCK
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND MESURE_CODE = #{MESURE_CODE}
+				   AND MESURE_BGNDT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+				 ORDER BY MESURE_BGNDT DESC
+				 LIMIT 1
+		     ) TBL
+		 GROUP BY MBER_NO, SUBSTRING(MESURE_DE, 1, 6)
+	</insert>
+	
+	<!-- 측정정보 활동량 일별 데이터 수정 처리 -->
+	<update id="updateMesureInfoActvTrckMnbyInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_CMMN_MNBY MICT 
+		 INNER JOIN (
+				SELECT
+				       MBER_NO
+				     , SUBSTRING(MESURE_DE, 1, 6) MESURE_MT
+				     , F_MESURE_FORMAT(AVG(MESURE_DATA), MESURE_CODE) DATAS
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+				     , F_MESURE_FORMAT(AVG(CNSMP_CALORIE), MESURE_CODE) CNSMP_CALORIE
+				     , F_MESURE_FORMAT(AVG(SPORTS_DSTNC), MESURE_CODE) SPORTS_DSTNC
+		    </when>
+		</choose>
+				     , NOW()
+				  FROM (
+						SELECT 
+						       MBER_NO
+						     , MESURE_CODE
+						     , SUBSTRING(MESURE_BGNDT, 1, 8) MESURE_DE
+						     , MESURE_DATA MESURE_DATA
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+						     , CNSMP_CALORIE
+							 , SPORTS_DSTNC
+			</when>
+		</choose>			
+						     , NOW()
+						  FROM MESURE_INFO_ACTV_TRCK
+						 WHERE MBER_NO = #{MBER_NO}
+						   AND MESURE_CODE = #{MESURE_CODE}
+						   AND MESURE_BGNDT LIKE CONCAT(SUBSTRING(#{MESURE_DT}, 1, 8), '%')
+						 ORDER BY MESURE_BGNDT DESC
+						 LIMIT 1
+				     ) TBL
+				 GROUP BY MBER_NO, SUBSTRING(MESURE_DE, 1, 6)
+		     ) MIC 
+		    ON MICT.MBER_NO = MIC.MBER_NO 
+		   AND MICT.MESURE_MT = MIC.MESURE_MT
+		   SET MICT.UPDT_DT = NOW()
+		<choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4010")'>
+			 , MICT.SPORTS_TOT_STEPS = MIC.DATAS
+			 , MICT.CNSMP_CALORIE = MIC.CNSMP_CALORIE
+			 , MICT.SPORTS_DSTNC = MIC.SPORTS_DSTNC
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("4015")'>
+			 , MICT.MOBLPHON_STEPS = MIC.DATAS
+			</when>
+		</choose>
+	</update>
+	
+	<!-- 측정정보 활동량 정보 존재여부 확인 -->
+	<select id="selectMesureInfoActvTrckInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   MBER_NO
+			 , MESURE_CODE
+			 , MESURE_BGNDT
+		  FROM MESURE_INFO_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}	
+		   AND MESURE_BGNDT = #{MESURE_DT}
+	</select>
+	
+	<!-- 측정정보 활동량 정보 저장 처리 -->
+	<insert id="insertMesureInfoActvTrckInfo" parameterType="hmap">
+		INSERT INTO MESURE_INFO_ACTV_TRCK (
+			   MBER_NO
+			 , MESURE_CODE
+			 , MESURE_BGNDT
+			 , MESURE_ENDDT
+			 , SPORTS_TY_CODE
+			 , MESURE_DATA
+			 , SPORTS_TIME
+			 , SPORTS_DSTNC
+			 , CNSMP_CALORIE
+			 , AWAKE_SLEEP_TIME
+			 , LIGHT_SLEEP_TIME
+			 , DEEP_SLEEP_TIME
+			 , BTRY_BNT
+			 , DEVICE_MODEL
+			 , SPORTS_QY
+			 , AVRG_HR
+			 , MXMM_HR
+			 , MNTBY_AVRG_STEPS
+			 , MNTBY_MXMM_STEPS
+			 , SPORTS_TOT_STEPS
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{MESURE_CODE}
+			 , #{MESURE_BGNDT}
+			 , #{MESURE_ENDDT}
+			 , #{SPORTS_TY_CODE}
+			 , #{MESURE_DATA}
+			 , #{SPORTS_TIME}
+			 , #{SPORTS_DSTNC}
+			 , #{CNSMP_CALORIE}
+			 , #{AWAKE_SLEEP_TIME}
+			 , #{LIGHT_SLEEP_TIME}
+			 , #{DEEP_SLEEP_TIME}
+			 , #{BTRY_BNT}
+			 , #{DEVICE_MODEL}
+			 , #{SPORTS_QY}
+			 , #{AVRG_HR}
+			 , #{MXMM_HR}
+			 , #{MNTBY_AVRG_STEPS}
+			 , #{MNTBY_MXMM_STEPS}
+			 , #{SPORTS_TOT_STEPS}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 측정정보 활동량 정보 수정 처리 -->
+	<update id="updateMesureInfoActvTrckInfo" parameterType="hmap">
+		UPDATE MESURE_INFO_ACTV_TRCK SET
+			   MESURE_DATA = #{MESURE_DATA}
+		<if test="MESURE_ENDDT != null or MESURE_ENDDT != ''">
+			 , MESURE_ENDDT = #{MESURE_ENDDT}
+		</if>
+		<if test="SPORTS_TY_CODE != null or SPORTS_TY_CODE != ''">	   
+			 , SPORTS_TY_CODE = #{SPORTS_TY_CODE}
+		</if>
+		<if test="SPORTS_TIME != null or SPORTS_TIME != ''">
+			 , SPORTS_TIME = #{SPORTS_TIME}
+		</if>
+		<if test="SPORTS_DSTNC != null or SPORTS_DSTNC != ''">
+			 , SPORTS_DSTNC = #{SPORTS_DSTNC}
+		</if>
+		<if test="CNSMP_CALORIE != null or CNSMP_CALORIE != ''">
+			 , CNSMP_CALORIE = #{CNSMP_CALORIE}
+		</if>
+		<if test="AWAKE_SLEEP_TIME != null or AWAKE_SLEEP_TIME != ''">
+			 , AWAKE_SLEEP_TIME = #{AWAKE_SLEEP_TIME}
+		</if>
+		<if test="LIGHT_SLEEP_TIME != null or LIGHT_SLEEP_TIME != ''">
+			 , LIGHT_SLEEP_TIME = #{LIGHT_SLEEP_TIME}
+		</if>
+		<if test="DEEP_SLEEP_TIME != null or DEEP_SLEEP_TIME != ''">
+			 , DEEP_SLEEP_TIME = #{DEEP_SLEEP_TIME}
+		</if>
+		<if test="BTRY_BNT != null or BTRY_BNT != ''">
+			 , BTRY_BNT = #{BTRY_BNT}
+		</if>
+		<if test="DEVICE_MODEL != null or DEVICE_MODEL != ''">
+			 , DEVICE_MODEL = #{DEVICE_MODEL}
+		</if>
+		<if test="SPORTS_QY != null or SPORTS_QY != ''">
+			 , SPORTS_QY = #{SPORTS_QY}
+		</if>
+		<if test="AVRG_HR != null or AVRG_HR != ''">
+			 , AVRG_HR = #{AVRG_HR}
+		</if>
+		<if test="MXMM_HR != null or MXMM_HR != ''">
+			 , MXMM_HR = #{MXMM_HR}
+		</if>
+		<if test="MNTBY_AVRG_STEPS != null or MNTBY_AVRG_STEPS != ''">
+			 , MNTBY_AVRG_STEPS = #{MNTBY_AVRG_STEPS}
+		</if>
+		<if test="MNTBY_MXMM_STEPS != null or MNTBY_MXMM_STEPS != ''">
+			 , MNTBY_MXMM_STEPS = #{MNTBY_MXMM_STEPS}
+		</if>
+		<if test="SPORTS_TOT_STEPS != null or SPORTS_TOT_STEPS != ''">
+			 , SPORTS_TOT_STEPS = #{SPORTS_TOT_STEPS}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_BGNDT = #{MESURE_BGNDT}
+	</update>
+	
+	<!-- 측정정보 활동량 상세정보 존재여부 확인 -->
+	<select id="selectMesureDetailActvTrckInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   MBER_NO
+			 , MESURE_CODE
+			 , MESURE_BGNDT
+			 , DETAIL_SN
+			 , BEGIN_DT
+		  FROM MESURE_DETAIL_ACTV_TRCK
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_BGNDT = #{MESURE_DT}
+		   AND BEGIN_DT = #{BEGIN_DT}
+	</select>
+	
+	<!-- 측정정보 활동량 상세정보 저장 처리 -->
+	<insert id="insertMesureDetailActvTrckInfo" parameterType="hmap">
+		<selectKey keyProperty="DETAIL_SN" order="BEFORE" resultType="int">
+			SELECT 
+				   IFNULL(MAX(DETAIL_SN), 0) + 1 DETAIL_SN
+			  FROM MESURE_DETAIL_ACTV_TRCK
+			 WHERE MBER_NO = #{MBER_NO}
+			   AND MESURE_CODE = #{MESURE_CODE}
+			   AND MESURE_BGNDT = #{MESURE_BGNDT}
+		</selectKey>	
+		INSERT INTO MESURE_DETAIL_ACTV_TRCK (
+			   MBER_NO
+			 , MESURE_CODE
+			 , MESURE_BGNDT
+			 , DETAIL_SN
+			 , SLEEP_STTUS_CODE
+			 , HR
+			 , BEGIN_DT
+			 , END_DT
+			 , CNTNC_TIME
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{MESURE_CODE}
+			 , #{MESURE_BGNDT}
+			 , #{DETAIL_SN}
+			 , #{SLEEP_STTUS_CODE}
+			 , #{HR}
+			 , #{BEGIN_DT}
+			 , #{END_DT}
+			 , #{CNTNC_TIME}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 측정정보 활동량 상세정보 수정 처리 -->
+	<update id="updateMesureDetailActvTrckInfo" parameterType="hmap">
+		UPDATE MESURE_DETAIL_ACTV_TRCK SET 
+			   BEGIN_DT = #{BEGIN_DT}
+		<if test="END_DT != null or END_DT != ''">
+			 , END_DT = #{END_DT}
+		</if>
+		<if test="SLEEP_STTUS_CODE != null or SLEEP_STTUS_CODE != ''">
+			 , SLEEP_STTUS_CODE = #{SLEEP_STTUS_CODE}
+		</if>
+		<if test="HR != null or HR != ''">
+			 , HR = #{HR}
+		</if>
+		<if test="CNTNC_TIME != null or CNTNC_TIME != ''">
+			 , CNTNC_TIME = #{CNTNC_TIME} 
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+		   AND MESURE_BGNDE = #{MESURE_DT}
+		   AND DETAIL_SN = #{DETAIL_SN}
+	</update>
+	
+	<!-- 측정정보 등록 후 기타 처리를 위한 프로시져 호출 -->
+	<parameterMap type="hmap" id="deviceInsertProcessInput">
+		<parameter property="MBER_NO" 		mode="IN" 		jdbcType="INTEGER" 	javaType="java.lang.Integer"	/>
+		<parameter property="MESURE_CODE" 	mode="IN" 		jdbcType="VARCHAR" 	javaType="java.lang.String"		/>
+		<parameter property="MESURE_DATA"	mode="IN" 		jdbcType="DECIMAL" 	javaType="java.lang.Double"		/>
+	</parameterMap>
+	<select id="callPDeviceInsertProcess" parameterMap="deviceInsertProcessInput" resultType="hmap">
+		call P_DEVICE_INSERT_PROCESS(?, ?, ?) 
+	</select>
+	
+	<!-- 회원 목표 설정 전체 정보 조회 -->
+	<select id="selectMberEstbsGoalTotInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '4010', GOAL_VALUE     , null)), 0) STEPS
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '4040', GOAL_VALUE     , null)), 0) SLEEP_TIME
+		     ,          MAX(IF(MESURE_CODE = '4040', GOAL_BEGIN_TIME, null))     SLEEP_BEGIN_TIME
+		     ,          MAX(IF(MESURE_CODE = '4040', GOAL_END_TIME  , null))     SLEEP_END_TIME
+		     , ROUND(   MAX(IF(MESURE_CODE = '6A35', GOAL_VALUE     , null)), 1) HEIGHT
+		     , ROUND(   MAX(IF(MESURE_CODE = '6021', GOAL_VALUE     , null)), 1) BDWGH
+		     , ROUND(   MAX(IF(MESURE_CODE = '8072', GOAL_VALUE     , null)), 1) WAIST_CRCMFRNC
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '622E', GOAL_VALUE     , null)), 0) SYSTOLIC
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '622F', GOAL_VALUE     , null)), 0) DIASTOLIC
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '6230', GOAL_VALUE     , null)), 0) PULS
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624A', GOAL_VALUE     , null)), 0) FBS
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624B', GOAL_VALUE     , null)), 0) PP2
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624C', GOAL_VALUE     , null)), 0) T_COL
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624D', GOAL_VALUE     , null)), 0) TG
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624E', GOAL_VALUE     , null)), 0) HDLC
+		     , TRUNCATE(MAX(IF(MESURE_CODE = '624F', GOAL_VALUE     , null)), 0) LDLC
+		  FROM MBER_ESTBS_GOAL
+		 WHERE MBER_NO = #{MBER_NO}
+		 GROUP BY MBER_NO
+	</select>
+	
+	<!-- 회원 목표 설정 특정 정보 조회 -->
+	<select id="selectMberEstbsGoalInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   MBER_NO
+			 , MESURE_CODE
+			 , GOAL_VALUE
+			 , GOAL_BEGIN_TIME
+			 , GOAL_END_TIME
+			 , RM
+		  FROM MBER_ESTBS_GOAL
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+	</select>
+	
+	<!-- 회원 목표 설정 정보 저장 -->
+	<insert id="insertMberEstbsGoalInfo" parameterType="hmap">
+		INSERT INTO MBER_ESTBS_GOAL (
+		       MBER_NO
+		     , MESURE_CODE
+		     , GOAL_VALUE
+		     , GOAL_BEGIN_TIME
+		     , GOAL_END_TIME
+		     , RM
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{MESURE_CODE}
+		     , #{GOAL_VALUE}
+		     , #{GOAL_BEGIN_TIME, jdbcType=VARCHAR}
+		     , #{GOAL_END_TIME, jdbcType=VARCHAR}
+		     , #{RM, jdbcType=VARCHAR}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 목표 설정 정보 수정 -->
+	<update id="updateMberEstbsGoalInfo" parameterType="hmap">
+		UPDATE MBER_ESTBS_GOAL SET  
+		       GOAL_VALUE = #{GOAL_VALUE}
+		<if test="GOAL_BEGIN_TIME != null and GOAL_BEGIN_TIME != ''">
+		     , GOAL_BEGIN_TIME = #{GOAL_BEGIN_TIME}
+		</if>
+		<if test="GOAL_END_TIME != null and GOAL_END_TIME != ''">
+		     , GOAL_END_TIME = #{GOAL_END_TIME}
+		</if>
+		<if test="RM != null and RM != ''">
+		     , RM = #{RM}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MESURE_CODE = #{MESURE_CODE}
+	</update>
+	
+	<!-- 식사 일기 정보 조회 -->
+	<select id="selectMberMealDiaryInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MEAL_DE
+		     , IFNULL(MAX(IF(MEAL_SE_CODE = 'BRFT', MEAL_CALORIE, 0)), 0) BRFT_MEAL_CALORIE
+		     , IFNULL(MAX(IF(MEAL_SE_CODE = 'LNCH', MEAL_CALORIE, 0)), 0) LNCH_MEAL_CALORIE
+		     , IFNULL(MAX(IF(MEAL_SE_CODE = 'SNCK', MEAL_CALORIE, 0)), 0) SNCK_MEAL_CALORIE
+		     , IFNULL(MAX(IF(MEAL_SE_CODE = 'DINR', MEAL_CALORIE, 0)), 0) DINR_MEAL_CALORIE
+		  FROM MBER_MEAL_DIARY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MEAL_DE = #{MEAL_DE}
+		 GROUP BY MBER_NO, MEAL_DE
+	</select>
+	
+	<!-- 식사 일기 저장 처리 -->
+	<insert id="insertMberMealDiaryInfo" parameterType="hmap">
+		INSERT INTO MBER_MEAL_DIARY (
+		       MBER_NO
+		     , MEAL_DE
+		     , MEAL_SE_CODE
+		     , MEAL_CALORIE
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{MEAL_DE}
+		     , #{MEAL_SE_CODE}
+		     , #{MEAL_CALORIE}
+		     , NOW()
+		)
+	</insert>	
+
+	<!-- 식사 일기 삭제 처리 -->
+	<delete id="deleteMberMealDiaryInfo" parameterType="hmap">
+		DELETE FROM MBER_MEAL_DIARY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MEAL_DE = #{MEAL_DE}
+		   AND MEAL_SE_CODE = #{MEAL_SE_CODE}
+	</delete>
+	
+	<!-- 식수 일기 정보 조회 -->
+	<select id="selectMberDrkwtDiaryInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       SUBSTRING(DRKWT_DT, 1, 8) DRKWT_DE
+		     , SUM(DRKWT_QY) DRKWT_QY
+		  FROM MBER_DRKWT_DIARY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DRKWT_DT LIKE CONCAT(#{DRKWT_DE}, '%')
+		 GROUP BY MBER_NO, SUBSTRING(DRKWT_DT, 1, 8)
+	</select>
+ 
+	<!-- 식수 일기 저장 처리 -->
+	<insert id="insertMberDrkwtDiaryInfo" parameterType="hmap">
+		INSERT INTO MBER_DRKWT_DIARY (
+		       MBER_NO
+		     , DRKWT_DT
+		     , DRKWT_QY
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{DRKWT_DT}
+		     , #{DRKWT_QY}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 설문 답변 여부 확인 -->
+	<select id="selectMberQustnrAnswerCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) ANSWER_COUNT
+		  FROM MBER_QUSTNR_ANSWER
+		 WHERE MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 설문 문항 목록 조회 -->
+	<select id="selectQustnrQesitmList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       QUSTNR_SE_CODE
+		     , F_CODE_NM('MB09', QUSTNR_SE_CODE, #{LOCALE}) QUSTNR_SE_CODE_NM
+		     , QUSTNR_SN
+		     , QESTN_SN
+		     , QESTN_CN
+		     , DUP_ANSWER_AT
+		     , IFNULL(ANSWER_1, '') ANSWER_1
+		     , IF(ANSWER_1 IS NOT NULL AND ANSWER_1 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_1, #{LOCALE}), '') ANSWER_1_NM
+		     , IFNULL(ANSWER_2, '') ANSWER_2
+		     , IF(ANSWER_2 IS NOT NULL AND ANSWER_2 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_2, #{LOCALE}), '') ANSWER_2_NM
+		     , IFNULL(ANSWER_3, '') ANSWER_3
+		     , IF(ANSWER_3 IS NOT NULL AND ANSWER_3 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_3, #{LOCALE}), '') ANSWER_3_NM
+		     , IFNULL(ANSWER_4, '') ANSWER_4
+		     , IF(ANSWER_4 IS NOT NULL AND ANSWER_4 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_4, #{LOCALE}), '') ANSWER_4_NM
+		     , IFNULL(ANSWER_5, '') ANSWER_5
+		     , IF(ANSWER_5 IS NOT NULL AND ANSWER_5 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_5, #{LOCALE}), '') ANSWER_5_NM
+		     , IFNULL(ANSWER_6, '') ANSWER_6
+		     , IF(ANSWER_6 IS NOT NULL AND ANSWER_6 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_6, #{LOCALE}), '') ANSWER_6_NM
+		     , IFNULL(ANSWER_7, '') ANSWER_7
+		     , IF(ANSWER_7 IS NOT NULL AND ANSWER_7 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_7, #{LOCALE}), '') ANSWER_7_NM
+		     , IFNULL(ANSWER_8, '') ANSWER_8
+		     , IF(ANSWER_8 IS NOT NULL AND ANSWER_8 != '', F_ANSWER_CODE_NM(ANSWER_CODE, ANSWER_8, #{LOCALE}), '') ANSWER_8_NM
+		  FROM QUSTNR_QESITM
+		 WHERE USE_AT = 'Y'
+		<if test="QUSTNR_SE_CODE != null and QUSTNR_SE_CODE != ''">
+		   AND QUSTNR_SE_CODE = #{QUSTNR_SE_CODE}
+		</if>
+		 ORDER BY QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN
+	</select>
+	
+	<!-- 회원 설문 답변 등록 -->
+	<insert id="insertMberQustnrAnswerInfo" parameterType="hmap">
+		INSERT INTO MBER_QUSTNR_ANSWER (
+			   MBER_NO
+			 , QUSTNR_SE_CODE
+			 , QUSTNR_SN
+			 , QESTN_SN
+			 , QUSTNR_DT
+			 , ANSWER_CODE
+			 , ANSWER
+			 , REGIST_DT
+			 , REGIST_ID
+		) VALUES (
+			   #{MBER_NO}
+			 , #{QUSTNR_SE_CODE}
+			 , #{QUSTNR_SN}
+			 , #{QESTN_SN}
+			 , #{QUSTNR_DT}
+			 , #{ANSWER_CODE}
+			 , #{ANSWER}
+			 , NOW()
+			 , 'USER-SELF'
+		)
+	</insert>
+	
+	<!-- 관리자용 설문 문항 현황조회 -->
+	<select id="selectChargerQustnrQesitmList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       QQ.QUSTNR_SE_CODE
+		     , F_CODE_NM('MB09', QQ.QUSTNR_SE_CODE, #{LOCALE}) QUSTNR_SE_CODE_NM
+		     , QQ.QUSTNR_SN
+		     , QQ.QESTN_SN
+		     , QQ.QESTN_CN
+		     , IFNULL(QQ.ANSWER_1, '') ANSWER_1
+		     , IFNULL(QQ.ANSWER_2, '') ANSWER_2
+		     , IFNULL(QQ.ANSWER_3, '') ANSWER_3
+		     , IFNULL(QQ.ANSWER_4, '') ANSWER_4
+		     , IFNULL(QQ.ANSWER_5, '') ANSWER_5
+		     , IFNULL(QQ.ANSWER_6, '') ANSWER_6
+		     , IFNULL(QQ.ANSWER_7, '') ANSWER_7
+		     , IFNULL(QQ.ANSWER_8, '') ANSWER_8
+		     , CASE WHEN QQ.ANSWER_1 IS NULL OR QQ.ANSWER_1 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_1, #{LOCALE}) END ANSWER_1_NM
+		     , CASE WHEN QQ.ANSWER_2 IS NULL OR QQ.ANSWER_2 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_2, #{LOCALE}) END ANSWER_2_NM
+		     , CASE WHEN QQ.ANSWER_3 IS NULL OR QQ.ANSWER_3 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_3, #{LOCALE}) END ANSWER_3_NM
+		     , CASE WHEN QQ.ANSWER_4 IS NULL OR QQ.ANSWER_4 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_4, #{LOCALE}) END ANSWER_4_NM
+		     , CASE WHEN QQ.ANSWER_5 IS NULL OR QQ.ANSWER_5 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_5, #{LOCALE}) END ANSWER_5_NM
+		     , CASE WHEN QQ.ANSWER_6 IS NULL OR QQ.ANSWER_6 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_6, #{LOCALE}) END ANSWER_6_NM
+		     , CASE WHEN QQ.ANSWER_7 IS NULL OR QQ.ANSWER_7 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_7, #{LOCALE}) END ANSWER_7_NM
+		     , CASE WHEN QQ.ANSWER_8 IS NULL OR QQ.ANSWER_8 = '' THEN '' ELSE F_ANSWER_CODE_NM(QQ.ANSWER_CODE, QQ.ANSWER_8, #{LOCALE}) END ANSWER_8_NM
+		  FROM QUSTNR_QESITM QQ
+		 INNER JOIN  (  
+		        SELECT 
+		               QUSTNR_SE_CODE
+		             , QUSTNR_SN
+		          FROM QUSTNR_INFO
+		         WHERE USE_AT = 'Y'
+		     ) QI
+		    ON QQ.QUSTNR_SE_CODE = QI.QUSTNR_SE_CODE
+		   AND QQ.QUSTNR_SN = QI.QUSTNR_SN
+		 ORDER BY QQ.QUSTNR_SE_CODE, QQ.QUSTNR_SN, QQ.QESTN_SN
+	</select>
+	
+	<!-- 관리자용 설문 답변 현황조회 -->
+	<select id="selectChargerQustnrAnswerList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MQA.MBER_NO
+		     , F_CODE_NM('MB09', MQA.QUSTNR_SE_CODE, #{LOCALE}) QUSTNR_SE_CODE_NM
+		     , MAX(IF(MQA.QESTN_SN = 1, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_1
+		     , MAX(IF(MQA.QESTN_SN = 1, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_1
+		     , MAX(IF(MQA.QESTN_SN = 2, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_2
+		     , MAX(IF(MQA.QESTN_SN = 2, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_2
+		     , MAX(IF(MQA.QESTN_SN = 3, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_3
+		     , MAX(IF(MQA.QESTN_SN = 3, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_3
+		     , MAX(IF(MQA.QESTN_SN = 4, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_4
+		     , MAX(IF(MQA.QESTN_SN = 4, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_4
+		     , MAX(IF(MQA.QESTN_SN = 5, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_5
+		     , MAX(IF(MQA.QESTN_SN = 5, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_5
+		     , MAX(IF(MQA.QESTN_SN = 6, QQ.QESTN_SUMRY, '')) QESTN_SUMRY_6
+		     , MAX(IF(MQA.QESTN_SN = 6, F_ANSWER_CODE_NM(QQ.ANSWER_CODE, MQA.ANSWER, #{LOCALE}), '')) QESTN_ANSWER_6
+		  FROM MBER_QUSTNR_ANSWER MQA
+		 INNER JOIN (
+		        SELECT 
+		               QUSTNR_SE_CODE
+		             , QUSTNR_SN
+		             , QESTN_SN
+		             , QESTN_SUMRY
+		             , ANSWER_CODE
+		          FROM QUSTNR_QESITM
+		         WHERE USE_AT = 'Y'
+		     ) QQ
+		    ON MQA.QUSTNR_SE_CODE = QQ.QUSTNR_SE_CODE
+		   AND MQA.QUSTNR_SN = QQ.QUSTNR_SN
+		   AND MQA.QESTN_SN = QQ.QESTN_SN
+		 INNER JOIN (
+		        SELECT
+		               MBER_NO
+		             , QUSTNR_SE_CODE
+		             , QUSTNR_SN
+		             , QESTN_SN
+		             , MAX(QUSTNR_DT) QUSTNR_DT
+		          FROM MBER_QUSTNR_ANSWER
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND QUSTNR_SN = 1
+		         GROUP BY MBER_NO, QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN
+		     ) MMQA
+		    ON MQA.MBER_NO = MMQA.MBER_NO
+		   AND MQA.QUSTNR_SE_CODE = MMQA.QUSTNR_SE_CODE
+		   AND MQA.QUSTNR_SN = MMQA.QUSTNR_SN
+		   AND MQA.QESTN_SN = MMQA.QESTN_SN
+		 GROUP BY MQA.MBER_NO, MQA.QUSTNR_SE_CODE
+	</select> 
+	
+	<!-- 내몸관리지수 정보 조회 -->
+	<select id="selectMybodyManageScoreInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		  	   MMS.MBER_NO
+		  	 , MMS.CALC_DT
+		  	 , ROUND(MMS.WAIST_SCORE * 100, 1) WAIST_SCORE
+		  	 , ROUND(MMS.BP_SCORE * 100, 1) BP_SCORE
+		  	 , ROUND(MMS.FBS_SCORE * 100, 1) FBS_SCORE
+		  	 , ROUND(MMS.TG_SCORE * 100, 1) TG_SCORE
+		  	 , ROUND(MMS.HDLC_SCORE * 100, 1) HDLC_SCORE 
+		     , ROUND(((WAIST_SCORE * 100) + (BP_SCORE * 100) + (FBS_SCORE * 100) + (TG_SCORE * 100) + (HDLC_SCORE * 100)) / 5, 1) TOT_SCORE
+		  FROM MYBODY_MANAGE_SCORE MMS
+		 INNER JOIN (
+		    		SELECT
+		    			   MBER_NO
+		    			 , MAX(CALC_DT) CALC_DT
+		    		  FROM MYBODY_MANAGE_SCORE
+		         WHERE MBER_NO = #{MBER_NO}
+		    		 GROUP BY MBER_NO  
+			   ) MMMS
+			  ON MMS.MBER_NO = MMMS.MBER_NO
+		   AND MMS.CALC_DT = MMMS.CALC_DT
+	</select>
+	
+	<!-- 내몸관리지수 현황 조회 쿼리 -->
+	<sql id="electMybodyManageScoreListQuery">
+		SELECT 
+		       MBER_NO
+		     , F_STR_FORMAT('DATE', SUBSTRING(CALC_DT, 1, 12), #{LOCALE}) CALC_DT
+		     , ROUND((WAIST_SCORE * 100), 1) WAIST_SCORE
+		     , ROUND((BP_SCORE * 100), 1) BP_SCORE
+		     , ROUND((FBS_SCORE * 100), 1) FBS_SCORE
+		     , ROUND((TG_SCORE * 100), 1) TG_SCORE
+		     , ROUND((HDLC_SCORE * 100), 1) HDLC_SCORE
+		     , ROUND(((WAIST_SCORE * 100) + (BP_SCORE * 100) + (FBS_SCORE * 100) + (TG_SCORE * 100) + (HDLC_SCORE * 100)) / 5, 1) TOT_SCORE
+		  FROM MYBODY_MANAGE_SCORE
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND SUBSTRING(CALC_DT, 1, 8) BETWEEN #{START_DE} AND #{END_DE}
+	</sql>
+	
+	<!-- 내몸관리지수 현황 조회 건수 -->
+	<select id="selectMybodyManageScoreListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="electMybodyManageScoreListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 내몸관리지수 현황 조회 -->
+	<select id="selectMybodyManageScoreList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="electMybodyManageScoreListQuery" />
+		     ) TBL
+		 ORDER BY CALC_DT DESC
+	</select>
+	
+	<!-- 최근 5개 내몸관리지수 현황 조회 -->
+	<select id="selectMybodyManageScoreListByLatest5Data" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MMS.MBER_NO
+		     , SUBSTRING(MMS.CALC_DT, 1, 8) CALC_DT
+		     , ROUND(((WAIST_SCORE * 100) + (BP_SCORE * 100) + (FBS_SCORE * 100) + (TG_SCORE * 100) + (HDLC_SCORE * 100)) / 5, 1) TOT_SCORE
+		  FROM MYBODY_MANAGE_SCORE MMS
+		 INNER JOIN (
+					SELECT
+						   MBER_NO
+						 , MAX(CALC_DT) CALC_DT
+					  FROM MYBODY_MANAGE_SCORE
+		       		 WHERE MBER_NO = #{MBER_NO}
+					 GROUP BY MBER_NO, SUBSTRING(CALC_DT, 1, 8)  
+			   ) MMMS
+				ON MMS.MBER_NO = MMMS.MBER_NO
+			 AND MMS.CALC_DT = MMMS.CALC_DT
+		 ORDER BY CALC_DT DESC
+		 LIMIT 5
+	</select>
+	
+	<!-- 내몸관리지수 부족한 데이터 정보 조회 -->
+	<select id="selectMybodyManageNoDataList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       'BMI' NO_DATA_MESURE_CODE_NM 
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND BMI_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Blood Pressure'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Blood Pressure'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Blood Pressure'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '혈압'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND HB_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Body Fat'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Body Fat'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Body Fat'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '체지방'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND FM_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Soft Lean Mass'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Soft Lean Mass'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Soft Lean Mass'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '근육량'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND MS_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Basal Metabolic Rate'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Basal Metabolic Rate'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Basal Metabolic Rate'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '기초대사량'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND BMR_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Visceral Fat Level'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Visceral Fat Level'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Visceral Fat Level'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '내장지방레벨'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND VFL_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Steps'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Steps'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Steps'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '걸음수'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND STEP_NRP = 1
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Livelihood Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Livelihood Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Livelihood Habits Questionnaire'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '생활습관 설문'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND (TMC_NRP = 1 OR TAC_NRP = 1 OR SMK_NRP = 1)
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Meal Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Meal Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Meal Habits Questionnaire'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '식사습관 설문'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND (MRC_NRP = 1 OR PNQ_NRP = 1 OR ANQ_NRP = 1 OR SNQ_NRP = 1 OR VNQ_NRP = 1 OR MNQ_NRP = 1)
+		 UNION ALL
+		SELECT 
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		        'Sports Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		        'Sports Habits Questionnaire'
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		        'Sports Habits Questionnaire'
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		        '운동습관 설문'
+				]]>
+		    </otherwise>
+		</choose>
+		  FROM MYBODY_MANAGE_DATA
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CALC_DT = #{CALC_DT}
+		   AND (MSQ_NRP = 1 OR HSQ_NRP = 1 OR SRC_NRP = 1 OR WAQ_NRP = 1)
+	</select>
+	
+	<!-- 내몸관리지수 등급 조회 -->
+	<select id="selectMybodyManageGradeInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       CASE WHEN TOT_SCORE <= 25 THEN 'D'
+		            WHEN TOT_SCORE <= 50 THEN 'C'
+		            WHEN TOT_SCORE <= 75 THEN 'B'
+		            ELSE 'A'
+		        END MYBODY_MANAGE_GRADE
+		]]>
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+				<![CDATA[
+		      ,  CONCAT('', IF(GRADE_PERCENT <= 50, '', ''), GRADE_PERCENT, '%.') GRADE_PERCENT
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ES")'>
+				<![CDATA[
+		      ,  CONCAT('', IF(GRADE_PERCENT <= 50, '', ''), GRADE_PERCENT, '%.') GRADE_PERCENT
+				]]>
+		    </when>
+		    <when test='LOCALE != null and LOCALE.equals("ID")'>
+				<![CDATA[
+		      ,  CONCAT('', IF(GRADE_PERCENT <= 50, '', ''), GRADE_PERCENT, '%.') GRADE_PERCENT
+				]]>
+		    </when>
+		    <otherwise>
+				<![CDATA[
+		      ,  CONCAT('현재 내몸관리 지수는\n 동 연령대중  ', IF(GRADE_PERCENT <= 50, '상위', '하위'), GRADE_PERCENT, '% 수준입니다.') GRADE_PERCENT
+				]]>
+		    </otherwise>
+		</choose>
+		<![CDATA[
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , IF(@TOT_SCORE = TOT_SCORE, @RANK, @RANK := @RANK + 1) RN
+		             , @RANK_COUNT := @RANK_COUNT + 1
+		             , IF(@TOT_SCORE = TOT_SCORE, @TOT_SCORE, @TOT_SCORE := TOT_SCORE) TOT_SCORE
+		             , TRUNCATE(@RANK / (MBER_CNT * 0.01), 0) GRADE_PERCENT
+		          FROM (
+		                SELECT 
+		                       MI.MBER_NO
+		                     , IFNULL(TOT_SCORE, 0) TOT_SCORE
+		                  FROM (
+		                      SELECT 
+		                             MBER_NO
+		                           , BRTHDY
+		                           , (DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') < SUBSTR(BRTHDY, 5, 8), -1, 0) AS AGE
+		                        FROM MBER_INFO
+		                       WHERE MBER_SECSN_AT = 'N'
+		                     ) MI
+		                 LEFT JOIN (
+		                        SELECT
+		                               MMS.MBER_NO
+		                             , ROUND(((WAIST_SCORE * 100) + (BP_SCORE * 100) + (FBS_SCORE * 100) + (TG_SCORE * 100) + (HDLC_SCORE * 100)) / 5, 1) TOT_SCORE
+		                          FROM MYBODY_MANAGE_SCORE MMS
+		                         INNER JOIN (
+		                        			SELECT
+		                        				   MBER_NO
+		                        				 , MAX(CALC_DT) CALC_DT
+		                        			  FROM MYBODY_MANAGE_SCORE
+		                        			 GROUP BY MBER_NO
+		                        	   ) MMMS
+		                        		ON MMS.MBER_NO = MMMS.MBER_NO
+		                        	 AND MMS.CALC_DT = MMMS.CALC_DT
+		                     ) MMS
+		                    ON MI.MBER_NO = MMS.MBER_NO
+		                 WHERE MI.AGE BETWEEN #{BEGIN_AGE} AND #{END_AGE}
+		                 ORDER BY TOT_SCORE DESC
+		             ) MMS
+		         INNER JOIN (SELECT @TOT_SCORE := 0, @RANK := 0, @RANK_COUNT := 0, @MBER_CNT := 0) R
+		         INNER JOIN (
+		                SELECT COUNT(*) MBER_CNT
+		                  FROM (
+		                        SELECT 
+		                               MBER_NO
+		                             , (DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') < SUBSTR(BRTHDY, 5, 8), -1, 0) AS AGE
+		                          FROM MBER_INFO
+		                         WHERE MBER_SECSN_AT = 'N'
+		                     ) MI
+		                 WHERE MI.AGE BETWEEN #{BEGIN_AGE} AND #{END_AGE}
+		             ) MC
+		     ) TBL
+		 WHERE MBER_NO = #{MBER_NO}
+		 ]]>
+	</select>
+	
+	<!-- 공지사항 현황조회 쿼리 -->
+	<sql id="selectNoticeListQuery">
+		SELECT 
+		       NT.NOTICE_NO
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(NT.REGIST_DT, '%Y%m%d%H%i%s'), #{LOCALE}) REGIST_DT
+		     , NT.NOTICE_SJ
+		     , NT.TRGET_SVC_CODE
+		     , F_CODE_NM('CM14', NT.TRGET_SVC_CODE, #{LOCALE}) TRGET_SVC_CODE_NM
+		     , NT.REGIST_ID
+		     , MI.NM
+		  FROM NOTICE NT
+		  LEFT JOIN MBER_INFO MI
+		    ON NT.REGIST_ID = MI.USID
+	</sql>
+	
+	<!-- 공지사항 현황조회 건수 -->
+	<select id="selectNoticeListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectNoticeListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 공지사항 현황조회 -->
+	<select id="selectNoticeList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectNoticeListQuery" />
+		     ) TBL
+		 ORDER BY REGIST_DT DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 공지사항 등록처리 -->
+	<insert id="insertNoticeInfo" parameterType="hmap">
+		INSERT INTO NOTICE (
+			   TRGET_SVC_CODE
+			 , NOTICE_SJ
+			 , NOTICE_CN
+			 , PUSH_AT
+			 , REGIST_DT
+			 , REGIST_ID
+			 , USE_AT
+		) VALUES (
+			   #{TRGET_SVC_CODE}
+			 , #{NOTICE_SJ}
+			 , #{NOTICE_CN}
+			 , #{PUSH_AT}
+			 , NOW()
+			 , #{USID}
+			 , 'Y'	
+		)
+		<selectKey order="AFTER" keyProperty="NOTICE_NO" resultType="int">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	
+	<!-- 공지사항 상세조회 -->
+	<select id="selectNoticeInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   NOTICE_NO
+			 , TRGET_SVC_CODE
+			 , F_CODE_NM('CM14', TRGET_SVC_CODE, #{LOCALE}) TRGET_SVC_CODE_NM
+			 , NOTICE_SJ
+			 , NOTICE_CN
+			 , PUSH_AT
+			 , F_STR_FORMAT('DATE', DATE_FORMAT(REGIST_DT, '%Y%m%d%H%i%s'), #{LOCALE}) REGIST_DT
+			 , REGIST_ID
+			 , USE_AT
+		  FROM NOTICE
+		 WHERE USE_AT = 'Y'
+		   AND NOTICE_NO = #{NOTICE_NO}
+	</select>
+	
+	<!-- 공지사항 수정처리 -->
+	<update id="updateNoticeInfo" parameterType="hmap">
+		UPDATE NOTICE SET
+		       NOTICE_NO = NOTICE_NO
+		<if test="TRGET_SVC_CODE != null and TRGET_SVC_CODE != ''">
+			 , TRGET_SVC_CODE = #{TRGET_SVC_CODE}
+		</if>
+		<if test="NOTICE_SJ != null and NOTICE_SJ != ''">
+			 , NOTICE_SJ = #{NOTICE_SJ}
+		</if>
+		<if test="NOTICE_CN != null and NOTICE_CN != ''">
+			 , NOTICE_CN = #{NOTICE_CN}
+		</if>
+		<if test="PUSH_AT != null and PUSH_AT != ''">
+			 , PUSH_AT = #{PUSH_AT}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+			 , USE_AT = #{USE_AT}
+		</if>
+		 WHERE NOTICE_NO = #{NOTICE_NO}
+	</update>
+	
+	<!-- 회원의 1년간의 측정데이터 카운트 -->
+	<select id="selectMberMesureCount" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MBER_NO,
+			A.COMPBODY,
+		    B.BLOOD,
+		    C.CHOL,
+		    D.SUGAR
+		FROM
+		(
+			SELECT
+				MBER_NO,
+				COUNT(*) as COMPBODY
+			FROM MESURE_INFO_CMMN_TIME
+			WHERE MBER_NO = #{MBER_NO}
+			AND (FAT_MAS is NOT NULl
+			OR PBF is NOT NULl
+			OR SLM is NOT NULl
+			OR EST_BN_MAS is NOT NULl
+			OR VFL is NOT NULl
+			OR BMR)
+			LIMIT 1
+		) A
+		JOIN 
+		(
+			SELECT
+				MBER_NO,
+				COUNT(*) as BLOOD
+			FROM MESURE_INFO_CMMN_TIME
+			WHERE MBER_NO = #{MBER_NO}
+			AND (SYSTOLIC is NOT NULl
+			OR DIASTOLIC is NOT NULl)
+			LIMIT 1
+		) B
+		JOIN 
+		(
+			SELECT
+				MBER_NO,
+				COUNT(*) as CHOL
+			FROM MESURE_INFO_CMMN_TIME
+			WHERE MBER_NO = #{MBER_NO}
+			AND T_CHOL is NOT NULl
+			LIMIT 1
+		) C
+		JOIN 
+		(
+			SELECT
+				MBER_NO,
+				COUNT(*) as SUGAR
+			FROM MESURE_INFO_CMMN_TIME
+			WHERE MBER_NO = #{MBER_NO}
+			AND (FBS is NOT NULl
+			OR PP2 is NOT NULl)
+			LIMIT 1
+		) D
+		ON A.MBER_NO = B.MBER_NO AND A.MBER_NO = C.MBER_NO AND A.MBER_NO = D.MBER_NO
+	</select>
+	
+	<!-- 최근 5회 측정 데이터  (키오스크)-->
+	<select id="selectMesureInfoByFiveData" parameterType="hmap" resultType="hmap">
+		SELECT
+			 MBER_NO
+		     , MESURE_DE
+			<choose>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			 , BDWGH
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			 , FAT_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			 , PBF
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			 , SLM
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			 , EST_BN_MAS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			 , VFL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			 , BMR
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			 , BMI
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			 , HEIGHT
+				</when>
+				
+			    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+			 , SYSTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			 , DIASTOLIC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			 , PULS
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			 , FBS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			 , PP2
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			 , T_CHOL
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			 , TG
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			 , HDLC
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			 , LDLC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			 , STRS_SCORE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			 , PHYSIC_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			 , MNTL_STRS
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			 , STRS_CNTRMSR_ABLTY
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			 , BLDVSS_STEP
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			 , CAD_OUTPUT_IN
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			 , ELSTC_DGREE
+				</when>
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			 , RBV_QY
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			 , WAIST_CRCMFRNC
+				</when>
+				
+				<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			 , BDHEAT
+				</when>
+			</choose>
+			 as DATAS
+		     , REGIST_DT
+		FROM MESURE_INFO_CMMN_DALY
+        WHERE MBER_NO = #{MBER_NO}        
+        <choose>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6021")'>
+			AND BDWGH is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("8010")'>
+			AND FAT_MAS is NOT NULL			 
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6022")'>
+			AND PBF is NOT NULL			 
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6023")'>
+			AND SLM is NOT NULL	
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6029")'>
+			AND EST_BN_MAS is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6026")'>
+			AND VFL is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6027")'>
+			AND BMR is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6056")'>
+			AND BMI is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6A35")'>
+			AND HEIGHT is NOT NULL			 
+			</when>
+		    <when test='MESURE_CODE != null and MESURE_CODE.equals("622E")'>
+		    AND SYSTOLIC is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("622F")'>
+			AND DIASTOLIC is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("6230")'>
+			AND PULS is NOT NULL
+			</when>			
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624A")'>
+			AND FBS is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624B")'>
+			AND PP2 is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624C")'>
+			AND T_CHOL is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624D")'>
+			AND TG is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624E")'>
+			AND HDLC is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("624F")'>
+			AND LDLC is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7012")'>
+			AND STRS_SCORE is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7013")'>
+			AND PHYSIC_STRS is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7014")'>
+			AND MNTL_STRS is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7015")'>
+			AND STRS_CNTRMSR_ABLTY is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7016")'>
+			AND BLDVSS_STEP is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7017")'>
+			AND CAD_OUTPUT_IN is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7018")'>
+			AND ELSTC_DGREE is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("7019")'>
+			AND RBV_QY is NOT NULL
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("8072")'>
+			AND WAIST_CRCMFRNC is NOT NULL			 
+			</when>
+			<when test='MESURE_CODE != null and MESURE_CODE.equals("5010")'>
+			AND BDHEAT is NOT NULL			 
+			</when>
+		</choose>         
+        ORDER BY MESURE_DE DESC
+        LIMIT 0, 5
+	</select>
+	
+	
+	<!-- 근육률을 위한 체중 값 가져오기 -->
+	<select id="selectBDWgt" parameterType="hmap" resultType="hmap">
+		SELECT BDWGH FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND (1=1
+		<if test='MESURE_DE0 != null and MESURE_DE0 != ""'>
+		AND MESURE_DE = #{MESURE_DE0}
+		</if>
+		<if test='MESURE_DE1 != null and MESURE_DE1 != ""'>
+		OR MESURE_DE = #{MESURE_DE1}
+		</if>
+		<if test='MESURE_DE2 != null and MESURE_DE2 != ""'>
+		OR MESURE_DE = #{MESURE_DE2}
+		</if>
+		<if test='MESURE_DE3 != null and MESURE_DE3 != ""'>
+		OR MESURE_DE = #{MESURE_DE3}
+		</if>
+		<if test='MESURE_DE4 != null and MESURE_DE4 != ""'>
+		OR MESURE_DE = #{MESURE_DE4}
+		</if>
+		)
+	</select>
+	
+	
+	<!-- 혈압 데이터 -->
+	<select id="selectBloodPress" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MBER_NO, 
+		    A.MESURE_DT, 
+		    A.SYSTOLIC, 
+		    A.DIASTOLIC,
+		    A.PULS,
+		    B.MESURE_DE, 
+		    B.AVG_SYS, 
+		    B.AVG_DIA,    
+		    B.AVG_PULS
+		FROM MESURE_INFO_CMMN_TIME A
+		JOIN (
+			SELECT 
+				MBER_NO, 
+		        MESURE_DE,
+		        PULS as AVG_PULS,
+		        SYSTOLIC as AVG_SYS, 
+		        DIASTOLIC as AVG_DIA 
+			FROM MESURE_INFO_CMMN_DALY
+			WHERE MBER_NO = #{MBER_NO}
+		    AND SYSTOLIC is NOT NULL
+		    AND DIASTOLIC is NOT NULL
+			ORDER BY  MESURE_DE DESC
+			LIMIT 5
+		) B
+		ON A.MBER_NO = B.MBER_NO AND DATE_FORMAT(A.MESURE_DT, '%Y%m%d') = B.MESURE_DE
+		WHERE A.MBER_NO = #{MBER_NO}
+		AND A.SYSTOLIC is NOT NULL
+		AND A.DIASTOLIC is NOT NULL
+		ORDER BY MESURE_DT DESC
+	</select>
+	
+	
+	
+	<!-- 키오스크 체중  -->
+	<select id="selectBDWGH" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			BDWGH
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND BDWGH is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 추정골량  -->
+	<select id="selectESTBNMAS" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			EST_BN_MAS
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND EST_BN_MAS is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	
+	<!-- 키오스크 체지방량  -->
+	<select id="selectFATMAS" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			FAT_MAS
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND FAT_MAS is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 체지방률  -->
+	<select id="selectPBF" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			PBF
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND PBF is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	
+	<!-- 키오스크 근육량  -->
+	<select id="selectSLM" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			SLM
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND SLM is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 내장지방 레벨 -->
+	<select id="selectVFL" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			VFL
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND VFL is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 내장지방 레벨 -->
+	<select id="selectBMR" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			BMR
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND BMR is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 내장지방 레벨 -->
+	<select id="selectBMI" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			BMI
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND BMI is NOT NULL
+		ORDER BY  MESURE_DE DESC
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 식전혈당 -->
+	<select id="selectBloodSugarFBS" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			FBS
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND FBS is NOT NULL
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 식후혈당 -->
+	<select id="selectBloodSugarPP2" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,			
+            PP2
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND PP2 is NOT NULL
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 콜레스테롤 -->
+	<select id="selectCholesterol" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			T_CHOL,
+            TG,
+            HDLC,
+            LDLC
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND (T_CHOL is NOT NULL OR TG is NOT NULL OR HDLC is NOT NULL OR LDLC is NOT NULL)
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 혈관 -->
+	<select id="selectBloodVessel" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			BLDVSS_STEP,
+            CAD_OUTPUT_IN,
+            ELSTC_DGREE,
+            RBV_QY
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND (BLDVSS_STEP is NOT NULL OR CAD_OUTPUT_IN is NOT NULL OR ELSTC_DGREE is NOT NULL OR RBV_QY is NOT NULL)
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 스트레스 -->
+	<select id="selectStress" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			STRS_SCORE,
+            PHYSIC_STRS,
+            MNTL_STRS,
+            STRS_CNTRMSR_ABLTY
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND (STRS_SCORE is NOT NULL OR PHYSIC_STRS is NOT NULL OR MNTL_STRS is NOT NULL OR STRS_CNTRMSR_ABLTY is NOT NULL)
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 신장 -->
+	<select id="selectHeight" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			HEIGHT
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND HEIGHT is NOT NULL
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 허리둘레 -->
+	<select id="selectWaist" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			WAIST_CRCMFRNC
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND WAIST_CRCMFRNC is NOT NULL
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	<!-- 키오스크 체온 -->
+	<select id="selectBdHeat" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DE,
+			BDHEAT
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MBER_NO = #{MBER_NO}
+		AND BDHEAT is NOT NULL
+		ORDER BY  MESURE_DE DESC		
+		LIMIT 5
+	</select>
+	
+	
+	<!-- 키오스크 체지방율 & 근육량 마지막 측정 일자 반환 -->
+	<select id="selectLastDateSlmPbf" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			SLM,
+		    PBF
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (SLM is NOT NULL OR PBF is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 체지방량, 체중, 추정골량, 근육량 의 마지막 측정 일자 반환  -->
+	<select id="selectLastDateBodyComp" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			SLM,
+		    BDWGH,
+		    FAT_MAS,
+		    EST_BN_MAS
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (SLM is NOT NULL OR BDWGH is NOT NULL
+		OR FAT_MAS is NOT NULL OR EST_BN_MAS is NOT NULl)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 체지방률, BMR, BMI, 내장지방레벨 의 마지막 측정 일자 반환  -->
+	<select id="selectLastDateObsity" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			VFL,
+		    BMR,
+		    BMI,
+		    PBF
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (VFL is NOT NULL OR BMR is NOT NULL
+		OR BMI is NOT NULL OR PBF is NOT NULl)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	
+	<!-- 키오스크 혈당 마지막 측정 일자 반환 -->
+	<select id="selectLastDateFbsPp2" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			FBS,
+		    PP2
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (FBS is NOT NULL OR PP2 is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 혈당 마지막 측정 일자 반환 -->
+	<select id="selectLastDateCholesterol" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			T_CHOL,
+		    TG,
+		    HDLC,
+		    LDLC
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (T_CHOL is NOT NULL OR TG is NOT NULL OR HDLC is NOT NULL OR LDLC is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 혈당 마지막 측정 일자 반환 -->
+	<select id="selectLastDateBloodVessel" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			BLDVSS_STEP,
+		    CAD_OUTPUT_IN,
+		    ELSTC_DGREE,
+		    RBV_QY
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (BLDVSS_STEP is NOT NULL OR CAD_OUTPUT_IN is NOT NULL OR ELSTC_DGREE is NOT NULL OR RBV_QY is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 스트레스 마지막 측정 일자 반환 -->
+	<select id="selectLastDateStress" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			STRS_SCORE,
+		    PHYSIC_STRS,
+		    MNTL_STRS,
+		    STRS_CNTRMSR_ABLTY
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (STRS_SCORE is NOT NULL OR PHYSIC_STRS is NOT NULL OR MNTL_STRS is NOT NULL OR STRS_CNTRMSR_ABLTY is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 키오스크 스트레스 마지막 측정 일자 반환 -->
+	<select id="selectLastDateBodyInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+			MESURE_DT,
+			HEIGHT,
+		    WAIST_CRCMFRNC,
+		    BDHEAT
+		FROM MESURE_INFO_CMMN_TIME
+		WHERE MBER_NO = #{MBER_NO}
+		AND (HEIGHT is NOT NULL OR WAIST_CRCMFRNC is NOT NULL OR BDHEAT is NOT NULL)
+		ORDER BY  MESURE_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 대사증후군 연계 유헬스존 별 측정정보 현황조회 -->
+	<select id="selectMtblSyndrUhealthZoneMesureInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , MI.NM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, #{LOCALE}) BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, #{LOCALE}) SEXDSTN
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , INSTL_PLACE UHEALTH_ZONE_NM
+		     , MESURE_DE
+		     , IFNULL(M_6021, 0) M_6021
+		     , IFNULL(M_6022, 0) M_6022
+		     , IFNULL(M_6023, 0) M_6023
+		     , IFNULL(M_6026, 0) M_6026
+		     , IFNULL(M_6027, 0) M_6027
+		     , IFNULL(M_6029, 0) M_6029
+		     , IFNULL(M_602A, 0) M_602A
+		     , IFNULL(M_6056, 0) M_6056
+		     , IFNULL(M_8156, 0) M_8156
+		     , IFNULL(M_8157, 0) M_8157
+		     , IFNULL(M_8158, 0) M_8158
+		     , IFNULL(M_8172, 0) M_8172     
+		     , IFNULL(M_622E, 0) M_622E
+		     , IFNULL(M_622F, 0) M_622F
+		     , IFNULL(M_624A, 0) M_624A
+		     , IFNULL(M_624B, 0) M_624B
+		     , IFNULL(M_624C, 0) M_624C
+		     , IFNULL(M_624D, 0) M_624D
+		     , IFNULL(M_624E, 0) M_624E
+		     , IFNULL(M_624F, 0) M_624F
+		  FROM MBER_INFO MI
+		 INNER JOIN (
+				SELECT 
+				       UHEALTH_ZONE_NO
+				     , INSTL_PLACE
+				     , MPI.MBER_NO
+				  FROM UHEALTH_ZONE_MANAGE UZM
+				 INNER JOIN MBER_PSTINST_INFO MPI
+				    ON UZM.INST_NO = MPI.INST_NO
+				   AND UZM.USE_AT = 'Y'
+				   AND MPI.CONFM_AT = 'Y'
+				   AND MPI.SECSN_AT = 'N'
+		<if test="UHEALTH_ZONE_NO != null and UHEALTH_ZONE_NO != ''">
+				   AND UZM.UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		</if>
+		     ) UZM
+		    ON MI.MBER_NO = UZM.MBER_NO
+		  LEFT JOIN (    
+		        SELECT 
+		               MIC.MBER_NO
+		             , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6021', MIC.MESURE_DATA, 0), 1)) M_6021
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6022', MIC.MESURE_DATA, 0), 1)) M_6022
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6023', MIC.MESURE_DATA, 0), 1)) M_6023
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6026', MIC.MESURE_DATA, 0), 0)) M_6026
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6027', MIC.MESURE_DATA, 0), 0)) M_6027
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6029', MIC.MESURE_DATA, 0), 1)) M_6029
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '602A', MIC.MESURE_DATA, 0), 1)) M_602A
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6056', MIC.MESURE_DATA, 0), 1)) M_6056
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '8156', MIC.MESURE_DATA, 0), 1)) M_8156
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '8157', MIC.MESURE_DATA, 0), 1)) M_8157
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '8158', MIC.MESURE_DATA, 0), 1)) M_8158
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '8172', MIC.MESURE_DATA, 0), 0)) M_8172
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '622E', MIC.MESURE_DATA, 0), 0)) M_622E
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '622F', MIC.MESURE_DATA, 0), 0)) M_622F
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624A', MIC.MESURE_DATA, 0), 0)) M_624A
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624B', MIC.MESURE_DATA, 0), 0)) M_624B
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624C', MIC.MESURE_DATA, 0), 0)) M_624C
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624D', MIC.MESURE_DATA, 0), 0)) M_624D
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624E', MIC.MESURE_DATA, 0), 0)) M_624E
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624F', MIC.MESURE_DATA, 0), 0)) M_624F
+		          FROM MESURE_INFO_CMMN MIC
+		         INNER JOIN (
+		                SELECT 
+		                       MIC.MBER_NO
+		                     , MIC.MESURE_CODE
+		                     , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		                     , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+								SELECT 
+								       MPI.MBER_NO
+								  FROM UHEALTH_ZONE_MANAGE UZM
+								 INNER JOIN MBER_PSTINST_INFO MPI
+								    ON UZM.INST_NO = MPI.INST_NO
+								   AND UZM.USE_AT = 'Y'
+								   AND MPI.CONFM_AT = 'Y'
+								   AND MPI.SECSN_AT = 'N'
+		<if test="UHEALTH_ZONE_NO != null and UHEALTH_ZONE_NO != ''">
+								   AND UZM.UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		</if>
+		                     ) UZM
+		                    ON MIC.MBER_NO = UZM.MBER_NO
+		                 WHERE MIC.MESURE_CODE IN ('6021', '6022', '6023', '6026', '6027', '6029', '602A', '6056', '8156', '8157', '8158', '8172', '622E', '622F', '624A', '624B', '624C', '624D', '624E', '624F')
+		<if test="START_DE != null and START_DE != ''">
+		           		   AND MIC.MESURE_DT >= #{START_DE}
+		</if>
+		<if test="END_DE != null and END_DE != ''">
+		           		   AND MIC.MESURE_DT <![CDATA[ <= ]]> #{END_DE}
+		</if>
+		                 GROUP BY MIC.MBER_NO, MIC.MESURE_CODE, SUBSTRING(MESURE_DT, 1, 8)
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		           AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		         GROUP BY MIC.MBER_NO, SUBSTRING(MIC.MESURE_DT, 1, 8)   
+		     ) MICD
+		    ON MI.MBER_NO = MICD.MBER_NO	
+	</select>
+	
+	
+	<!-- 한달후 추천 측정일자 반환 >> 토,일 판단하여 날자 계산 -->
+	<select id="selectNextMesureDate" parameterType="hmap" resultType="hmap">
+		SELECT
+			MBER_NO,
+			MESURE_MT,
+		    DATE_FORMAT(UPDT_DT, '%Y%m%d') UPDT_DT,
+		    CASE 
+				WHEN WEEKDAY(DATE_ADD(UPDT_DT, INTERVAL 1 MONTH)) = 5
+		        THEN DATE_FORMAT(DATE_ADD(DATE_ADD(UPDT_DT, INTERVAL 1 MONTH), INTERVAL 2 DAY), '%Y%m%d')
+		        WHEN WEEKDAY(DATE_ADD(UPDT_DT, INTERVAL 1 MONTH)) = 6
+		        THEN DATE_FORMAT(DATE_ADD(DATE_ADD(UPDT_DT, INTERVAL 1 MONTH), INTERVAL 1 DAY), '%Y%m%d')
+		        ELSE DATE_FORMAT(DATE_ADD(UPDT_DT, INTERVAL 1 MONTH), '%Y%m%d')
+			END as NEXT_DT
+		FROM MESURE_INFO_CMMN_MNBY
+		WHERE MBER_NO = #{MBER_NO}
+		ORDER BY UPDT_DT DESC
+		LIMIT 2
+	</select>
+	
+	
+	<select id="selectUhealthZonePlace" parameterType="hmap" resultType="hmap">
+		SELECT 
+			INSTL_PLACE
+		FROM UHEALTH_ZONE_MANAGE
+		WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+	</select>
+	
+	<!-- 금일 측정결과 -->
+	<select id="selectTodayMesureResult" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO,
+			HEIGHT,
+			BDWGH,
+			FAT_MAS,
+			PBF,
+			SLM,
+			EST_BN_MAS,
+			VFL,
+			BMR,
+			BMI,
+			SYSTOLIC,
+			DIASTOLIC,
+		    PULS,
+		    FBS,
+		    PP2,
+		    T_CHOL,
+		    TG,
+		    HDLC,
+		    LDLC,
+		    STRS_SCORE,
+		    PHYSIC_STRS,
+		    MNTL_STRS,
+		    STRS_CNTRMSR_ABLTY,
+		    BLDVSS_STEP,
+		    CAD_OUTPUT_IN,
+		    ELSTC_DGREE,
+		    RBV_QY,
+		    WAIST_CRCMFRNC,
+		    BDHEAT
+		FROM MESURE_INFO_CMMN_DALY
+		WHERE MESURE_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+		AND MBER_NO = 86490
+		AND (
+			HEIGHT is NOT NULL OR
+		    BDWGH is NOT NULL OR
+		    FAT_MAS is NOT NULL OR
+		    PBF is NOT NULL OR
+		    SLM is NOT NULL OR
+		    EST_BN_MAS is NOT NULL OR
+		    VFL is NOT NULL OR
+		    BMR is NOT NULL OR
+		    BMI is NOT NULL OR
+		    SYSTOLIC is NOT NULL OR
+		    DIASTOLIC is NOT NULL OR
+		    PULS is NOT NULL OR
+		    FBS is NOT NULL OR
+		    PP2 is NOT NULL OR
+		    T_CHOL is NOT NULL OR
+		    TG is NOT NULL OR
+		    HDLC is NOT NULL OR
+		    LDLC is NOT NULL OR
+		    STRS_SCORE is NOT NULL OR
+		    PHYSIC_STRS is NOT NULL OR
+		    MNTL_STRS is NOT NULL OR
+		    STRS_CNTRMSR_ABLTY is NOT NULL OR
+		    BLDVSS_STEP is NOT NULL OR
+		    CAD_OUTPUT_IN is NOT NULL OR
+		    ELSTC_DGREE is NOT NULL OR
+		    RBV_QY is NOT NULL OR
+		    WAIST_CRCMFRNC is NOT NULL OR
+		    BDHEAT is NOT NULL
+		)
+	</select>
+	
+	<!-- 판정치 텍스트 조회 -->
+	<select id="selectJdgmntTextInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       CASE WHEN #{LOCALE} = 'US' THEN MSSAGE_1_US
+		            WHEN #{LOCALE} = 'ES' THEN MSSAGE_1_ES
+		            WHEN #{LOCALE} = 'ID' THEN MSSAGE_1_ID
+		            ELSE MSSAGE_1
+		        END JDGMNT_TXT
+		<if test="GRAD_NM != null and GRAD_NM != ''">
+			 , F_CODE_NM('CM15', #{GRAD_NM}, #{LOCALE}) JDGMNT
+			 , F_CODE_NM('CM16', #{GRAD_NM}, #{LOCALE}) JDGMNT_COLOR
+		</if>
+		<if test="MESURE_CODE != null and MESURE_CODE != ''">
+			 , F_MESURE_CODE_NM(#{MESURE_CODE}, #{LOCALE}) MESURE_CODE_NM
+		</if>
+		  FROM MSSAGE_INFO
+		 WHERE USE_AT = 'Y'
+		   AND MSSAGE_SE_CODE = #{MSSAGE_SE_CODE}
+		   AND MSSAGE_SN = 1
+	</select>
+	
+	
+	<!-- 내몸관리 (비만, 대사증후군) -->
+	<select id="selectMyBodyManagement" parameterType="hmap" resultType="hmap">
+		SELECT 
+			OBA.MBER_NO,
+		    OBA.OB_MDATE,
+		    OBA.BFA, #체지방나이
+			OBA.AOA, #복부비만나이
+			OBA.BAA, #비만생체나이
+			OBA.PBF, #
+			OBA.AGING_RANK, #등수
+			OBA.TOTAL_GUID1,
+			OBA.TOTAL_GUID2,
+			OBA.TOTAL_GUID3,
+		    OBB.OutBW, #체중 관리 대상 여부
+			OBB.OutBMI, #BMI 관리 대상 여부
+			OBB.OutBF, #체지방량 관리 대상 여부
+			OBB.OutWC, #허리둘레 관리 대상 여부
+			OBB.OutWHR, #WHR 관리 대상 여부
+		    OBI.CHCK_DT as OBI_CHCK_DT,
+			OBI.BAA as OBI_BAA, #비만나이 
+			OBI.AOA as OBI_AOA, #복부비만나이
+			OBI.BFA as OBI_BFA,  #체지방나이
+			OBI.B_CHCK_DT as OBI_B_CHCK_DT,
+			OBI.B_BAA as OBI_B_BAA, #비만나이 
+			OBI.B_AOA as OBI_B_AOA, #복부비만나이
+			OBI.B_BFA as OBI_B_BFA,  #체지방나이
+			OBI.BB_CHCK_DT as OBI_BB_CHCK_DT,
+			OBI.BB_BAA as OBI_BB_BAA, #비만나이 
+			OBI.BB_AOA as OBI_BB_AOA, #복부비만나이
+			OBI.BB_BFA as OBI_BB_BFA,  #체지방나이
+			MA.MEASURE_DT as MT_MDATE,
+		    MA.RSLT_ANLY1,
+			MA.RSLT_ANLY2,
+		    MI.CHCK_DATE as MI_CHCK_DATE,
+			MI.MSA as MI_MSA,
+			MI.MAOA as MI_MAOA,
+			MI.MHTNA as MI_MHTNA,
+			MI.MDMA as MI_MDMA,
+			MI.MDLA as MI_MDLA,
+			MI.B_CHCK_DATE as MI_B_CHCK_DATE,
+			MI.B_MSA as MI_B_MSA,
+			MI.B_MAOA as MI_B_MAOA,
+			MI.B_MHTNA as MI_B_MHTNA,
+			MI.B_MDMA as MI_B_MDMA,
+			MI.B_MDLA as MI_B_MDLA,
+			MI.BB_CHCK_DATE as MI_BB_CHCK_DATE,
+			MI.BB_MSA as MI_BB_MSA,
+			MI.BB_MAOA as MI_BB_MAOA,
+			MI.BB_MHTNA as MI_BB_MHTNA,
+			MI.BB_MDMA as MI_BB_MDMA,
+			MI.BB_MDLA as MI_BB_MDLA,
+			MI.DGNS as MI_DGNS,
+			MI.DGNS_GUID as MI_DGNS_GUID
+		FROM 
+		(
+			SELECT
+				MBER_NO,
+				MEASURE_DT AS OB_MDATE,
+		        BFA, #체지방나이
+		        AOA, #복부비만나이
+		        BAA, #비만생체나이
+		        PBF, #
+		        AGING_RANK, #등수
+		        TOTAL_GUID1,
+		        TOTAL_GUID2,
+		        TOTAL_GUID3
+		    FROM MEDIAGE_MBER_OBSITY_ANL_RESULT 
+		    WHERE MBER_NO = #{MBER_NO}
+		    ORDER BY MEASURE_DT DESC
+		    LIMIT 1
+		) OBA
+		LEFT JOIN 
+		(
+			SELECT 
+				MBER_NO,
+				OutBW, #체중 관리 대상 여부
+		        OutBMI, #BMI 관리 대상 여부
+		        OutBF, #체지방량 관리 대상 여부
+		        OutWC, #허리둘레 관리 대상 여부
+		        OutWHR #WHR 관리 대상 여부
+		    FROM MEDIAGE_MBER_OBSITY_BIO_RESULT 
+		    WHERE MBER_NO = #{MBER_NO}
+		    ORDER BY MEASURE_DT DESC
+		    LIMIT 1
+		
+		) OBB
+		ON OBA.MBER_NO = OBB.MBER_NO
+		LEFT JOIN 
+		(
+			SELECT
+				MBER_NO,
+		        CHCK_DT,
+				BAA, #비만나이 
+		        AOA, #복부비만나이
+		        BFA,  #체지방나이
+		        B_CHCK_DT,
+		        B_BAA, #비만나이 
+		        B_AOA, #복부비만나이
+		        B_BFA,  #체지방나이
+		        BB_CHCK_DT,
+		        BB_BAA, #비만나이 
+		        BB_AOA, #복부비만나이
+		        BB_BFA  #체지방나이
+			FROM MEDIAGE_MBER_OBSITY_INTERVAL_RESULT 
+			WHERE MBER_NO = #{MBER_NO}
+		    ORDER BY MEASURE_DT DESC
+		    LIMIT 1
+		) OBI
+		ON OBA.MBER_NO = OBI.MBER_NO
+		LEFT JOIN 
+		(
+			SELECT
+				MBER_NO,
+		        MEASURE_DT,
+		        RSLT_ANLY1,
+		        RSLT_ANLY2
+			FROM MEDIAGE_MBER_META_ANL_RESULT 
+			WHERE MBER_NO = #{MBER_NO}
+		    ORDER BY MEASURE_DT DESC
+		    LIMIT 1
+		) MA
+		ON OBA.MBER_NO = MA.MBER_NO
+		LEFT JOIN 
+		(
+			SELECT
+				MBER_NO,
+		        MEASURE_DT AS CHCK_DATE,
+		        MSA,
+		        MAOA,
+		        MHTNA,
+		        MDMA,
+		        MDLA,
+		        B_CHCK_DATE,
+		        B_MSA,
+		        B_MAOA,
+		        B_MHTNA,
+		        B_MDMA,
+		        B_MDLA,
+				BB_CHCK_DATE,
+		        BB_MSA,
+		        BB_MAOA,
+		        BB_MHTNA,
+		        BB_MDMA,
+		        BB_MDLA,
+		        DGNS,
+		        DGNS_GUID
+			FROM MEDIAGE_MBER_META_INTERVAL_RESULT 
+		    WHERE MBER_NO = #{MBER_NO}
+		    ORDER BY MEASURE_DT DESC
+		    LIMIT 1
+		) MI
+		ON OBA.MBER_NO = MI.MBER_NO
+		
+	</select>
+</mapper>

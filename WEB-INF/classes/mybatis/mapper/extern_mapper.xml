@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.ExternMapper">
+
+	<!-- 서비스키 허용 유무 확인 -->
+	<select id="selectExternServiceKey" parameterType="hmap" resultType="hmap">
+		SELECT
+			API_CODE
+		FROM API_KEY_MANAGE
+		WHERE API_KEY = #{API_KEY}
+		AND DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN API_KEY_BGNDE AND API_KEY_ENDDE
+		AND USE_AT = 'Y'
+	</select>
+	
+	<!-- 전화번호, 생년월일, 성별 로 회원키 가져오기 -->
+	<select id="selectMemberNumber" parameterType="hmap" resultType="hmap">	
+		SELECT 
+			MBER_NO 
+		FROM MBER_INFO
+		WHERE MBTLNUM = #{MBTLNUM}
+		AND BRTHDY = #{BRTHDY}
+		AND SEXDSTN = #{SEXDSTN}
+		AND MBER_SECSN_AT = 'N'
+		AND MBTLNUM_CRTFC_AT = 'Y'
+	</select>
+
+	<!-- 소속 기관 리스트 반환 (자신 포함)-->
+	<select id="selectAffiliatedInstList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.INST_NO,
+			A.INST_NM,
+			A.REPRSNT_TELNO,
+		    A.BIZ_INFO,
+		    B.INST_NO,
+		    B.MBER_NO,
+		    B.NM,
+		    B.MBTLNUM,
+		    B.INST_NO,
+		    B.GDAD_CODE,
+		    B.AUTHOR_CODE
+		FROM
+		(
+			SELECT 
+				INST_NO,
+				INST_NM,
+				REPRSNT_TELNO,
+		        BIZ_INFO
+			FROM
+			(
+				SELECT
+					II.INST_NO,
+					II.INST_NM,
+					II.REPRSNT_TELNO,
+		            II.BIZ_INFO
+				FROM INST_INFO II
+				LEFT JOIN (
+					SELECT 			
+						INST_NO
+					FROM MBER_PSTINST_INFO
+					WHERE CONFM_AT = 'Y'
+					AND SECSN_AT = 'N'
+					GROUP BY INST_NO
+				 ) MPI
+				ON II.INST_NO = MPI.INST_NO
+			 WHERE II.USE_AT = 'Y'
+			   AND II.INST_NO = #{INST_NO}
+			) TOP
+			UNION ALL
+			(
+				SELECT
+				  II.INST_NO,
+				  II.INST_NM,
+				  II.REPRSNT_TELNO,
+		          II.BIZ_INFO
+				 FROM INST_INFO II
+				WHERE II.USE_AT = 'Y'
+				   AND II.UPPER_INST_NO = #{INST_NO}
+				ORDER BY II.SIGUNGU_CD, II.TOP_INST_NO, II.MIDDLE_INST_NO, II.BOTTOM_INST_NO
+			)
+		) A
+		JOIN 
+		(
+			SELECT 
+			MICI.MBER_NO,
+		    MICI.NM,
+		    MICI.MBTLNUM,
+		    MICI.INST_NO,
+		    MICI.GDAD_CODE,
+		    MPI.AUTHOR_CODE
+		FROM
+		(
+			SELECT 
+					MI.MBER_NO,
+					MI.NM, 
+					MI.MBTLNUM ,
+					ICI.INST_NO,
+		            ICI.GDAD_CODE
+				FROM MBER_INFO MI
+				LEFT JOIN INST_CHARGER_INFO ICI
+				ON MI.MBER_NO = ICI.MBER_NO	
+				AND ICI.USE_AT = 'Y'
+		        WHERE ICI.GDAD_CODE = 'A'
+			) MICI
+			LEFT JOIN
+			(
+				SELECT 
+					MBER_NO,		
+					INST_NO,
+					AUTHOR_CODE
+				FROM INST_CHARGER_INFO
+				WHERE USE_AT = 'Y'	    
+			) MPI
+			ON MICI.MBER_NO = MPI.MBER_NO AND MICI.INST_NO = MPI.INST_NO
+		) B
+		ON A.INST_NO = B.INST_NO
+		GROUP BY A.INST_NO
+	</select>
+
+
+	<!-- 측정 데이터 (BMI, TC, TG) 호출 API -->
+	<select id="selectlastBmiChol" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MI.MBER_NO,
+		    BMID.BMI,
+		    TCD.TC,
+		    TGD.TG
+		FROM
+		(
+			SELECT 
+				MBER_NO    
+		    FROM MBER_INFO
+		    WHERE MBER_NO = #{MBER_NO}
+		) MI
+		LEFT JOIN
+		(
+			SELECT 
+				MBER_NO,
+				MESURE_DATA BMI,
+		        MESURE_DT
+			FROM MESURE_INFO_CMMN
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '6056'
+			ORDER BY MESURE_DT DESC
+			LIMIT 1
+		) BMID
+		ON MI.MBER_NO = BMID.MBER_NO
+		LEFT JOIN
+		(
+			SELECT 
+				MBER_NO,
+				MESURE_DATA TC,
+		        MESURE_DT
+			FROM MESURE_INFO_CMMN
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '624C'
+			ORDER BY MESURE_DT DESC
+			LIMIT 1
+		) TCD
+		ON MI.MBER_NO = TCD.MBER_NO
+		LEFT JOIN
+		(
+			SELECT 
+				MBER_NO,
+				MESURE_DATA TG,
+		        MESURE_DT
+			FROM MESURE_INFO_CMMN
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '624D'
+			ORDER BY MESURE_DT DESC
+			LIMIT 1
+		) TGD
+		ON MI.MBER_NO = TGD.MBER_NO
+
+
+				
+	</select>
+	
+	<!-- 기관별 장비 측정정보 현황조회 -->
+	<select id="selectDeviceMesureInfoListByInstNo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.NM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, #{LOCALE}) BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, #{LOCALE}) SEXDSTN
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , IFNULL(MESURE_DT, RPAD(#{MESURE_DT}, 14, '0')) MESURE_DT
+		<if test="BH_MESURE != null and BH_MESURE != ''">
+			 , IFNULL(M_5010, 0) BDHEAT
+		</if>
+		     , IFNULL(M_6A35, 0) HEIGHT
+		     , IFNULL(M_6021, 0) BDWGH
+		<if test="IS_MESURE != null and IS_MESURE != ''">
+		     , IFNULL(M_6022, 0) PBF
+		     , IFNULL(M_6023, 0) SLM
+		     , IFNULL(M_6026, 0) VFL
+		     , IFNULL(M_6027, 0) BMR
+		     , IFNULL(M_6029, 0) EST_BN_MAS
+		     , IFNULL(M_6056, 0) BMI    
+		</if>
+		<if test="RR_MESURE != null and RR_MESURE != ''">
+			 , IFNULL(M_8072, 0) WAIST
+		</if>
+		<if test="BP_MESURE != null and BP_MESURE != ''">   
+		     , IFNULL(M_622E, 0) SYSTOLIC
+		     , IFNULL(M_622F, 0) DIASTOLIC
+		     , IFNULL(M_6230, 0) PULS
+		</if>
+		<if test="BS_MESURE != null and BS_MESURE != ''">
+		     , IFNULL(M_624A, 0) FBS
+		     , IFNULL(M_624B, 0) PP2
+		</if>
+		<if test="BC_MESURE != null and BC_MESURE != ''">
+		     , IFNULL(M_624C, 0) T_CHOL
+		     , IFNULL(M_624D, 0) TG
+		     , IFNULL(M_624E, 0) HDLC
+		     , IFNULL(M_624F, 0) LDLC
+		</if>
+		<if test="SR_MESURE != null and SR_MESURE != ''">
+		     , IFNULL(M_7012, 0) STRS_SCORE
+		     , IFNULL(M_7013, 0) PHYSIC_STRS
+		     , IFNULL(M_7014, 0) MNTL_STRS
+		     , IFNULL(M_7015, 0) STRS_CNTRMSR_ABLTY
+		     , IFNULL(M_7016, 0) BLDVSS_STEP
+		     , IFNULL(M_7017, 0) CAD_OUTPUT_IN
+		     , IFNULL(M_7018, 0) ELSTC_DGREE
+		     , IFNULL(M_7019, 0) RBV_QY
+		</if>
+		  FROM MBER_INFO MI
+		 INNER JOIN (
+				SELECT 
+					   MBER_NO
+				  FROM MBER_PSTINST_INFO MPI
+				 INNER JOIN (
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND TOP_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND MIDDLE_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND BOTTOM_INST_NO = #{INST_NO}
+						 ) II
+					ON MPI.INST_NO = II.INST_NO
+				 WHERE MPI.CONFM_AT = 'Y'
+				   AND MPI.SECSN_AT = 'N'
+			 ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		  LEFT JOIN (    
+		        SELECT 
+		               MIC.MBER_NO
+		<choose>
+			<when test='DATE_GBN != null and DATE_GBN.equals("H")'>
+					 , SUBSTRING(MESURE_DT, 1, 10) MESURE_DT
+			</when>
+			<when test='DATE_GBN != null and DATE_GBN.equals("M")'>
+					 , SUBSTRING(MESURE_DT, 1, 12) MESURE_DT		
+			</when>
+			<when test='DATE_GBN != null and DATE_GBN.equals("S")'>
+					 , MESURE_DT  
+			</when>
+			<otherwise>
+					 , SUBSTRING(MESURE_DT, 1, 8) MESURE_DT
+			</otherwise>
+		</choose> 
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6A35', MIC.MESURE_DATA, 0), 1)) M_6A35
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6021', MIC.MESURE_DATA, 0), 1)) M_6021
+		<if test="BH_MESURE != null and BH_MESURE != ''">
+					 , MAX(ROUND(IF(MIC.MESURE_CODE = '5010', MIC.MESURE_DATA, 0), 1)) M_5010
+		</if>
+		<if test="IS_MESURE != null and IS_MESURE != ''">
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6022', MIC.MESURE_DATA, 0), 1)) M_6022
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6023', MIC.MESURE_DATA, 0), 1)) M_6023
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6026', MIC.MESURE_DATA, 0), 0)) M_6026
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6027', MIC.MESURE_DATA, 0), 0)) M_6027
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6029', MIC.MESURE_DATA, 0), 1)) M_6029
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6056', MIC.MESURE_DATA, 0), 1)) M_6056
+		</if>
+		<if test="RR_MESURE != null and RR_MESURE != ''">
+					 , MAX(ROUND(IF(MIC.MESURE_CODE = '8072', MIC.MESURE_DATA, 0), 0)) M_8072
+		</if>
+		<if test="BP_MESURE != null and BP_MESURE != ''">
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '622E', MIC.MESURE_DATA, 0), 0)) M_622E
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '622F', MIC.MESURE_DATA, 0), 0)) M_622F
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '6230', MIC.MESURE_DATA, 0), 0)) M_6230
+		</if>
+		<if test="BS_MESURE != null and BS_MESURE != ''">
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624A', MIC.MESURE_DATA, 0), 0)) M_624A
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624B', MIC.MESURE_DATA, 0), 0)) M_624B
+		</if>
+		<if test="BC_MESURE != null and BC_MESURE != ''">
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624C', MIC.MESURE_DATA, 0), 0)) M_624C
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624D', MIC.MESURE_DATA, 0), 0)) M_624D
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624E', MIC.MESURE_DATA, 0), 0)) M_624E
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '624F', MIC.MESURE_DATA, 0), 0)) M_624F
+		</if>
+		<if test="SR_MESURE != null and SR_MESURE != ''">
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7012', MIC.MESURE_DATA, 0), 0)) M_7012
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7013', MIC.MESURE_DATA, 0), 0)) M_7013
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7014', MIC.MESURE_DATA, 0), 0)) M_7014
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7015', MIC.MESURE_DATA, 0), 0)) M_7015
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7016', MIC.MESURE_DATA, 0), 0)) M_7016
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7017', MIC.MESURE_DATA, 0), 0)) M_7017
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7018', MIC.MESURE_DATA, 0), 0)) M_7018
+		             , MAX(ROUND(IF(MIC.MESURE_CODE = '7019', MIC.MESURE_DATA, 0), 0)) M_7019
+		</if>
+		          FROM MESURE_INFO_CMMN MIC
+		         INNER JOIN (
+						SELECT 
+		                       MIC.MBER_NO
+		                     , MIC.MESURE_CODE
+		                     , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+		                     , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+								SELECT 
+									   MBER_NO
+								  FROM MBER_PSTINST_INFO MPI
+								 INNER JOIN (
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND TOP_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND MIDDLE_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND BOTTOM_INST_NO = #{INST_NO}
+									 ) II
+									ON MPI.INST_NO = II.INST_NO
+								 WHERE MPI.CONFM_AT = 'Y'
+								   AND MPI.SECSN_AT = 'N'
+		                     ) MPI
+		                    ON MIC.MBER_NO = MPI.MBER_NO
+		                 WHERE MIC.MESURE_CODE IN (
+		                 	   '6A35', '6021'
+		<if test="BH_MESURE != null and BH_MESURE != ''">
+							 , '5010'
+		</if>
+		<if test="IS_MESURE != null and IS_MESURE != ''">
+							 , '6022', '6023', '6026', '6027', '6029', '6056', '8072'
+		</if>
+		<if test="RR_MESURE != null and RR_MESURE != ''">
+							 , '8072'
+		</if>
+		<if test="BP_MESURE != null and IS_MESURE != ''">
+			                 , '622E', '622F', '6230'
+		</if>
+		<if test="BS_MESURE != null and BS_MESURE != ''">
+			                 , '624A', '624B'
+		</if>
+		<if test="BC_MESURE != null and BC_MESURE != ''">
+			                 , '624C', '624D', '624E', '624F'
+		</if>
+		<if test="SR_MESURE != null and SR_MESURE != ''">
+			                 , '7012', '7013', '7014', '7015', '7016', '7017', '7018', '7019'
+		</if>
+		                     )
+		<if test="MESURE_DT != null and MESURE_DT != ''">
+		           		   AND MIC.MESURE_DT LIKE CONCAT(#{MESURE_DT}, '%')
+		</if>
+		                 GROUP BY MIC.MBER_NO, MIC.MESURE_CODE
+		<choose>
+			<when test='DATE_GBN != null and DATE_GBN.equals("H")'>
+						 , SUBSTRING(MESURE_DT, 1, 10)
+			</when>
+			<when test='DATE_GBN != null and DATE_GBN.equals("M")'>
+						 , SUBSTRING(MESURE_DT, 1, 12)			
+			</when>
+			<when test='DATE_GBN != null and DATE_GBN.equals("S")'>
+						 , MESURE_DT  
+			</when>
+			<otherwise>
+						 , SUBSTRING(MESURE_DT, 1, 8)
+			</otherwise>
+		</choose>
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		           AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		         GROUP BY MIC.MBER_NO, SUBSTRING(MIC.MESURE_DT, 1, 8)   
+		     ) MICD
+		    ON MI.MBER_NO = MICD.MBER_NO	
+	</select>
+	
+	<!-- 기관별 밴드 측정정보 현황조회 -->
+	<select id="selectBandMesureInfoListByInstNo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.NM
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, #{LOCALE}) BRTHDY
+		     , F_CODE_NM('MB03', MI.SEXDSTN, #{LOCALE}) SEXDSTN
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , IFNULL(MIC.MESURE_BGNDT, RPAD(#{MESURE_DT}, 14, '0')) MESURE_DT
+		     , IFNULL(MIC.SPORTS_STEPS, 0) SPORTS_STEPS
+		     , IFNULL(MIC.SPORTS_DSTNC, 0) SPORTS_DSTNC
+		     , IFNULL(MIC.CNSMP_CALORIE, 0) CNSMP_CALORIE
+		     , IFNULL(MIC.HR, 0) HR
+		     , IFNULL(MIC.OXGN_STRT, 0) OXGN_STRT
+		  FROM MBER_INFO MI
+	     INNER JOIN (
+				SELECT 
+					   MBER_NO
+				  FROM MBER_PSTINST_INFO MPI
+				 INNER JOIN (
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND TOP_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND MIDDLE_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND BOTTOM_INST_NO = #{INST_NO}
+					 ) II
+					ON MPI.INST_NO = II.INST_NO
+				 WHERE MPI.CONFM_AT = 'Y'
+				   AND MPI.SECSN_AT = 'N'
+			 ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		  LEFT JOIN (    
+				SELECT
+				       MIAT.MBER_NO
+				     , MIAT.MESURE_BGNDT
+				     , MIAT.MESURE_DATA SPORTS_STEPS
+				     , MIAT.SPORTS_DSTNC
+				     , MIAT.CNSMP_CALORIE
+				     , 0 HR
+				     , 0 OXGN_STRT
+				  FROM MESURE_INFO_ACTV_TRCK MIAT
+				 INNER JOIN (
+								SELECT 
+									   MBER_NO
+								  FROM MBER_PSTINST_INFO MPI
+								 INNER JOIN (
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND TOP_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND MIDDLE_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND BOTTOM_INST_NO = #{INST_NO}
+									 ) II
+									ON MPI.INST_NO = II.INST_NO
+								 WHERE MPI.CONFM_AT = 'Y'
+								   AND MPI.SECSN_AT = 'N'
+				     ) MPI
+				    ON MIAT.MBER_NO = MPI.MBER_NO
+				   AND MIAT.MESURE_CODE = '4010'
+				   AND MIAT.MESURE_BGNDT LIKE CONCAT(#{MESURE_DT}, '%')
+				 UNION ALL  
+				SELECT
+				       MDAT.MBER_NO
+				     , MDAT.MESURE_BGNDT
+				     , 0 MESURE_DATA
+				     , 0 SPORTS_DSTNC
+				     , 0 CNSMP_CALORIE
+				     , MDAT.HR
+				     , 0 OXGN_STRT
+				  FROM MESURE_DETAIL_ACTV_TRCK MDAT
+				 INNER JOIN (
+								SELECT 
+									   MBER_NO
+								  FROM MBER_PSTINST_INFO MPI
+								 INNER JOIN (
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND TOP_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND MIDDLE_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND BOTTOM_INST_NO = #{INST_NO}
+									 ) II
+									ON MPI.INST_NO = II.INST_NO
+							 WHERE MPI.CONFM_AT = 'Y'
+							   AND MPI.SECSN_AT = 'N'
+				     ) MPI
+				    ON MDAT.MBER_NO = MPI.MBER_NO
+				   AND MDAT.MESURE_CODE = '4030'
+				   AND MDAT.MESURE_BGNDT LIKE CONCAT(#{MESURE_DT}, '%')
+				 UNION ALL  
+				SELECT
+				       MIAT.MBER_NO
+				     , MIAT.MESURE_BGNDT
+				     , 0 MESURE_DATA
+				     , 0 SPORTS_DSTNC
+				     , 0 CNSMP_CALORIE
+				     , 0 HR
+				     , MIAT.MESURE_DATA OXGN_STRT
+				  FROM MESURE_INFO_ACTV_TRCK MIAT
+				 INNER JOIN (
+								SELECT 
+									   MBER_NO
+								  FROM MBER_PSTINST_INFO MPI
+								 INNER JOIN (
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND TOP_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND MIDDLE_INST_NO = #{INST_NO}
+										 UNION ALL
+										SELECT INST_NO
+										  FROM INST_INFO
+										 WHERE USE_AT = 'Y'
+										   AND BOTTOM_INST_NO = #{INST_NO}
+									 ) II
+									ON MPI.INST_NO = II.INST_NO
+							 WHERE MPI.CONFM_AT = 'Y'
+							   AND MPI.SECSN_AT = 'N'
+				     ) MPI
+				    ON MIAT.MBER_NO = MPI.MBER_NO
+				   AND MIAT.MESURE_CODE = '4050'
+				   AND MIAT.MESURE_BGNDT LIKE CONCAT(#{MESURE_DT}, '%')
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+		 ORDER BY MI.MBER_NO, MIC.MESURE_BGNDT
+	</select>
+</mapper>

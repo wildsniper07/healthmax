@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.MisnMapper">
+	
+	<!-- 미션 SECODE 반환 -->
+	<select id="selectMisnSecode" parameterType="hmap" resultType="hmap">
+		SELECT 
+			DISTINCT MISN_CD 
+		FROM
+		MISN_INFO
+	</select>
+	
+	<!-- 보행수의 현재 값을 가져온다. -->
+	<select id="selectNowBandMesureValue" parameterType="hmap" resultType="hmap">
+		SELECT MESURE_DATA FROM
+		MESURE_INFO_ACTV_TRCK
+		WHERE MBER_NO = #{MBER_NO}
+		AND (MESURE_CODE = 4010 OR MESURE_CODE = 4015)
+		AND MESURE_BGNDT like CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+		ORDER BY CAST(MESURE_DATA AS UNSIGNED) DESC
+		LIMIT 1		
+	</select>
+	
+	<!-- 오늘의 미션카드 가져오기 -->
+	<!-- 
+	<select id="selectSeCodeTodayMisson" parameterType="hmap" resultType="hmap">		
+		SELECT 
+			A.MISN_DE,
+			A.MISN_CD,			
+			A.MISN_STEP,
+			A.REWARD_RECPT_AT,
+			A.MISN_COMPT_AT,
+			A.MISN_COMPT_REWARD_POINT,
+			A.MISN_COMPT_SPECL_REWARD_POINT,
+			B.MISN_COMPT_URL,
+			B.ATCHMNFL_NO,
+			F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH,
+			B.MISN_SUBNAME1,
+			B.MISN_SUBNAME2,			
+			B.MISN_DC,									
+			B.TARGET_VALUE,
+			A.MISN_NOW_VALUE,
+			A.MISN_LINK
+	   FROM
+	   (
+			SELECT
+				MBER_NO,
+				MISN_DE,
+	            MISN_CD,	            
+				MISN_STEP,
+				REWARD_RECPT_AT,
+				MISN_COMPT_AT,
+				MISN_COMPT_REWARD_POINT,
+				MISN_COMPT_SPECL_REWARD_POINT,
+            	'' as MISN_NOW_VALUE,
+            	MISN_LINK
+			FROM MISN_LIST
+			WHERE 1=1
+			AND MBER_NO = #{MBER_NO}
+			AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+			AND MISN_CD = #{MISN_CD}
+			AND REWARD_RECPT_AT = 'Y'
+			AND MISN_COMPT_AT = 'Y'                 
+	        UNION ALL
+	        (
+				SELECT
+					MBER_NO,
+					MISN_DE,
+	                MISN_CD,	                
+					MISN_STEP,
+					REWARD_RECPT_AT,
+					MISN_COMPT_AT,
+					MISN_COMPT_REWARD_POINT,
+					MISN_COMPT_SPECL_REWARD_POINT,
+					CASE 
+						WHEN MISN_CD = 'FT_WALK'
+						THEN #{MISN_NOW_VALUE}
+						ELSE ''
+					END as MISN_NOW_VALUE,
+					MISN_LINK
+				FROM MISN_LIST
+				WHERE 1=1
+				AND MBER_NO = #{MBER_NO}
+				AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+				AND MISN_CD = #{MISN_CD}
+				AND REWARD_RECPT_AT = 'N'
+				ORDER BY MISN_STEP ASC
+				<if test='MISN_CD == "FT_WALK"'>
+				LIMIT 1
+				</if>			
+				
+				
+	        )
+		) as A
+	    LEFT JOIN MISN_INFO B
+		ON A.MISN_CD = B.MISN_CD
+			AND A.MISN_STEP = B.MISN_STEP
+	    LEFT JOIN ATCHMNFL_INFO AI
+		  ON B.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		WHERE 1=1
+	    AND A.MBER_NO = #{MBER_NO}
+	    AND A.MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+	</select>
+	 -->
+	<select id="selectSeCodeTodayMisson" parameterType="hmap" resultType="hmap">		
+		SELECT 
+			A.MISN_DE,
+			A.MISN_CD,			
+			A.MISN_STEP,
+			A.REWARD_RECPT_AT,
+			A.MISN_COMPT_AT,
+			A.MISN_COMPT_REWARD_POINT,
+			A.MISN_COMPT_SPECL_REWARD_POINT,
+			A.MISN_COMPT_TOTAL_REWARD_POINT,
+			A.IS_DEVICE_CONNECTED,
+			B.MISN_COMPT_URL,
+			B.ATCHMNFL_NO,
+			F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH,
+			B.CN_ATCHMNFL_NO,
+			F_FILE_PATH(A2.ATCHMNFL_NM) CN_ATCHMNFL_PATH,
+			B.MISN_SUBNAME1,
+			B.MISN_SUBNAME2,			
+			B.MISN_DC,									
+			B.TARGET_VALUE,
+			CASE 
+				WHEN A.MISN_CD = 'FT_WALK'
+				THEN #{MISN_NOW_VALUE}
+				ELSE (
+					CAST(
+							(
+								SELECT SUM(MISN_ACHIV_VL) 
+								FROM MISN_PROCESS_HIST WHERE 1=1 
+								AND MBER_NO = #{MBER_NO} 
+								AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d') 
+								AND MISN_STEP = A.MISN_STEP
+								AND MISN_CD = #{MISN_CD} 
+							) as DECIMAL(11, 0)
+						)
+                )
+			END as MISN_NOW_VALUE,	
+			A.MISN_LINK
+	   FROM
+	   (
+			SELECT
+				MBER_NO,
+				MISN_DE,
+	            MISN_CD,	            
+				MISN_STEP,
+				REWARD_RECPT_AT,
+				MISN_COMPT_AT,
+				MISN_COMPT_REWARD_POINT,
+				MISN_COMPT_SPECL_REWARD_POINT,
+				MISN_COMPT_TOTAL_REWARD_POINT,
+				IS_DEVICE_CONNECTED,        	
+            	MISN_LINK
+			FROM MISN_LIST
+			WHERE 1=1
+			AND MBER_NO = #{MBER_NO}
+			AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+			AND MISN_CD = #{MISN_CD}
+			AND REWARD_RECPT_AT = 'Y'
+			AND MISN_COMPT_AT = 'Y'                 
+	        UNION ALL
+	        (
+				SELECT
+					MBER_NO,
+					MISN_DE,
+	                MISN_CD,	                
+					MISN_STEP,
+					REWARD_RECPT_AT,
+					MISN_COMPT_AT,
+					MISN_COMPT_REWARD_POINT,
+					MISN_COMPT_SPECL_REWARD_POINT,
+					MISN_COMPT_TOTAL_REWARD_POINT,
+					IS_DEVICE_CONNECTED,					
+					MISN_LINK
+				FROM MISN_LIST
+				WHERE 1=1
+				AND MBER_NO = #{MBER_NO}
+				AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+				AND MISN_CD = #{MISN_CD}
+				AND REWARD_RECPT_AT = 'N'
+				ORDER BY MISN_STEP ASC
+				<if test='MISN_CD == "FT_WALK"'>
+				LIMIT 1
+				</if>			
+				
+				
+	        )
+		) as A
+	    LEFT JOIN MISN_INFO B
+		ON A.MISN_CD = B.MISN_CD
+			AND A.MISN_STEP = B.MISN_STEP
+	    LEFT JOIN ATCHMNFL_INFO AI
+		  ON B.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		LEFT JOIN ATCHMNFL_INFO A2
+		  ON B.CN_ATCHMNFL_NO = A2.ATCHMNFL_NO
+		WHERE 1=1
+	    AND A.MBER_NO = #{MBER_NO}
+	    AND A.MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+	</select>
+	
+	<!-- 금일 미션발급되었는지 판단 -->
+	<select id="selectTodayMisnCnt" parameterType="hmap" resultType="int">
+		SELECT
+			COUNT(MISN_CD) CNT
+		FROM MISN_LIST
+		WHERE 1=1
+		AND MBER_NO = #{MBER_NO}
+		AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+	</select>
+	
+	<!-- 해당 미션 달성 완료 확인 -->
+	<select id="selectMisnIsComplete" parameterType="hmap" resultType="hmap">
+		SELECT		    
+		    MISN_COMPT_AT		    
+		FROM MISN_LIST
+		WHERE MBER_NO = #{MBER_NO}
+		AND MISN_CD = #{MISN_CD}		
+		AND MISN_STEP = #{MISN_STEP}
+		AND MISN_DE = #{MISN_DE}
+	</select>
+	
+	<!-- 미션 달성율 확인 -->
+	<select id="selectMisnRatio" parameterType="hmap" resultType="hmap">
+		SELECT		    
+		    MISN_ACHIV_RT #달성율		    
+		FROM MISN_PROCESS_HIST
+		WHERE MBER_NO = #{MBER_NO}
+		AND MISN_CD = #{MISN_CD}		
+		AND MISN_STEP = #{MISN_STEP}
+		AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d')
+		ORDER BY PROCESS_SN DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 미션카드 완료 하기 위한 기준 데이터 가져오기-->
+	<!-- <select id="selectMisnCompleteValue" parameterType="hmap" resultType="hmap">
+		SELECT 
+			TARGET_VALUE 
+		FROM MISN_INFO
+		WHERE MISN_CD = #{MISN_CD}		
+		AND MISN_STEP = #{MISN_STEP}
+		AND USE_AT = 'Y'
+	</select> -->
+	<!-- 미션카드 완료 하기 위한 기준 데이터 가져오기-->
+	<select id="selectMisnCompleteValue" parameterType="hmap" resultType="hmap">
+		SELECT
+			A.TARGET_VALUE,
+		    B.NOW_VALUE
+		FROM
+		(
+			SELECT 	
+				MISN_CD,
+		        MISN_STEP,
+				TARGET_VALUE
+			FROM MISN_INFO
+			WHERE MISN_CD = #{MISN_CD}
+			AND MISN_STEP = #{MISN_STEP}
+			AND USE_AT = 'Y'
+		) A
+		LEFT JOIN
+		(
+			SELECT 
+				MISN_CD,
+		        MISN_STEP,
+				SUM(MISN_ACHIV_VL) NOW_VALUE
+			FROM MISN_PROCESS_HIST WHERE 1=1 
+			AND MBER_NO = #{MBER_NO}
+			AND MISN_DE = DATE_FORMAT(NOW(), '%Y%m%d') 
+			AND MISN_STEP = #{MISN_STEP}
+			AND MISN_CD = #{MISN_CD}
+		) B
+		ON A.MISN_CD = B.MISN_CD AND B.MISN_STEP = B.MISN_STEP
+	</select>
+	
+	<!-- 미션카드 완료여부 업데이트 -->
+	<update id="updateMisnComplete" parameterType="hmap">
+		UPDATE MISN_LIST
+			SET MISN_COMPT_AT = 'Y'
+		WHERE 1=1
+		AND MISN_DE = #{MISN_DE}
+		AND MBER_NO = #{MBER_NO}
+		AND MISN_STEP = #{MISN_STEP}
+		AND MISN_CD = #{MISN_CD}		
+	</update>
+	
+	<!-- 미션 이력 기록 -->
+	<insert id="insertMisnHistory" parameterType="hmap">
+		<selectKey order="BEFORE" keyProperty="PROCESS_SN" resultType="Integer">
+			SELECT
+				CASE
+					WHEN COUNT(*) = 0 THEN 0
+		            ELSE 
+		            (	
+						SELECT PROCESS_SN
+						FROM MISN_PROCESS_HIST
+						WHERE MISN_DE = #{MISN_DE}
+						AND MBER_NO = #{MBER_NO}
+						AND MISN_CD = #{MISN_CD}
+						AND MISN_STEP = #{MISN_STEP}
+						ORDER BY PROCESS_SN DESC
+						LIMIT 1
+		            )
+				END	AS PROCESS_SN	
+			FROM MISN_PROCESS_HIST
+			WHERE MISN_DE = #{MISN_DE}
+			AND MBER_NO = #{MBER_NO}
+			AND MISN_CD = #{MISN_CD}
+			AND MISN_STEP = #{MISN_STEP}
+			ORDER BY PROCESS_SN DESC
+			LIMIT 1
+		</selectKey>
+		INSERT INTO MISN_PROCESS_HIST
+		(
+			MISN_DE,
+			PROCESS_SN,
+			MBER_NO,
+			MISN_CD,
+			MISN_STEP,						
+			PROCESS_TIME,
+			MISN_ACHIV_RT,
+			MISN_ACHIV_VL,
+			REGIST_DT
+		)
+		VALUES
+		(
+			#{MISN_DE},
+			${PROCESS_SN} + 1,
+			#{MBER_NO},
+			#{MISN_CD},
+			#{MISN_STEP},
+			#{PROCESS_TIME},
+			#{MISN_ACHIV_RT},
+			#{MISN_ACHIV_VL},
+			NOW()
+		)
+	</insert>
+	
+	
+	
+	
+	<!-- 금일 리워드 포인트 확인 -->
+	<select id="selectCheckTodayRewardPoint" parameterType="hmap" resultType="hmap">
+		SELECT 
+			POINT_OBTAIN_SN,
+			POINT_CNVRS_AT
+		FROM REWARD_POINT
+		WHERE MBER_NO = ${MBER_NO}		
+		ORDER BY POINT_OBTAIN_SN DESC
+		LIMIT 1;
+	</select>
+	
+	<!-- 적립해야할 포인트 -->
+	<select id="selectAccumulatePoint" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MISN_COMPT_TOTAL_REWARD_POINT 
+		FROM MISN_LIST
+		WHERE MBER_NO = #{MBER_NO}
+		AND MISN_DE = #{MISN_DE}
+		AND MISN_CD = #{MISN_CD}
+		AND MISN_STEP = #{MISN_STEP}
+		AND MISN_COMPT_AT = 'Y'
+	</select>
+
+	
+	<!-- 포인트 적립 내역 -->
+	<insert id="insertRewardPoint" parameterType="hmap">
+		INSERT INTO 
+		POINT_ACCML_LIST
+		(
+			MBER_NO,
+		    POINT_OBTAIN_SN,
+		    ACCML_DT,
+		    ACCML_POINT,
+		    MISN_DE,
+		    EVENT_SE_CODE,
+		    EVENT_SN,
+		    REGIST_DT,
+		    MISN_CD,
+		    MISN_STEP		    
+		)
+		VALUES 
+		(
+			${MBER_NO},
+		    #{POINT_OBTAIN_SN},
+		    DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'),
+		    #{ACCML_POINT},
+		    #{MISN_DE},
+		    null,
+		    null,
+		    NOW(),
+		    #{MISN_CD},
+		    #{MISN_STEP}
+		)    	
+	</insert>
+	
+	<!-- 리워드 포인트 테이블 새로운 레코드 인서트 -->
+	<insert id="insertRewardPointSerial" parameterType="hmap">		
+	 	INSERT INTO REWARD_POINT
+	 	(
+	 		MBER_NO, 
+	 		POINT_OBTAIN_SN, 
+	 		POINT_CNVRS_AT, 
+	 		REWARD_DT,
+	 		REGIST_DT
+	 	)
+        VALUES
+        (
+        	#{MBER_NO}, 
+        	#{NEXT_POINT_OBTAIN_SN}, 
+        	'N',
+        	DATE_FORMAT(NOW(), '%Y%m%d'),
+			NOW()
+        )
+	</insert>
+	
+	<!-- 리워드 포인트 테이블 Y 로 업데이트 -->
+	<!-- 
+	<update id="updateTodayRewardPoint" parameterType="hmap">
+		UPDATE REWARD_POINT
+			SET POINT_CNVRS_AT = 'Y'
+		WHERE 1=1		
+		AND MBER_NO = #{MBER_NO}
+		AND POINT_OBTAIN_SN = #{POINT_OBTAIN_SN}
+		AND POINT_CNVRS_AT = 'N'
+	</update>
+	 -->
+	<!-- 해당 미션 보상 수령 여부 Y 로 업데이트 -->
+	<update id="updateMisnItemRewardRecpt" parameterType="hmap">
+		UPDATE MISN_LIST
+			SET REWARD_RECPT_AT = 'Y'
+		WHERE 1=1
+		AND MBER_NO = #{MBER_NO}
+		AND MISN_DE = #{MISN_DE}
+		AND MISN_CD = #{MISN_CD}
+		AND MISN_STEP = #{MISN_STEP}
+				
+	</update>
+	
+	<!-- 건강 미션 내역 -->
+	<select id="selectHealthHistory" parameterType="hmap" resultType="hmap">
+		SELECT
+			A.MISN_DE, 
+			A.MISN_CD,		    
+		    A.MISN_STEP,
+		    A.MISN_COMPT_AT,
+		    A.REWARD_RECPT_AT,
+		    B.MISN_NAME,
+		    B.MISN_SUBNAME1,
+		    B.MISN_SUBNAME2,
+		    B.MISN_DC,            
+            A.MISN_COMPT_TOTAL_REWARD_POINT,
+            A.IS_DEVICE_CONNECTED
+		FROM MISN_LIST A
+		LEFT JOIN MISN_INFO B
+		ON A.MISN_CD = B.MISN_CD		
+		AND A.MISN_STEP = B.MISN_STEP
+		WHERE MBER_NO = #{MBER_NO}
+		AND MISN_DE &lt;= DATE_FORMAT(NOW(), '%Y%m%d')
+		AND MISN_DE &gt;= DATE_FORMAT(NOW() - INTERVAL 7 DAY, '%Y%m%d')
+		ORDER BY REWARD_RECPT_AT DESC, MISN_COMPT_AT DESC, MISN_DE DESC
+	</select>
+	
+	
+	<!-- 미션 설문 조회 -->
+	<select id="selectMisnSurvey" parameterType="hmap" resultType="hmap">
+		SELECT
+		       QUSTNR_SE_CODE
+		     , F_CODE_NM('MB09', QUSTNR_SE_CODE, #{LOCALE}) QUSTNR_SE_CODE_NM
+		     , QUSTNR_SN
+		     , QESTN_SN
+		     , QESTN_CN
+		     , DUP_ANSWER_AT
+		     , IFNULL(ANSWER_1, '') ANSWER_1
+		     , IF(ANSWER_1 IS NOT NULL AND ANSWER_1 != '', F_CODE_NM(ANSWER_CODE, ANSWER_1, #{LOCALE}), '') ANSWER_1_NM
+		     , IFNULL(ANSWER_2, '') ANSWER_2
+		     , IF(ANSWER_2 IS NOT NULL AND ANSWER_2 != '', F_CODE_NM(ANSWER_CODE, ANSWER_2, #{LOCALE}), '') ANSWER_2_NM
+		     , IFNULL(ANSWER_3, '') ANSWER_3
+		     , IF(ANSWER_3 IS NOT NULL AND ANSWER_3 != '', F_CODE_NM(ANSWER_CODE, ANSWER_3, #{LOCALE}), '') ANSWER_3_NM
+		     , IFNULL(ANSWER_4, '') ANSWER_4
+		     , IF(ANSWER_4 IS NOT NULL AND ANSWER_4 != '', F_CODE_NM(ANSWER_CODE, ANSWER_4, #{LOCALE}), '') ANSWER_4_NM
+		     , IFNULL(ANSWER_5, '') ANSWER_5
+		     , IF(ANSWER_5 IS NOT NULL AND ANSWER_5 != '', F_CODE_NM(ANSWER_CODE, ANSWER_5, #{LOCALE}), '') ANSWER_5_NM
+		     , IFNULL(ANSWER_6, '') ANSWER_6
+		     , IF(ANSWER_6 IS NOT NULL AND ANSWER_6 != '', F_CODE_NM(ANSWER_CODE, ANSWER_6, #{LOCALE}), '') ANSWER_6_NM
+		     , IFNULL(ANSWER_7, '') ANSWER_7
+		     , IF(ANSWER_7 IS NOT NULL AND ANSWER_7 != '', F_CODE_NM(ANSWER_CODE, ANSWER_7, #{LOCALE}), '') ANSWER_7_NM
+		     , IFNULL(ANSWER_8, '') ANSWER_8
+		     , IF(ANSWER_8 IS NOT NULL AND ANSWER_8 != '', F_CODE_NM(ANSWER_CODE, ANSWER_8, #{LOCALE}), '') ANSWER_8_NM
+		FROM QUSTNR_QESITM
+	 	WHERE QUSTNR_SE_CODE = #{QUSTNR_SE_CODE}
+		AND QUSTNR_SN = #{QUSTNR_SN}
+		AND USE_AT = 'Y'
+		ORDER BY QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN	
+	</select>
+	
+	<!-- FT_MESURE LINK 코드에 맞는 미션 스텝 번호 반환 -->
+	<select id="selectMesureMisnStep" parameterType="hmap" resultType="hmap">
+		SELECT MISN_STEP FROM MISN_LIST
+		WHERE MISN_CD = #{MISN_CD}
+		AND MISN_DE = #{MISN_DE}
+		AND MBER_NO = #{MBER_NO}		
+		AND MISN_LINK = #{MISN_LINK}
+	</select>
+	
+	<!-- FT_WALK LINK 코드에 맞는 미션 스텝 번호 반환 -->
+	<select id="selectWalkMisnStep" parameterType="hmap" resultType="hmap">
+		SELECT MISN_STEP FROM MISN_INFO
+		WHERE MISN_CD = 'FT_WALK'
+		AND TARGET_VALUE >= #{STEPS}
+		AND USE_AT = 'Y'
+		LIMIT 1
+	</select>
+	
+	
+	<!-- FT_WALK 에 해당하는 미션 스탭 및 타겟값 반환 -->
+	<select id="selectWalkMisnInfo" resultType="hmap">
+	 	SELECT MISN_STEP, TARGET_VALUE  FROM MISN_INFO
+		WHERE MISN_CD = 'FT_WALK'		        
+		AND USE_AT = 'Y'
+	</select>
+	
+	<!-- 최근에  입력된 값을 반환 -->
+	<select id="selectLatestMisnAchValue" parameterType="hmap" resultType="hmap">
+		SELECT MISN_ACHIV_VL FROM MISN_PROCESS_HIST
+		WHERE MISN_CD = #{MISN_CD}
+		AND MISN_DE = #{MISN_DE}
+		AND MBER_NO = #{MBER_NO}
+		
+		ORDER BY REGIST_DT DESC
+		LIMIT 1
+	</select>
+	
+	<!-- 미션카드 발급-->
+	<insert id="insertMisnCard" parameterType="hmap">
+		INSERT INTO MISN_LIST
+		(
+			MISN_DE,
+		    MBER_NO,
+		    MISN_CD,
+		    MISN_STEP,
+		    MISN_COMPT_AT,
+		    REWARD_RECPT_AT,
+		    REGIST_DT,
+		    MISN_LINK,
+		    MISN_COMPT_SPECL_REWARD_POINT,
+		    MISN_COMPT_REWARD_POINT,
+		    MISN_COMPT_TOTAL_REWARD_POINT,
+		    IS_DEVICE_CONNECTED
+		)
+		VALUES
+		(
+			DATE_FORMAT(NOW(), '%Y%m%d'),
+		    #{MBER_NO},
+		    #{MISN_CD},
+		    #{MISN_STEP},
+		    'N',
+		    'N',
+		    NOW(),
+		    #{MISN_LINK},
+		    #{MISN_COMPT_SPECL_REWARD_POINT},
+		    #{MISN_COMPT_REWARD_POINT},
+		    #{MISN_COMPT_REWARD_POINT},
+		    'N'
+		)
+	</insert>
+	
+	
+	<!-- 미션카드 정보 가져오기 -->
+	<select id="selectMisnInfoType" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MISN_CD,
+		    A.MISN_STEP, 
+		    A.EXPOSCD,		    
+		    A.MISN_NAME,
+		    A.MISN_SUBNAME1,
+		    A.MISN_SUBNAME2,
+		    A.MISN_DC,
+		    B.ISS_CYCLE,
+		    B.ONOF_AT,
+            C.PFSK_NO,
+            C.MISN_CNT,
+            A.FIX_AT,
+            A.MISN_COMPT_REWARD_POINT,
+            A.MISN_COMPT_SPECL_REWARD_POINT
+		FROM MISN_INFO A
+		LEFT JOIN MISN_ISS B
+		ON A.EXPOSCD = B.EXPOSCD
+        LEFT JOIN MISN_CMPLT C
+        ON A.MISN_CD = C.MISN_CD
+		WHERE A.BEGIN_DT &lt;= DATE_FORMAT(NOW(), '%Y%m%d')
+		AND A.END_DT &gt;= DATE_FORMAT(NOW(), '%Y%m%d')
+		AND A.USE_AT = 'Y'
+		ORDER BY C.PFSK_NO ASC, FIX_AT DESC		
+	</select>
+	
+	<!-- 최초 설문 답변 여부 확인 -->
+	<select id="selectQustnrAnswerCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) ANSWER_COUNT
+		  FROM MBER_QUSTNR_ANSWER
+		 WHERE MBER_NO = #{MBER_NO}
+		 AND QUSTNR_SE_CODE = #{QUSTNR_SE_CODE}
+		 AND QUSTNR_SN = #{QUSTNR_SN}
+	</select>
+	
+	<!-- 회원당 마지막 설문 코드 정보 가져오기 -->
+	<select id="selectLastQuestion" parameterType="hmap" resultType="hmap">
+		SELECT 
+			MBER_NO, 
+		    QUSTNR_SE_CODE, 
+		    QUSTNR_SN 
+		FROM MBER_QUSTNR_ANSWER
+		WHERE MBER_NO = #{MBER_NO}
+		AND QUSTNR_SE_CODE = #{QUSTNR_SE_CODE}
+		ORDER BY QUSTNR_DT DESC
+		LIMIT 1
+	</select>
+	
+	
+	<!-- 디버그용 (매거진 랜덤으로 표시 하여 이미지 적용 확인) -->
+	<select id="selectMisnFtInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			A.MISN_CD,
+			A.MISN_STEP,
+			A.ATCHMNFL_NO,			
+            F_FILE_PATH(B.ATCHMNFL_NM) ATCHMNFL_PATH,
+			A.MISN_SUBNAME1,
+			A.MISN_SUBNAME2,			
+			A.MISN_DC
+		FROM MISN_INFO A
+        LEFT JOIN ATCHMNFL_INFO B
+        ON A.ATCHMNFL_NO = B.ATCHMNFL_NO
+		WHERE MISN_CD = 'FT_INFO'
+		AND MISN_STEP = #{MISN_STEP}
+		LIMIT 1
+	</select>
+</mapper>

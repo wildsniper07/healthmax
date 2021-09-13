@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.TodoMapper">
+
+	<!-- PUSH 알림 목록 조회 쿼리 -->
+	<sql id="selectPushSndngHistQuery">
+		SELECT
+		       MBER_NO
+		     , SNDNG_DT
+		     , PUSH_SJ
+		     , PUSH_CN
+		     , PUSH_CODE
+		     , F_CODE_NM('CM11', PUSH_CODE, #{LOCALE}) PUSH_CODE_NM
+		     , READ_AT
+		  FROM PUSH_SNDNG_HIST
+		 WHERE MBER_NO = #{MBER_NO}
+		<if test="PUSH_CODE != null and PUSH_CODE != ''">
+		   AND PUSH_CODE = #{PUSH_CODE}
+		</if>
+	</sql>
+	
+	<!-- PUSH 알림 목록 조회 건수 -->
+	<select id="selectPushSndngHistListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectPushSndngHistQuery" />
+		     ) A
+	</select>
+	
+	<!-- PUSH 알림 목록 조회 -->
+	<select id="selectPushSndngHistList" parameterType="hmap" resultType="hmap">
+		SELECT A.*
+		  FROM (
+		<include refid="selectPushSndngHistQuery" />
+		     ) A
+         ORDER BY SNDNG_DT DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- PUSH 발송이력 정보수정 -->
+	<update id="updatePushSndngHistInfo" parameterType="hmap">
+		UPDATE PUSH_SNDNG_HIST SET 
+			   MBER_NO = MBER_NO
+		<if test="SNDNG_DT != null and SNDNG_DT != ''">
+			 , SNDNG_DT = #{SNDNG_DT}
+		</if>
+		<if test="PUSH_SJ != null and PUSH_SJ != ''">			   
+			 , PUSH_SJ = #{PUSH_SJ}
+		</if>
+		<if test="PUSH_CN != null and PUSH_CN != ''">
+			 , PUSH_CN = #{PUSH_CN}
+		</if>
+		<if test="PUSH_CODE != null and PUSH_CODE != ''">
+			 , PUSH_CODE = #{PUSH_CODE}
+		</if>
+		<if test="PARAMTR != null and PARAMTR != ''">
+			 , PARAMTR = #{PARAMTR}
+		</if>
+		<if test="TRNSMIS_DT != null and TRNSMIS_DT != ''">
+			 , TRNSMIS_DT = #{TRNSMIS_DT}
+		</if>
+		<if test="TRNSMIS_STTUS_CODE != null and TRNSMIS_STTUS_CODE != ''">
+			 , TRNSMIS_STTUS_CODE = #{TRNSMIS_STTUS_CODE}
+		</if>
+		<if test="READ_AT != null and READ_AT != ''">
+			 , READ_AT = #{READ_AT}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND SNDNG_DT = #{SNDNG_DT}
+		   AND PUSH_CODE = #{PUSH_CODE}
+	</update>
+	
+	<!-- 메인 카운트 정보 조회  -->
+	<select id="selectTodoCountInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , IFNULL(RP.ACCML_POINT, 0) ACCML_POINT
+		     , IFNULL(MDGM.DR_GRAM_CNT, 0) DR_GRAM_COUNT
+		     , IFNULL(GL.GIFT_CNT, 0) GIFT_COUNT
+		     , IFNULL(PSH.PUSH_CNT, 0) PUSH_COUNT
+		     , IFNULL(ML.NOT_REWARD_CNT, 0) NOT_REWARD_CNT
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               RP.MBER_NO
+		             , RP.POINT_OBTAIN_SN
+		             , IF(SUM(ACCML_POINT) > 1000, 1000, SUM(ACCML_POINT)) ACCML_POINT
+		          FROM (
+		                SELECT 
+		                       MBER_NO
+		                     , MAX(POINT_OBTAIN_SN) POINT_OBTAIN_SN
+		                  FROM REWARD_POINT
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND POINT_CNVRS_AT = 'N'
+		                 GROUP BY MBER_NO  
+		             ) RP
+		         INNER JOIN POINT_ACCML_LIST PAL
+		            ON RP.MBER_NO = PAL.MBER_NO
+		           AND RP.POINT_OBTAIN_SN = PAL.POINT_OBTAIN_SN
+		         GROUP BY RP.MBER_NO, RP.POINT_OBTAIN_SN
+		     ) RP
+		    ON MI.MBER_NO = RP.MBER_NO
+		  LEFT JOIN (
+		    		SELECT 
+		    			     MBER_NO
+				         , COUNT(*) DR_GRAM_CNT
+		    		  FROM MBER_DOCTR_GRAM_MSSAGE
+		    		 WHERE MBER_NO = #{MBER_NO}
+		    		   AND USE_AT = 'Y'
+		     ) MDGM
+		    ON MI.MBER_NO = MDGM.MBER_NO
+		  LEFT JOIN (
+		    		SELECT 
+		    			     MBER_NO
+				         , COUNT(*) GIFT_CNT
+		    		  FROM GIFT_LIST
+		    		 WHERE MBER_NO = #{MBER_NO}
+		    		   AND OPEN_AT = 'N'
+		     ) GL
+		    ON MI.MBER_NO = GL.MBER_NO
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		    		     , COUNT(*) PUSH_CNT
+		    		  FROM PUSH_SNDNG_HIST
+		    		 WHERE MBER_NO = #{MBER_NO}
+		    		   AND READ_AT = 'N'
+		     ) PSH
+		    ON MI.MBER_NO = PSH.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MBER_NO
+				     , COUNT(*) NOT_REWARD_CNT
+				  FROM MISN_LIST
+				 WHERE MBER_NO = #{MBER_NO}
+				   AND DATEDIFF(NOW(), MISN_DE) <![CDATA[ <= ]]> 7
+				   AND MISN_COMPT_AT = 'Y'
+				   AND REWARD_RECPT_AT = 'N'
+				 GROUP BY MBER_NO
+		     ) ML
+		    ON MI.MBER_NO = ML.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+
+	<!-- 선물상자 현황 조회 -->	
+	<select id="selectGiftList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       PYMNT_DE
+		     , PYMNT_SN
+		  FROM GIFT_LIST
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND OPEN_AT = 'N'
+	</select>
+	
+	<!-- 선물상자 오픈 처리 -->
+	<update id="updateGiftOepnTrsct" parameterType="hmap">
+		UPDATE GIFT_LIST SET
+		       OPEN_AT = 'Y'
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND PYMNT_DE = #{PYMNT_DE}
+		   AND PYMNT_SN = #{PYMNT_SN}
+	</update>
+	
+	<!-- 선물상자 획득 포인트 조회 -->
+	<select id="selectGiftPymntCashInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       PYMNT_DE
+		     , PYMNT_SN
+		     , PYMNT_CASH
+		     , '미션럭키박스' AS CHANGE_RESN
+		  FROM GIFT_LIST
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND PYMNT_DE = #{PYMNT_DE}
+		   AND PYMNT_SN = #{PYMNT_SN}
+	</select>
+	
+	<!-- 선물상자 미션내역 조회 -->
+	<select id="selectGiftMisnList" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   RP.MISN_CD
+			 , RP.MISN_STEP
+		     , RP.MISN_DE
+		     , RP.MISN_NM
+		  FROM GIFT_LIST GL
+		  LEFT JOIN (
+		        SELECT 
+		               RP.MBER_NO
+		             , RP.POINT_OBTAIN_SN
+		             , PAL.MISN_CD
+                 	 , PAL.MISN_STEP
+		             , PAL.MISN_DE
+		             , PAL.MISN_NM
+		          FROM REWARD_POINT RP
+		         INNER JOIN (
+		                SELECT 
+		                       PAL.MBER_NO
+		                     , PAL.POINT_OBTAIN_SN
+		                     , PAL.ACCML_DT
+		                     , ML.MISN_DE
+		                     , ML.MISN_CD
+		                     , ML.MISN_STEP
+		                     , IFNULL(ML.MISN_NAME, EI.EVENT_NM) MISN_NM
+		                  FROM POINT_ACCML_LIST PAL
+		                  LEFT JOIN (
+		                        SELECT 
+		                               ML.MBER_NO
+		                             , ML.MISN_DE
+		                             , ML.MISN_CD
+		                             , ML.MISN_STEP
+		                             , MI.MISN_NAME
+		                             , MI.MISN_SUBNAME1
+		                             , MI.MISN_SUBNAME2
+		                          FROM MISN_LIST ML
+		                         INNER JOIN MISN_INFO MI
+		                            ON ML.MISN_CD = MI.MISN_CD
+		                           AND ML.MISN_STEP = MI.MISN_STEP
+		                         WHERE ML.MBER_NO = #{MBER_NO}
+		                      ) ML
+		                    ON PAL.MBER_NO = ML.MBER_NO
+		                   AND PAL.MISN_CD = ML.MISN_CD
+		                   AND PAL.MISN_STEP = ML.MISN_STEP
+		                   AND PAL.MISN_DE = ML.MISN_DE
+		                  LEFT JOIN EVENT_INFO EI
+		                    ON PAL.EVENT_SE_CODE = EI.EVENT_SE_CODE
+		                   AND PAL.EVENT_SN = EI.EVENT_SN
+		                 WHERE ML.MBER_NO = #{MBER_NO}
+		             ) PAL
+		            ON RP.MBER_NO = PAL.MBER_NO
+		           AND RP.POINT_OBTAIN_SN = PAL.POINT_OBTAIN_SN
+		         WHERE RP.MBER_NO = #{MBER_NO}
+		     ) RP
+		    ON GL.MBER_NO = RP.MBER_NO
+		   AND GL.POINT_OBTAIN_SN = RP.POINT_OBTAIN_SN
+		 WHERE GL.MBER_NO = #{MBER_NO}
+		   AND GL.PYMNT_DE = #{PYMNT_DE}
+           AND GL.PYMNT_SN = #{PYMNT_SN}
+		   AND GL.POINT_OBTAIN_SN IS NOT NULL
+		 UNION ALL
+		SELECT 
+		       GL.MISN_CD
+			 , GL.MISN_STEP
+		     , GL.MISN_DE
+		     , MI.MISN_NAME MISN_NM
+		  FROM GIFT_LIST GL
+		  LEFT JOIN MISN_INFO MI
+		    ON GL.MISN_CD = MI.MISN_CD
+		   AND GL.MISN_STEP = MI.MISN_STEP
+		 WHERE GL.MBER_NO = #{MBER_NO}
+		   AND GL.PYMNT_DE = #{PYMNT_DE}
+           AND GL.PYMNT_SN = #{PYMNT_SN}
+		   AND GL.MISN_CD IS NOT NULL
+	</select>
+	
+
+	
+	<!-- 미션용 메거진 현황조회 쿼리 -->
+	<sql id="selectMisnMagazineListQuery">
+		<![CDATA[
+		SELECT 
+		       MISN_STEP
+		     , MISN_SUBNAME1
+		     , CASE WHEN USE_AT = 'N' THEN '노출종료'
+		     		WHEN DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN BEGIN_DT AND END_DT THEN '노출중'
+		            WHEN DATE_FORMAT(NOW(), '%Y%m%d') < BEGIN_DT THEN '예정'
+		            ELSE '노출종료'
+		        END OPEN_STATUS
+		     , F_STR_FORMAT('DATE', BEGIN_DT, #{LOCALE}) BEGIN_DE
+		     , F_STR_FORMAT('DATE', END_DT, #{LOCALE}) END_DE
+		     , CONCAT(F_STR_FORMAT('DATE', BEGIN_DT, #{LOCALE}), '~', F_STR_FORMAT('DATE', END_DT, #{LOCALE})) OPEN_DT
+		     , MISN_COMPT_REWARD_POINT
+		     , MULTI_FILE_SN
+		     , DATE_FORMAT(REGIST_DT, '%Y-%m-%d %H:%i:%s') REGIST_DT
+		  FROM MISN_INFO
+		 WHERE MISN_CD = #{MISN_CD}
+		]]>
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+		   AND (
+		   		  MISN_SUBNAME1 LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR MISN_SUBNAME2 LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR MISN_DC       LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		     )
+		</if>		
+	</sql>
+	
+	<!-- 미션용 메거진 현황조회 건수 -->
+	<select id="selectMisnMagazineListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectMisnMagazineListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 미션용 메거진 현황조회 -->
+	<select id="selectMisnMagazineList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectMisnMagazineListQuery" />
+		     ) TBL
+		 ORDER BY REGIST_DT DESC, MISN_STEP DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- (스마트 미러 관련) 메거진 현황조회 -->
+	<select id="selectMgznInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MISN_CD
+		     , MISN_STEP
+		     , MISN_SUBNAME1
+		     , MISN_SUBNAME2
+		     , MISN_DC
+		     , MISN_COMPT_REWARD_POINT
+		     , F_STR_FORMAT('DATE', BEGIN_DT, #{LOCALE}) BEGIN_DT
+		     , F_STR_FORMAT('DATE', END_DT, #{LOCALE}) END_DT
+		     , IFNULL(MI.ATCHMNFL_NO, 0) ATCHMNFL_NO
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , AI.ORGINL_FILE_NM ATCHMNFL_NM
+		     , IFNULL(MI.CN_ATCHMNFL_NO, 0) CN_ATCHMNFL_NO
+		     , F_FILE_PATH(A2.ATCHMNFL_NM) CN_ATCHMNFL_PATH
+		     , A2.ORGINL_FILE_NM CN_ATCHMNFL_NM
+		     , MI.MULTI_FILE_SN
+		  FROM MISN_INFO MI
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN ATCHMNFL_INFO A2
+		    ON MI.CN_ATCHMNFL_NO = A2.ATCHMNFL_NO
+		 WHERE MISN_CD = #{MISN_CD}
+	  	   AND USE_AT = 'Y'
+	  	   AND BEGIN_DT <![CDATA[ <= ]]> DATE_FORMAT(NOW(), '%Y%m%d')
+	  	   AND END_DT >= DATE_FORMAT(NOW(), '%Y%m%d')
+	  	 ORDER BY MISN_STEP DESC
+	  	 LIMIT 30
+	</select>
+	
+	<!-- 미션 저장처리 -->
+	<insert id="insertMisnInfo" parameterType="hmap">
+		<selectKey keyProperty="MISN_STEP" order="BEFORE" resultType="hmap">
+			SELECT
+			       IFNULL(MI.MISN_STEP, R.MISN_STEP) + 1 MISN_STEP
+			  FROM (SELECT #{MISN_CD} MISN_CD, 0 MISN_STEP) R
+			  LEFT JOIN (
+				      SELECT
+				             MISN_CD
+					       , MAX(MISN_STEP) MISN_STEP
+				        FROM MISN_INFO
+				       WHERE MISN_CD = #{MISN_CD}
+				       GROUP BY MISN_CD
+			     ) MI
+			    ON R.MISN_CD = MI.MISN_CD
+		</selectKey>
+		INSERT INTO MISN_INFO (
+			   MISN_CD
+			 , MISN_STEP
+			 , EXPOSCD
+			 , BEGIN_DT
+			 , END_DT
+			 , MISN_NAME
+			 , MISN_SUBNAME1
+			 , MISN_SUBNAME2
+			 , MISN_DC
+			 , MISN_COMPT_REWARD_POINT
+			 , MISN_COMPT_SPECL_REWARD_POINT
+			 , MISN_COMPT_URL
+			 , ATCHMNFL_NO
+			 , TARGET_VALUE
+			 , USE_AT
+			 , REGIST_DT
+			 , FIX_AT
+			 , CN_ATCHMNFL_NO
+			 , MULTI_FILE_SN
+		) VALUES (
+			   #{MISN_CD}
+			 , #{MISN_STEP}
+			 , #{EXPOSCD}
+			 , #{BEGIN_DT}
+			 , #{END_DT}
+			 , #{MISN_NAME}
+			 , #{MISN_SUBNAME1}
+			 , #{MISN_SUBNAME2}
+			 , #{MISN_DC}
+			 , #{MISN_COMPT_REWARD_POINT}
+			 , #{MISN_COMPT_SPECL_REWARD_POINT}
+			 , #{MISN_COMPT_URL}
+			 , #{ATCHMNFL_NO}
+			 , #{TARGET_VALUE}
+			 , 'Y'
+			 , NOW()
+			 , #{FIX_AT}
+			 , #{CN_ATCHMNFL_NO}
+			 , #{MULTI_FILE_SN}
+		)
+	</insert>
+	
+	<!-- 미션 상세조회 -->
+	<select id="selectMisnInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MISN_CD
+		     , MISN_STEP
+		     , MISN_SUBNAME1
+		     , MISN_SUBNAME2
+		     , MISN_DC
+		     , MISN_COMPT_REWARD_POINT
+		     , F_STR_FORMAT('DATE', BEGIN_DT, #{LOCALE}) BEGIN_DT
+		     , F_STR_FORMAT('DATE', END_DT, #{LOCALE}) END_DT
+		     , IFNULL(MI.ATCHMNFL_NO, 0) ATCHMNFL_NO
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , AI.ORGINL_FILE_NM ATCHMNFL_NM
+		     , IFNULL(MI.CN_ATCHMNFL_NO, 0) CN_ATCHMNFL_NO
+		     , F_FILE_PATH(A2.ATCHMNFL_NM) CN_ATCHMNFL_PATH
+		     , A2.ORGINL_FILE_NM CN_ATCHMNFL_NM
+		     , MI.MULTI_FILE_SN
+		     , MI.USE_AT
+		  FROM MISN_INFO MI
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN ATCHMNFL_INFO A2
+		    ON MI.CN_ATCHMNFL_NO = A2.ATCHMNFL_NO
+		 WHERE MISN_CD = #{MISN_CD}
+		   AND MISN_STEP = #{MISN_STEP}
+	</select>
+	
+	<!-- 미션 수정처리 -->
+	<update id="updateMisnInfo" parameterType="hmap">
+		UPDATE MISN_INFO SET
+			   MISN_CD = MISN_CD
+		<if test="EXPOSCD != null and EXPOSCD != ''">
+		     , EXPOSCD = #{EXPOSCD}
+		</if>
+		<if test="BEGIN_DT != null and BEGIN_DT != ''">
+		     , BEGIN_DT = #{BEGIN_DT}
+		</if>
+		<if test="END_DT != null and END_DT != ''">
+		     , END_DT = #{END_DT}
+		</if>
+		<if test="MISN_NAME != null and MISN_NAME != ''">
+		     , MISN_NAME = #{MISN_NAME}
+		</if>			   
+		<if test="MISN_SUBNAME1 != null and MISN_SUBNAME1 != ''">
+		     , MISN_SUBNAME1 = #{MISN_SUBNAME1}
+		</if>
+		<if test="MISN_SUBNAME2 != null and MISN_SUBNAME2 != ''">
+		     , MISN_SUBNAME2 = #{MISN_SUBNAME2}
+		</if>
+		<if test="MISN_DC != null and MISN_DC != ''">
+		     , MISN_DC = #{MISN_DC}
+		</if>
+		<if test="MISN_COMPT_REWARD_POINT != null and MISN_COMPT_REWARD_POINT != ''">
+		     , MISN_COMPT_REWARD_POINT = #{MISN_COMPT_REWARD_POINT}
+		</if>
+		<if test="MISN_COMPT_SPECL_REWARD_POINT != null and MISN_COMPT_SPECL_REWARD_POINT != ''">
+		     , MISN_COMPT_SPECL_REWARD_POINT = #{MISN_COMPT_SPECL_REWARD_POINT}
+		</if>
+		<if test="MISN_COMPT_URL != null and MISN_COMPT_URL != ''">
+		     , MISN_COMPT_URL = #{MISN_COMPT_URL}
+		</if>
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+		     , ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="TARGET_VALUE != null and TARGET_VALUE != ''">
+		     , TARGET_VALUE = #{TARGET_VALUE}
+		</if>			   
+		<if test="USE_AT != null and USE_AT != ''">
+		     , USE_AT = #{USE_AT}
+		</if>
+		<if test="FIX_AT != null and FIX_AT != ''">
+		     , FIX_AT = #{FIX_AT}
+		</if>   
+		<if test="CN_ATCHMNFL_NO != null and CN_ATCHMNFL_NO != ''">
+		     , CN_ATCHMNFL_NO = #{CN_ATCHMNFL_NO}
+		</if>
+		<if test="MULTI_FILE_SN != null and MULTI_FILE_SN != ''">
+		     , MULTI_FILE_SN = #{MULTI_FILE_SN}
+		</if>   
+		 WHERE MISN_CD = #{MISN_CD}
+		   AND MISN_STEP = #{MISN_STEP}
+	</update>
+</mapper>

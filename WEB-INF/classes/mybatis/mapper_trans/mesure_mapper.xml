@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.trans.mapper.MesureMapper">
+
+	
+	<!-- 측정정보 공통 시간대별 조회 select안하고 insert한 값으로 셋팅-->
+<!-- 	<select id="selectMesureInfoCmmnTimeInfo" parameterType="hmap" resultType="hmap"> -->
+<!-- 		SELECT MIC.MESURE_DATA -->
+<!-- 		     , MCM.MESURE_FIELD -->
+<!-- 		  FROM MESURE_INFO_CMMN MIC -->
+<!-- 		 INNER JOIN MESURE_CODE_MAPPING MCM ON MIC.MESURE_CODE = MCM.MESURE_CODE -->
+<!-- 		 WHERE MIC.MBER_NO = #{MBER_NO} -->
+<!-- 		   AND MIC.MESURE_DT = #{MEASURE_DT} -->
+<!-- 	</select> -->
+
+	<!-- 월별 평균값 구하기 -->
+	<select id="selectDalyForAvgMonth" parameterType="hmap" resultType="hmap">
+		SELECT 
+		<foreach collection="mesureFildMap" index="key" separator="," item="val" >
+				ROUND(AVG(${key}),2) AS ${key}
+		</foreach>
+			FROM MESURE_INFO_CMMN_DALY
+		    WHERE 1=1
+				AND MBER_NO = #{MBER_NO}
+		        AND MESURE_DE LIKE CONCAT(SUBSTRING(#{MEASURE_DT}, 1, 6), '%')
+			GROUP BY SUBSTRING(#{MEASURE_DT}, 1, 6)
+	</select>
+	
+	<!-- 측정정보 공통 등록-->
+	<insert id="insertMesureInfoCmmnInfo" parameterType="hmap">
+    	INSERT INTO MESURE_INFO_CMMN (
+               MBER_NO
+             , MESURE_CODE
+             , MESURE_MTHD	
+             , MESURE_DT
+             , MESURE_DATA	
+             , DEVICE_MODEL
+             , MESURE_ZONE_NO
+             <if test="MEASURE_SERIAL_NO != null">
+             , MESURE_SERIAL_NO
+             </if>
+             , JDGMNT_RESULT
+             , REGIST_DT
+		) 
+		SELECT MBER_NO
+             , MESURE_CODE
+             , MESURE_MTHD	
+             , MESURE_DT
+             , MESURE_DATA
+             , DEVICE_MODEL
+             , MESURE_ZONE_NO
+             <if test="MEASURE_SERIAL_NO != null">
+	         , MESURE_SERIAL_NO
+	         </if>
+	         ,JDGMNT_RESULT
+             , REGIST_DT
+          FROM (
+		<if test='MEASURE_INFO != null and MEASURE_INFO.size != 0'>
+			<foreach collection="MEASURE_INFO" item="List" separator ="UNION ALL">
+				<if test='List.MEASURE_CODE != null and List.MEASURE_CODE != "" and List.MEASURE_DATA != null and List.MEASURE_DATA != ""'>
+				  SELECT #{MBER_NO}           AS MBER_NO
+				       , #{List.MEASURE_CODE} AS MESURE_CODE
+                       , #{MEASURE_MTHD}      AS MESURE_MTHD
+                       , #{MEASURE_DT}        AS MESURE_DT
+				       , #{List.MEASURE_DATA} AS MESURE_DATA 
+                       , #{DEVICE_MODEL}      AS DEVICE_MODEL
+			           , #{MEASURE_ZONE_NO}   AS MESURE_ZONE_NO
+			           <if test="MEASURE_SERIAL_NO != null">
+			           , #{MEASURE_SERIAL_NO}   AS MESURE_SERIAL_NO
+			           </if>
+			           , F_MESURE_GRAD_NM(#{MBER_NO}, #{List.MEASURE_CODE}, #{List.MEASURE_DATA}, 'KO') AS JDGMNT_RESULT
+				       , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s') AS REGIST_DT
+				</if>
+			</foreach>
+		</if>
+				) MIC
+	</insert>
+	
+	<!-- 측정정보 공통 시간대별 데이터 등록 -->
+<!-- 	FIELD_LIST >> map을 의미 -->
+<!-- 	val >> map에서 val >> mesure_data를 의미 -->
+<!-- 	key >> map에서 key >> filed명을 의미 -->
+<!-- 맵에 들어있는건 필드명이기 때문에, 멤버 번호나, 날짜같은건 리스트에서 빼는게 자연스러울 듯 하다 -->
+	<insert id="insertMesureInfoCmmnTimeFiled" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_TIME
+				(MBER_NO,MESURE_DT,REGIST_DT,UPDT_DT ${queryData.queryStrFileds} )
+			VALUES
+				(#{MBER_NO} ,#{MEASURE_DT} ,NOW(), STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s') ${queryData.queryStrValues} )
+	</insert>
+	
+	
+	<!-- 측정정보 공통 시간대별 데이터 등록 >>>동적 쿼리로 대체 -->
+<!-- 	<insert id="insertMesureInfoCmmnTimeInfo" parameterType="hmap"> -->
+<!-- 		INSERT INTO MESURE_INFO_CMMN_TIME( -->
+<!-- 	           MBER_NO 			     -->
+<!--              , MESURE_DT             -->
+<!--              , HEIGHT                -->
+<!--              , BDWGH                 -->
+<!--              , FAT_MAS               -->
+<!--              , PBF                   -->
+<!--              , SLM                   -->
+<!--              , EST_BN_MAS            -->
+<!--              , VFL                   -->
+<!--              , BMR                   -->
+<!--              , BMI                   -->
+<!--              , SYSTOLIC              -->
+<!--              , DIASTOLIC             -->
+<!--              , PULS                  -->
+<!--              , FBS                   -->
+<!--              , PP2                   -->
+<!--              , T_CHOL                -->
+<!--              , TG                    -->
+<!--              , HDLC                  -->
+<!--              , LDLC                  -->
+<!--              , STRS_SCORE            -->
+<!--              , PHYSIC_STRS           -->
+<!--              , MNTL_STRS             -->
+<!--              , STRS_CNTRMSR_ABLTY    -->
+<!--              , BLDVSS_STEP           -->
+<!--              , CAD_OUTPUT_IN         -->
+<!--              , ELSTC_DGREE           -->
+<!--              , RBV_QY                -->
+<!--              , MEDI_WAIST        -->
+<!--              , BDHEAT            -->
+<!--              , REGIST_DT             -->
+<!--              , UPDT_DT               -->
+<!-- 	         ) VALUES( -->
+<!-- 	           #{MBER_NO} 			 -->
+<!--              , #{MEASURE_DT}           -->
+<!--              , #{HEIGHT}              -->
+<!--              , #{BDWGH}               -->
+<!--              , #{FAT_MAS}             -->
+<!--              , #{PBF}                 -->
+<!--              , #{SLM}                 -->
+<!--              , #{EST_BN_MAS}          -->
+<!--              , #{VFL}                 -->
+<!--              , #{BMR}                 -->
+<!--              , #{BMI}                 -->
+<!--              , #{SYSTOLIC}            -->
+<!--              , #{DIASTOLIC}           -->
+<!--              , #{PULS}                -->
+<!--              , #{FBS}                 -->
+<!--              , #{PP2}                 -->
+<!--              , #{T_CHOL}              -->
+<!--              , #{TG}                  -->
+<!--              , #{HDLC}                -->
+<!--              , #{LDLC}                -->
+<!--              , #{STRS_SCORE}          -->
+<!--              , #{PHYSIC_STRS}         -->
+<!--              , #{MNTL_STRS}           -->
+<!--              , #{STRS_CNTRMSR_ABLTY}  -->
+<!--              , #{BLDVSS_STEP}         -->
+<!--              , #{CAD_OUTPUT_IN}       -->
+<!--              , #{ELSTC_DGREE}         -->
+<!--              , #{RBV_QY}              -->
+<!--              , #{WAIST_CRCMFRNC}      -->
+<!--              , #{BDHEAT}              -->
+<!--              , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')         -->
+<!--              , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s') -->
+<!--              ) -->
+<!-- 	</insert> -->
+	
+	<!-- 측정정보 공통 일별 데이터 등록 -->
+	<insert id="insertMesureInfoCmmnDalyForFileds" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_DALY
+				(MBER_NO, MESURE_DE
+					,REGIST_DT,UPDT_DT ${queryData.queryStrFileds} )
+			VALUES
+				(#{MBER_NO}, SUBSTRING(#{MEASURE_DT}, 1, 8)
+					,NOW(), STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s') ${queryData.queryStrValues} )
+			ON DUPLICATE KEY UPDATE  
+	           UPDT_DT = STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')
+	           	${queryData.queryStrUpdate}	
+	</insert>
+	
+	
+	<!-- 측정정보 공통 일별 데이터 등록 >>> 동적 쿼리로 대체-->
+<!-- 	<insert id="insertMesureInfoCmmnDaly" parameterType="hmap"> -->
+<!-- 		INSERT INTO MESURE_INFO_CMMN_DALY( -->
+<!-- 	           MBER_NO				 -->
+<!--              , MESURE_DE			 -->
+<!--              , MOBLPHON_STEPS        -->
+<!--              , SPORTS_TOT_STEPS      -->
+<!--              , CNSMP_CALORIE         -->
+<!--              , SPORTS_DSTNC          -->
+<!--              , HEIGHT                -->
+<!--              , BDWGH                 -->
+<!--              , FAT_MAS               -->
+<!--              , PBF	                 -->
+<!--              , SLM		             -->
+<!--              , EST_BN_MAS		     -->
+<!--              , VFL		             -->
+<!--              , BMR		             -->
+<!--              , BMI		             -->
+<!--              , SYSTOLIC		         -->
+<!--              , DIASTOLIC		     -->
+<!--              , PULS		             -->
+<!--              , FBS		             -->
+<!--              , PP2		             -->
+<!--              , T_CHOL		         -->
+<!--              , TG		             -->
+<!--              , HDLC		             -->
+<!--              , LDLC		             -->
+<!--              , STRS_SCORE		     -->
+<!--              , PHYSIC_STRS		     -->
+<!--              , MNTL_STRS		     -->
+<!--              , STRS_CNTRMSR_ABLTY	 -->
+<!--              , BLDVSS_STEP		     -->
+<!--              , CAD_OUTPUT_IN		 -->
+<!--              , ELSTC_DGREE		     -->
+<!--              , RBV_QY		         -->
+<!--              , WAIST_CRCMFRNC		 -->
+<!--              , BDHEAT		         -->
+<!--              , REGIST_DT		     -->
+<!--              , UPDT_DT               -->
+<!--              ) VALUES( -->
+<!--                #{MBER_NO}				 -->
+<!--              , SUBSTRING(#{MEASURE_DT}, 1, 8)	 -->
+<!--              , #{MOBLPHON_STEPS}        -->
+<!--              , #{SPORTS_TOT_STEPS}      -->
+<!--              , #{CNSMP_CALORIE}         -->
+<!--              , #{SPORTS_DSTNC}          -->
+<!--              , #{HEIGHT}                -->
+<!--              , #{BDWGH}                 -->
+<!--              , #{FAT_MAS}               -->
+<!--              , #{PBF}	                 -->
+<!--              , #{SLM}		             -->
+<!--              , #{EST_BN_MAS}		     -->
+<!--              , #{VFL}		             -->
+<!--              , #{BMR}		             -->
+<!--              , #{BMI}		             -->
+<!--              , #{SYSTOLIC}		         -->
+<!--              , #{DIASTOLIC}		     -->
+<!--              , #{PULS}		             -->
+<!--              , #{FBS}		             -->
+<!--              , #{PP2}		             -->
+<!--              , #{T_CHOL}		         -->
+<!--              , #{TG}		             -->
+<!--              , #{HDLC}		             -->
+<!--              , #{LDLC}		             -->
+<!--              , #{STRS_SCORE}		     -->
+<!--              , #{PHYSIC_STRS}		     -->
+<!--              , #{MNTL_STRS}		     -->
+<!--              , #{STRS_CNTRMSR_ABLTY}	 -->
+<!--              , #{BLDVSS_STEP}		     -->
+<!--              , #{CAD_OUTPUT_IN}		 -->
+<!--              , #{ELSTC_DGREE}		     -->
+<!--              , #{RBV_QY}		         -->
+<!--              , #{WAIST_CRCMFRNC}		 -->
+<!--              , #{BDHEAT}	   -->
+<!--              , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')   -->
+<!--              , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')	      -->
+<!--              ) -->
+<!-- 	        ON DUPLICATE KEY UPDATE   -->
+<!-- 	           UPDT_DT = STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')	    -->
+<!-- 		<if test='MOBLPHON_STEPS != null and MOBLPHON_STEPS != ""'> -->
+<!-- 		     , MOBLPHON_STEPS = #{MOBLPHON_STEPS} -->
+<!-- 		</if> -->
+<!-- 		<if test='SPORTS_TOT_STEPS != null and SPORTS_TOT_STEPS != ""'> -->
+<!-- 		     , SPORTS_TOT_STEPS = #{SPORTS_TOT_STEPS} -->
+<!-- 		</if> -->
+<!-- 		<if test='CNSMP_CALORIE != null and CNSMP_CALORIE != ""'> -->
+<!-- 		     , CNSMP_CALORIE = #{CNSMP_CALORIE} -->
+<!-- 		</if> -->
+<!-- 		<if test='SPORTS_DSTNC != null and SPORTS_DSTNC != ""'> -->
+<!-- 		     , SPORTS_DSTNC = #{SPORTS_DSTNC} -->
+<!-- 		</if> -->
+<!-- 		<if test='HEIGHT != null and HEIGHT != ""'> -->
+<!-- 		     , HEIGHT = #{HEIGHT} -->
+<!-- 		</if> -->
+<!-- 		<if test='BDWGH != null and BDWGH != ""'> -->
+<!-- 		     , BDWGH = #{BDWGH} -->
+<!-- 		</if> -->
+<!-- 		<if test='FAT_MAS != null and FAT_MAS != ""'> -->
+<!-- 		     , FAT_MAS = #{FAT_MAS} -->
+<!-- 		</if> -->
+<!-- 		<if test='PBF != null and PBF != ""'> -->
+<!-- 		     , PBF = #{PBF} -->
+<!-- 		</if> -->
+<!-- 		<if test='SLM != null and SLM != ""'> -->
+<!-- 		     , SLM = #{SLM} -->
+<!-- 		</if> -->
+<!-- 		<if test='EST_BN_MAS != null and EST_BN_MAS != ""'> -->
+<!-- 		     , EST_BN_MAS = #{EST_BN_MAS} -->
+<!-- 		</if> -->
+<!-- 		<if test='VFL != null and VFL != ""'> -->
+<!-- 		     , VFL = #{VFL} -->
+<!-- 		</if> -->
+<!-- 		<if test='BMR != null and BMR != ""'> -->
+<!-- 		     , BMR = #{BMR} -->
+<!-- 		</if> -->
+<!-- 		<if test='BMI != null and BMI != ""'> -->
+<!-- 		     , BMI = #{BMI} -->
+<!-- 		</if> -->
+<!-- 		<if test='SYSTOLIC != null and SYSTOLIC != ""'> -->
+<!-- 		     , SYSTOLIC = #{SYSTOLIC} -->
+<!-- 		</if> -->
+<!-- 		<if test='DIASTOLIC != null and DIASTOLIC != ""'> -->
+<!-- 		     , DIASTOLIC = #{DIASTOLIC} -->
+<!-- 		</if> -->
+<!-- 		<if test='PULS != null and PULS != ""'> -->
+<!-- 		     , PULS = #{PULS} -->
+<!-- 		</if> -->
+<!-- 		<if test='FBS != null and FBS != ""'> -->
+<!-- 		     , FBS = #{FBS} -->
+<!-- 		</if> -->
+<!-- 		<if test='PP2 != null and PP2 != ""'> -->
+<!-- 		     , PP2 = #{PP2} -->
+<!-- 		</if> -->
+<!-- 		<if test='T_CHOL != null and T_CHOL != ""'> -->
+<!-- 		     , T_CHOL = #{T_CHOL} -->
+<!-- 		</if> -->
+<!-- 		<if test='TG != null and TG != ""'> -->
+<!-- 		     , TG = #{TG} -->
+<!-- 		</if> -->
+<!-- 		<if test='HDLC != null and HDLC != ""'> -->
+<!-- 		     , HDLC = #{HDLC} -->
+<!-- 		</if> -->
+<!-- 		<if test='LDLC != null and LDLC != ""'> -->
+<!-- 		     , LDLC = #{LDLC} -->
+<!-- 		</if> -->
+<!-- 		<if test='STRS_SCORE != null and STRS_SCORE != ""'> -->
+<!-- 		     , STRS_SCORE = #{STRS_SCORE} -->
+<!-- 		</if> -->
+<!-- 		<if test='PHYSIC_STRS != null and PHYSIC_STRS != ""'> -->
+<!-- 		     , PHYSIC_STRS = #{PHYSIC_STRS} -->
+<!-- 		</if> -->
+<!-- 		<if test='MNTL_STRS != null and MNTL_STRS != ""'> -->
+<!-- 		     , MNTL_STRS = #{MNTL_STRS} -->
+<!-- 		</if> -->
+<!-- 		<if test='STRS_CNTRMSR_ABLTY != null and STRS_CNTRMSR_ABLTY != ""'> -->
+<!-- 		     , STRS_CNTRMSR_ABLTY = #{STRS_CNTRMSR_ABLTY} -->
+<!-- 		</if> -->
+<!-- 		<if test='BLDVSS_STEP != null and BLDVSS_STEP != ""'> -->
+<!-- 		     , BLDVSS_STEP = #{BLDVSS_STEP} -->
+<!-- 		</if> -->
+<!-- 		<if test='CAD_OUTPUT_IN != null and CAD_OUTPUT_IN != ""'> -->
+<!-- 		     , CAD_OUTPUT_IN = #{CAD_OUTPUT_IN} -->
+<!-- 		</if> -->
+<!-- 		<if test='ELSTC_DGREE != null and ELSTC_DGREE != ""'> -->
+<!-- 		     , ELSTC_DGREE = #{ELSTC_DGREE} -->
+<!-- 		</if> -->
+<!-- 		<if test='RBV_QY != null and RBV_QY != ""'> -->
+<!-- 		     , RBV_QY = #{RBV_QY} -->
+<!-- 		</if> -->
+<!-- 		<if test='WAIST_CRCMFRNC != null and WAIST_CRCMFRNC != ""'> -->
+<!-- 		     , WAIST_CRCMFRNC = #{WAIST_CRCMFRNC} -->
+<!-- 		</if> -->
+<!-- 		<if test='BDHEAT != null and BDHEAT != ""'> -->
+<!-- 		     , BDHEAT = #{BDHEAT} -->
+<!-- 		</if> -->
+<!-- 	</insert> -->
+
+<!-- 	측정정보 공통 월별별 데이터 등록 -->
+	<insert id="insertMesureInfoCmmnMnbyForEnum" parameterType="hmap">
+		INSERT INTO MESURE_INFO_CMMN_MNBY
+				(MBER_NO, MESURE_MT
+					,REGIST_DT,UPDT_DT ${queryMap.queryStrFileds} )
+			VALUES
+				(#{MBER_NO}, SUBSTRING(#{MEASURE_DT}, 1, 6)
+					,NOW(), STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s') ${queryMap.queryStrValues} )
+			ON DUPLICATE KEY UPDATE  
+	           UPDT_DT = STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')
+	           	${queryMap.queryStrUpdate}	
+			
+	</insert>
+<!-- 	측정정보 공통 월별별 데이터 등록 >>> 동적 쿼리로 변경-->
+<!-- 	<insert id="insertMesureInfoCmmnMnby" parameterType="hmap"> -->
+<!-- 		INSERT INTO MESURE_INFO_CMMN_MNBY( -->
+<!-- 		       MBER_NO				 -->
+<!--              , MESURE_MT          	 -->
+<!-- 	         , SPORTS_TOT_STEPS   	 -->
+<!-- 	         , CNSMP_CALORIE      	 -->
+<!-- 	         , SPORTS_DSTNC       	 -->
+<!-- 	         , HEIGHT             	 -->
+<!-- 	         , BDWGH              	 -->
+<!-- 	         , FAT_MAS            	 -->
+<!-- 	         , PBF                	 -->
+<!-- 	         , SLM                	 -->
+<!-- 	         , EST_BN_MAS         	 -->
+<!-- 	         , VFL                	 -->
+<!-- 	         , BMR                	 -->
+<!-- 	         , BMI                	 -->
+<!-- 	         , SYSTOLIC           	 -->
+<!-- 	         , DIASTOLIC       -->
+<!-- 	         , PULS -->
+<!-- 	         , FBS                	 -->
+<!-- 	         , PP2                	 -->
+<!-- 	         , T_CHOL             	 -->
+<!-- 	         , TG                 	 -->
+<!-- 	         , HDLC               	 -->
+<!-- 	         , LDLC               	 -->
+<!-- 	         , STRS_SCORE         	 -->
+<!-- 	         , PHYSIC_STRS        	 -->
+<!-- 	         , MNTL_STRS          	 -->
+<!-- 	         , STRS_CNTRMSR_ABLTY 	 -->
+<!-- 	         , BLDVSS_STEP        	 -->
+<!-- 	         , CAD_OUTPUT_IN      	 -->
+<!-- 	         , ELSTC_DGREE        	 -->
+<!-- 	         , RBV_QY             	 -->
+<!-- 	         , WAIST_CRCMFRNC     	 -->
+<!-- 	         , BDHEAT             	 -->
+<!-- 	         , REGIST_DT          	 -->
+<!-- 	         , UPDT_DT            	 -->
+<!-- 	         ) VALUES( -->
+<!-- 	           #{MBER_NO}				 -->
+<!--              , SUBSTRING(#{MEASURE_DT}, 1, 6)          	 -->
+<!-- 	         , #{SPORTS_TOT_STEPS}   	 -->
+<!-- 	         , #{CNSMP_CALORIE}      	 -->
+<!-- 	         , #{SPORTS_DSTNC}       	 -->
+<!-- 	         , #{HEIGHT}             	 -->
+<!-- 	         , #{BDWGH}              	 -->
+<!-- 	         , #{FAT_MAS}            	 -->
+<!-- 	         , #{PBF}                	 -->
+<!-- 	         , #{SLM}                	 -->
+<!-- 	         , #{EST_BN_MAS}         	 -->
+<!-- 	         , #{VFL}                	 -->
+<!-- 	         , #{BMR}                	 -->
+<!-- 	         , #{BMI}                	 -->
+<!-- 	         , #{SYSTOLIC}           	 -->
+<!-- 	         , #{DIASTOLIC}   -->
+<!-- 	         , #{PULS}                	 -->
+<!-- 	         , #{FBS}                	 -->
+<!-- 	         , #{PP2}                	 -->
+<!-- 	         , #{T_CHOL}             	 -->
+<!-- 	         , #{TG}                 	 -->
+<!-- 	         , #{HDLC}               	 -->
+<!-- 	         , #{LDLC}               	 -->
+<!-- 	         , #{STRS_SCORE}         	 -->
+<!-- 	         , #{PHYSIC_STRS}        	 -->
+<!-- 	         , #{MNTL_STRS}          	 -->
+<!-- 	         , #{STRS_CNTRMSR_ABLTY} 	 -->
+<!-- 	         , #{BLDVSS_STEP}        	 -->
+<!-- 	         , #{CAD_OUTPUT_IN}      	 -->
+<!-- 	         , #{ELSTC_DGREE}        	 -->
+<!-- 	         , #{RBV_QY}             	 -->
+<!-- 	         , #{WAIST_CRCMFRNC}     	 -->
+<!-- 	         , #{BDHEAT}             	 -->
+<!-- 	         , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')            	 -->
+<!-- 	         , STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')              -->
+<!-- 	         ) -->
+	        
+<!-- 	        ON DUPLICATE KEY UPDATE   -->
+<!-- 	           UPDT_DT = STR_TO_DATE(#{MEASURE_DT},'%Y%m%d%H%i%s')   -->
+<!-- 		<if test='MOBLPHON_STEPS != null and MOBLPHON_STEPS != ""'> -->
+<!-- 		     , MOBLPHON_STEPS = #{MOBLPHON_STEPS} -->
+<!-- 		</if> -->
+<!-- 		<if test='SPORTS_TOT_STEPS != null and SPORTS_TOT_STEPS != ""'> -->
+<!-- 		     , SPORTS_TOT_STEPS = #{SPORTS_TOT_STEPS} -->
+<!-- 		</if> -->
+<!-- 		<if test='CNSMP_CALORIE != null and CNSMP_CALORIE != ""'> -->
+<!-- 		     , CNSMP_CALORIE = #{CNSMP_CALORIE} -->
+<!-- 		</if> -->
+<!-- 		<if test='SPORTS_DSTNC != null and SPORTS_DSTNC != ""'> -->
+<!-- 		     , SPORTS_DSTNC = #{SPORTS_DSTNC} -->
+<!-- 		</if> -->
+<!-- 		<if test='HEIGHT != null and HEIGHT != ""'> -->
+<!-- 		     , HEIGHT = #{HEIGHT} -->
+<!-- 		</if> -->
+<!-- 		<if test='BDWGH != null and BDWGH != ""'> -->
+<!-- 		     , BDWGH = #{BDWGH} -->
+<!-- 		</if> -->
+<!-- 		<if test='FAT_MAS != null and FAT_MAS != ""'> -->
+<!-- 		     , FAT_MAS = #{FAT_MAS} -->
+<!-- 		</if> -->
+<!-- 		<if test='PBF != null and PBF != ""'> -->
+<!-- 		     , PBF = #{PBF} -->
+<!-- 		</if> -->
+<!-- 		<if test='SLM != null and SLM != ""'> -->
+<!-- 		     , SLM = #{SLM} -->
+<!-- 		</if> -->
+<!-- 		<if test='EST_BN_MAS != null and EST_BN_MAS != ""'> -->
+<!-- 		     , EST_BN_MAS = #{EST_BN_MAS} -->
+<!-- 		</if> -->
+<!-- 		<if test='VFL != null and VFL != ""'> -->
+<!-- 		     , VFL = #{VFL} -->
+<!-- 		</if> -->
+<!-- 		<if test='BMR != null and BMR != ""'> -->
+<!-- 		     , BMR = #{BMR} -->
+<!-- 		</if> -->
+<!-- 		<if test='BMI != null and BMI != ""'> -->
+<!-- 		     , BMI = #{BMI} -->
+<!-- 		</if> -->
+<!-- 		<if test='SYSTOLIC != null and SYSTOLIC != ""'> -->
+<!-- 		     , SYSTOLIC = #{SYSTOLIC} -->
+<!-- 		</if> -->
+<!-- 		<if test='DIASTOLIC != null and DIASTOLIC != ""'> -->
+<!-- 		     , DIASTOLIC = #{DIASTOLIC} -->
+<!-- 		</if> -->
+<!-- 		<if test='PULS != null and PULS != ""'> -->
+<!-- 		     , PULS = #{PULS} -->
+<!-- 		</if> -->
+<!-- 		<if test='FBS != null and FBS != ""'> -->
+<!-- 		     , FBS = #{FBS} -->
+<!-- 		</if> -->
+<!-- 		<if test='PP2 != null and PP2 != ""'> -->
+<!-- 		     , PP2 = #{PP2} -->
+<!-- 		</if> -->
+<!-- 		<if test='T_CHOL != null and T_CHOL != ""'> -->
+<!-- 		     , T_CHOL = #{T_CHOL} -->
+<!-- 		</if> -->
+<!-- 		<if test='TG != null and TG != ""'> -->
+<!-- 		     , TG = #{TG} -->
+<!-- 		</if> -->
+<!-- 		<if test='HDLC != null and HDLC != ""'> -->
+<!-- 		     , HDLC = #{HDLC} -->
+<!-- 		</if> -->
+<!-- 		<if test='LDLC != null and LDLC != ""'> -->
+<!-- 		     , LDLC = #{LDLC} -->
+<!-- 		</if> -->
+<!-- 		<if test='STRS_SCORE != null and STRS_SCORE != ""'> -->
+<!-- 		     , STRS_SCORE = #{STRS_SCORE} -->
+<!-- 		</if> -->
+<!-- 		<if test='PHYSIC_STRS != null and PHYSIC_STRS != ""'> -->
+<!-- 		     , PHYSIC_STRS = #{PHYSIC_STRS} -->
+<!-- 		</if> -->
+<!-- 		<if test='MNTL_STRS != null and MNTL_STRS != ""'> -->
+<!-- 		     , MNTL_STRS = #{MNTL_STRS} -->
+<!-- 		</if> -->
+<!-- 		<if test='STRS_CNTRMSR_ABLTY != null and STRS_CNTRMSR_ABLTY != ""'> -->
+<!-- 		     , STRS_CNTRMSR_ABLTY = #{STRS_CNTRMSR_ABLTY} -->
+<!-- 		</if> -->
+<!-- 		<if test='BLDVSS_STEP != null and BLDVSS_STEP != ""'> -->
+<!-- 		     , BLDVSS_STEP = #{BLDVSS_STEP} -->
+<!-- 		</if> -->
+<!-- 		<if test='CAD_OUTPUT_IN != null and CAD_OUTPUT_IN != ""'> -->
+<!-- 		     , CAD_OUTPUT_IN = #{CAD_OUTPUT_IN} -->
+<!-- 		</if> -->
+<!-- 		<if test='ELSTC_DGREE != null and ELSTC_DGREE != ""'> -->
+<!-- 		     , ELSTC_DGREE = #{ELSTC_DGREE} -->
+<!-- 		</if> -->
+<!-- 		<if test='RBV_QY != null and RBV_QY != ""'> -->
+<!-- 		     , RBV_QY = #{RBV_QY} -->
+<!-- 		</if> -->
+<!-- 		<if test='WAIST_CRCMFRNC != null and WAIST_CRCMFRNC != ""'> -->
+<!-- 		     , WAIST_CRCMFRNC = #{WAIST_CRCMFRNC} -->
+<!-- 		</if> -->
+<!-- 		<if test='BDHEAT != null and BDHEAT != ""'> -->
+<!-- 		     , BDHEAT = #{BDHEAT} -->
+<!-- 		</if> -->
+		
+<!-- 	</insert> -->
+	
+	
+	<!-- 측정정보 공통 월별 데이터 조회 >>> MESURE_CODE_MAPPING 미활용 -->
+<!-- 	<select id="selectMesureInfoCmmnMnbyInfo" parameterType="hmap" resultType="hmap"> -->
+<!--        SELECT CASE RIGHT((SELECT MESUREUNIT_CODE  -->
+<!--                             FROM MESURE_IEM_CODE MEC  -->
+<!--                            WHERE MESURE_CODE = MIC.MESURE_CODE), 1) -->
+<!--                    WHEN '0' THEN ROUND(AVG(MIC.MESURE_DATA),0) -->
+<!--                    WHEN '1' THEN ROUND(AVG(MIC.MESURE_DATA),1) -->
+<!--                    WHEN '2' THEN ROUND(AVG(MIC.MESURE_DATA),2) -->
+<!--                    WHEN '3' THEN ROUND(AVG(MIC.MESURE_DATA),3) -->
+<!--                    WHEN '4' THEN ROUND(AVG(MIC.MESURE_DATA),4) -->
+<!--                     END AS MESURE_DATA -->
+<!-- 		    , MCM.MESURE_FIELD -->
+<!-- 		 FROM MESURE_INFO_CMMN MIC -->
+<!-- 		INNER JOIN( -->
+<!-- 			        SELECT MBER_NO -->
+<!-- 			             , MESURE_CODE -->
+<!-- 			             , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE -->
+<!-- 			             , COUNT(MESURE_DT) CNT -->
+<!-- 			             , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME -->
+<!-- 			          FROM MESURE_INFO_CMMN -->
+<!-- 			         WHERE MESURE_DATA IS NOT NULL  -->
+<!-- 			           AND MBER_NO = #{MBER_NO} -->
+<!-- 			           AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MEASURE_DT}, 1, 6), '%') -->
+<!-- 		             GROUP BY MBER_NO -->
+<!-- 		                    , SUBSTRING(MESURE_DT, 1, 8) -->
+<!-- 		                    , MESURE_CODE -->
+<!-- 		          ) MMIC ON MIC.MBER_NO = MMIC.MBER_NO -->
+<!-- 		                AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME) -->
+<!-- 		                AND MIC.MESURE_CODE = MMIC.MESURE_CODE -->
+<!-- 	    INNER JOIN MESURE_CODE_MAPPING MCM ON MMIC.MESURE_CODE = MCM.MESURE_CODE -->
+<!-- 		WHERE MIC.MBER_NO = #{MBER_NO} -->
+<!-- 		  AND MIC.MESURE_DT LIKE CONCAT(SUBSTRING(#{MEASURE_DT}, 1, 6), '%') -->
+<!-- 		  AND MIC.MESURE_DATA > '0000' -->
+<!-- 	    GROUP BY MIC.MESURE_CODE -->
+<!-- 	           , MCM.MESURE_FIELD -->
+<!-- 	</select> -->
+	
+	<!-- 측정정보 공통 월별 데이터 조회 T : MESURE_CODE_MAPPING을 지우기 위해서 만듬-->
+	<select id="selectMesureInfoCmmnCode" parameterType="hmap" resultType="hmap">
+       SELECT CASE RIGHT((SELECT MESUREUNIT_CODE 
+                            FROM MESURE_IEM_CODE MEC 
+                           WHERE MESURE_CODE = MIC.MESURE_CODE) , 1)
+                   WHEN '0' THEN ROUND(AVG(MIC.MESURE_DATA),0)
+                   WHEN '1' THEN ROUND(AVG(MIC.MESURE_DATA),1)
+                   WHEN '2' THEN ROUND(AVG(MIC.MESURE_DATA),2)
+                   WHEN '3' THEN ROUND(AVG(MIC.MESURE_DATA),3)
+                   WHEN '4' THEN ROUND(AVG(MIC.MESURE_DATA),4)
+                    END AS MESURE_DATA
+            , MIC.MESURE_CODE
+		 FROM MESURE_INFO_CMMN MIC
+		INNER JOIN(
+			        SELECT MBER_NO
+			             , MESURE_CODE
+			             , SUBSTRING(MESURE_DT, 1, 8) MESURE_DE
+			             , COUNT(MESURE_DT) CNT
+			             , MAX(SUBSTRING(MESURE_DT, 9, 6)) MESURE_TIME
+			          FROM MESURE_INFO_CMMN
+			         WHERE MESURE_DATA IS NOT NULL 
+			           AND MBER_NO = #{MBER_NO}
+			           AND MESURE_DT LIKE CONCAT(SUBSTRING(#{MEASURE_DT}, 1, 6), '%')
+		             GROUP BY MBER_NO
+		                    , SUBSTRING(MESURE_DT, 1, 8)
+		                    , MESURE_CODE
+		          ) MMIC ON MIC.MBER_NO = MMIC.MBER_NO
+		                AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		                AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		WHERE MIC.MBER_NO = #{MBER_NO}
+		  AND MIC.MESURE_DT LIKE CONCAT(SUBSTRING(#{MEASURE_DT}, 1, 6), '%')
+		  AND MIC.MESURE_DATA > '0000'
+		  AND MIC.MESURE_CODE IN ( ${CODE_LIST} )
+	    GROUP BY MIC.MESURE_CODE
+	</select>
+	<insert id="insertMesurePushResve" parameterType="hmap">
+		INSERT INTO 
+				MESURE_PUSH_RESVE(MBER_NO, MESURE_CODE, SNDNG_DT, REGIST_DT, 
+									PUSH_STTUS, MSSAGE_TY_CODE, MSSAGE_SE_CODE, MSSAGE_JOB_CODE)
+			VALUES
+			<foreach collection="list" item="item" separator=",">
+				( #{MBER_NO},#{item.MESURE_CODE}, #{item.SNDNG_DT}, NOW(),
+									 'N', #{item.MSSAGE_TY_CODE},#{item.MSSAGE_SE_CODE},#{item.MSSAGE_JOB_CODE} )	
+			</foreach>
+				ON DUPLICATE KEY 
+					UPDATE SNDNG_DT = VALUES(SNDNG_DT),
+					UPDATE_DT = NOW(),
+					PUSH_STTUS = 'N'
+	</insert>
+	
+</mapper>

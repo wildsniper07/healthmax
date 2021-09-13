@@ -1,0 +1,1313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.CommMapper">    
+   	<select id="selectMemberId" parameterType="hmap" resultType="hmap">
+		SELECT MEMBER_ID, NICKNAME FROM MEMBER_BASE
+		WHERE LOGIN_ID = #{id}
+	</select>
+	
+	<!-- 첨부파일 등록 처리 -->
+	<insert id="insertAtchmnflInfo" parameterType="hmap">
+		INSERT INTO ATCHMNFL_INFO (
+			   ATCHMNFL_NM
+			 , ATCHMNFL_PATH
+			 , ORGINL_FILE_NM
+			 , REGIST_DT
+			 , DELETE_AT
+		) VALUES (
+			   #{ATCHMNFL_NM}
+			 , #{ATCHMNFL_PATH}
+			 , #{ORGINL_FILE_NM}
+			 , NOW()
+			 , 'N'
+		)
+		<selectKey order="AFTER" keyProperty="ATCHMNFL_NO" resultType="int">
+    	    SELECT LAST_INSERT_ID()
+    	</selectKey>
+	</insert>
+	
+	<!-- 첨부파일 정보 조회 -->
+	<select id="selectAtchmnflInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       ATCHMNFL_NO
+		     , ATCHMNFL_NM
+		     , ATCHMNFL_PATH
+		     , ORGINL_FILE_NM
+		     , F_FILE_PATH(ATCHMNFL_NM) ATCHMNFL_DOWN_PATH
+		  FROM ATCHMNFL_INFO
+		 WHERE DELETE_AT = 'N'
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+		   AND ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="ATCHMNFL_NM != null and ATCHMNFL_NM != ''">
+		   AND ATCHMNFL_NM = #{ATCHMNFL_NM}
+		</if>
+	</select>
+	
+	<!-- 첨부파일 수정 처리 -->
+	<update id="updateAtchmnflInfo" parameterType="hmap">
+		UPDATE ATCHMNFL_INFO SET
+			   UPDT_DT = NOW()
+		<if test="ATCHMNFL_NM != null and ATCHMNFL_NM != ''">
+			 , ATCHMNFL_NM = #{ATCHMNFL_NM}
+		</if>
+		<if test="ATCHMNFL_PATH != null and ATCHMNFL_PATH != ''">
+			 , ATCHMNFL_PATH = #{ATCHMNFL_PATH}
+		</if>
+		<if test="ORGINL_FILE_NM != null and ORGINL_FILE_NM != ''">
+			 , ORGINL_FILE_NM = #{ORGINL_FILE_NM}
+		</if>
+		<if test="DELETE_AT != null and DELETE_AT != ''">
+			 , DELETE_AT = #{DELETE_AT}
+		</if>
+		 WHERE ATCHMNFL_NO = #{ATCHMNFL_NO}
+	</update>
+	
+	<!-- 멀티 첨부파일 저장 -->
+	<insert id="insertAtchmnflMultiInfo" parameterType="hmap">
+		<selectKey order="BEFORE" keyProperty="MULTI_FILE_SN" resultType="hmap">
+			SELECT MAX(MULTI_FILE_SN) MULTI_FILE_SN
+			  FROM (
+			        SELECT 
+			        	   MAX(MULTI_FILE_SN) +
+			<choose>
+				<when test="MULTI_FILE_SN != null and MULTI_FILE_SN != ''">
+						   0
+				</when>
+				<otherwise>
+						   1
+				</otherwise>
+			</choose>      MULTI_FILE_SN
+			          FROM ATCHMNFL_MULTI AM
+			         WHERE 1 = 1
+			<if test="MULTI_FILE_SN != null and MULTI_FILE_SN != ''">
+			           AND MULTI_FILE_SN = #{MULTI_FILE_SN}
+			</if>
+			         UNION ALL
+			        SELECT 1 MULTI_FILE_SN
+			     ) TBL
+		</selectKey>
+		INSERT INTO ATCHMNFL_MULTI (
+			   MULTI_FILE_SN
+			 , ATCHMNFL_NO
+			 , REGIST_DT
+			 , DELETE_AT
+		) VALUES (
+			   #{MULTI_FILE_SN}
+			 , #{ATCHMNFL_NO}
+			 , NOW()
+			 , 'N'
+		)
+	</insert>
+	
+	<!-- 멀티 파일 정보 조회 -->
+	<select id="selectMultiFileList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       AM.MULTI_FILE_SN
+		     , AI.ATCHMNFL_NO
+		     , AI.ATCHMNFL_PATH
+		     , AI.ATCHMNFL_NM
+		     , AI.ORGINL_FILE_NM
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) FILE_PATH
+		     , CONCAT("/common/file/", AI.ATCHMNFL_NO) FILE_NO_PATH
+		     , DATE_FORMAT(AM.REGIST_DT, '%Y%m%d%H%i%s') REGIST_DT
+		  FROM ATCHMNFL_MULTI AM
+		 INNER JOIN ATCHMNFL_INFO AI
+		    ON AM.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		 WHERE AM.MULTI_FILE_SN = #{MULTI_FILE_SN}
+		   AND AM.DELETE_AT = 'N'
+		   AND AI.DELETE_AT = 'N'
+	</select>
+	
+	<!-- 멀티 파일 수정 처리 -->
+	<update id="updateMultiFileInfo" parameterType="hmap">
+		UPDATE ATCHMNFL_MULTI SET
+			   MULTI_FILE_SN = MULTI_FILE_SN
+		<if test="DELETE_AT != null and DELETE_AT != ''">
+			 , DELETE_AT = #{DELETE_AT}
+		</if>			  
+		 WHERE MULTI_FILE_SN = #{MULTI_FILE_SN}
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+		   AND ATCHMNFL_NO = #{ATCHMNFL_NO} 
+		</if>
+	</update>
+	
+	<!-- 앱버전관리 현황조회 쿼리 -->
+	<sql id="selectAppVerManageListQuery">
+		SELECT 
+		       AVM.PLTFOM_KND_CODE
+		     , F_CODE_NM('CM09', AVM.PLTFOM_KND_CODE, #{LOCALE}) PLTFOM_KND_CODE_NM
+		     , AVM.APP_SE_CODE
+		     , F_CODE_NM('CM10', AVM.APP_SE_CODE, #{LOCALE}) APP_SE_CODE_NM
+		     , AVM.APP_VER
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(AVM.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM APP_VER_MANAGE AVM
+		 INNER JOIN (
+		        SELECT
+		               PLTFOM_KND_CODE
+		             , APP_SE_CODE
+		             , MAX(APP_VER) APP_VER
+		          FROM APP_VER_MANAGE
+		         GROUP BY PLTFOM_KND_CODE, APP_SE_CODE
+		     ) MAVM
+		    ON AVM.PLTFOM_KND_CODE = MAVM.PLTFOM_KND_CODE
+		   AND AVM.APP_SE_CODE = MAVM.APP_SE_CODE
+		   AND AVM.APP_VER = MAVM.APP_VER
+	</sql>
+	
+	<!-- 앱버전관리 현황조회 건수 -->
+	<select id="selectAppVerManageListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectAppVerManageListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 앱버전관리 현황조회 -->
+	<select id="selectAppVerManageList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectAppVerManageListQuery" />
+		     ) TBL
+		 ORDER BY REGIST_DT DESC, APP_SE_CODE, PLTFOM_KND_CODE
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 앱버전관리 저장처리 -->
+	<insert id="insertAppVerManageInfo" parameterType="hmap">
+		INSERT INTO APP_VER_MANAGE (
+		       PLTFOM_KND_CODE
+		     , APP_SE_CODE
+		     , APP_VER
+		     , REGIST_DT
+		     , REGIST_ID
+		) VALUES (
+		       #{PLTFOM_KND_CODE}
+		     , #{APP_SE_CODE}
+		     , #{APP_VER}
+		     , NOW()
+		     , #{USID}
+		)
+	</insert>
+	
+	<!-- 앱버전관리 상세조회 -->
+	<select id="selectAppVerManageInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       AVM.PLTFOM_KND_CODE
+		     , F_CODE_NM('CM09', AVM.PLTFOM_KND_CODE, #{LOCALE}) PLTFOM_KND_CODE_NM
+		     , AVM.APP_SE_CODE
+		     , F_CODE_NM('CM10', AVM.APP_SE_CODE, #{LOCALE}) APP_SE_CODE_NM
+		     , AVM.APP_VER
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(AVM.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM APP_VER_MANAGE AVM
+		 WHERE AVM.PLTFOM_KND_CODE = #{PLTFOM_KND_CODE}
+		   AND AVM.APP_SE_CODE = #{APP_SE_CODE}
+		   AND AVM.APP_VER = #{APP_VER}
+	</select>
+	
+	<!-- 앱버전관리 삭제처리 -->
+	<delete id="deleteAppVerManageInfo" parameterType="hmap">
+		DELETE FROM APP_VER_MANAGE
+		 WHERE PLTFOM_KND_CODE = #{PLTFOM_KND_CODE}
+		   AND APP_SE_CODE = #{APP_SE_CODE}
+		   AND APP_VER = #{APP_VER}
+	</delete>
+	
+	<!-- 앱 최종버전 조회 -->
+	<select id="selectAppVerByLatest" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       PLTFOM_KND_CODE
+		     , F_CODE_NM('CM09', PLTFOM_KND_CODE, #{LOCALE}) PLTFOM_KND_CODE_NM
+		     , APP_SE_CODE
+		     , F_CODE_NM('CM10', APP_SE_CODE, #{LOCALE}) APP_SE_CODE_NM
+		     , APP_VER
+		  FROM APP_VER_MANAGE
+		 WHERE PLTFOM_KND_CODE = #{PLTFOM_KND_CODE}
+		   AND APP_SE_CODE = #{APP_SE_CODE}
+		 ORDER BY APP_VER DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 앱 에러 로그 저장 -->
+	<insert id="insertAppErrorLog" parameterType="hmap">
+		INSERT INTO APP_ERROR_LOG (
+			   MBER_NO
+			 , ERROR_DT
+			 , MNFACR
+			 , DEVICE_MODEL
+			 , OS_VER
+			 , APP_VER
+			 , MSSAGE
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+			 , #{MNFACR}
+			 , #{DEVICE_MODEL}
+			 , #{OS_VER}
+			 , #{APP_VER}
+			 , #{MSSAGE}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 그룹 코드 조회 -->
+	<select id="selectGroupCodeList" parameterType="hmap" resultType="hmap">
+		SELECT
+			   GROUP_CODE
+			 , GROUP_CODE_NM
+		  FROM GROUP_CODE
+		 WHERE USE_AT = 'Y'
+	</select>
+	
+	<!-- 항목 코드 조회 -->
+	<select id="selectIemCodeList" parameterType="hmap" resultType="hmap">
+		SELECT
+			   GROUP_CODE
+			 , IEM_CODE
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		    , IEM_NM_US IEM_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			, IEM_NM_ES IEM_NM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			, IEM_NM_ID IEM_NM
+			</when>
+			<otherwise>
+	    			, IEM_NM
+			</otherwise>
+		</choose>
+		  FROM IEM_CODE
+		 WHERE USE_AT = 'Y'
+		   AND GROUP_CODE = #{GROUP_CODE}
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+		   AND (
+		   		  IEM_NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR IEM_NM_US LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR IEM_NM_ES LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR IEM_NM_ID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR IEM_CODE LIKE CONCAT(#{SEARCH_KEY}, '%')
+		       )
+		</if>
+	</select>
+	
+	<!-- 블루투스 장비 현황조회 쿼리 -->
+	<sql id="selectMesureDeviceListQuery">
+		SELECT 
+		       DEVICE_CODE
+		     , DEVICE_TY_CODE
+		     , F_CODE_NM('MS00', DEVICE_TY_CODE, #{LOCALE}) DEVICE_TY_CODE_NM 
+		     , DEVICE_MODEL
+		     , DEVICE_NM
+		     , USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM MESURE_DEVICE
+		 WHERE USEPRPS_CODE = 'B'
+	</sql>
+	
+	<!-- 블루투스 장비 현황조회 건수 -->
+	<select id="selectMesureDeviceListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectMesureDeviceListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 블루투스 장비 현황조회 -->
+	<select id="selectMesureDeviceList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectMesureDeviceListQuery" />
+		     ) TBL
+		 ORDER BY REGIST_DT DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+ 	</select>
+ 
+ 	<!-- 블루투스 장비 저장처리 -->
+	<insert id="insertMesureDeviceInfo" parameterType="hmap">
+		INSERT INTO MESURE_DEVICE (
+		       DEVICE_CODE
+		     , DEVICE_TY_CODE
+		     , DEVICE_MODEL
+		     , DEVICE_NM
+		     , ATCHMNFL_NO
+		     , REGIST_DT
+		     , USE_AT
+		) VALUES (
+		       #{DEVICE_CODE}
+		     , #{DEVICE_TY_CODE}
+		     , #{DEVICE_MODEL}
+		     , #{DEVICE_NM}
+		     , #{ATCHMNFL_NO}
+		     , NOW()
+		     , 'Y'
+		)
+	</insert>
+
+	<!-- 블루투스 장비 상세조회 -->
+	<select id="selectMesureDeviceInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MD.DEVICE_CODE
+		     , MD.DEVICE_TY_CODE
+		     , F_CODE_NM('MS00', MD.DEVICE_TY_CODE, #{LOCALE}) DEVICE_TY_CODE_NM 
+		     , MD.DEVICE_MODEL
+		     , MD.DEVICE_NM
+		     , MD.USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(MD.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		     , MD.ATCHMNFL_NO
+		     , AI.ORGINL_FILE_NM
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		  FROM MESURE_DEVICE MD
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MD.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		 WHERE MD.DEVICE_CODE = #{DEVICE_CODE}
+		   AND MD.USEPRPS_CODE = 'B'
+ 	</select>
+
+	<!-- 블루투스 장비 수정처리 -->
+	<update id="updateMesureDeviceInfo" parameterType="hmap">
+		UPDATE MESURE_DEVICE SET
+		       DEVICE_CODE = DEVICE_CODE
+		<if test="DEVICE_TY_CODE != null and DEVICE_TY_CODE != ''">
+		     , DEVICE_TY_CODE = #{DEVICE_TY_CODE}
+		</if>
+		<if test="DEVICE_MODEL != null and DEVICE_MODEL != ''">
+		     , DEVICE_MODEL = #{DEVICE_MODEL}
+		</if>
+		<if test="DEVICE_NM != null and DEVICE_NM != ''">
+		     , DEVICE_NM = #{DEVICE_NM}
+		</if>
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+		     , ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+		     , USE_AT = #{USE_AT}
+		</if>
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+ 	</update>
+ 
+ 	<!-- 블루투스 장비 측정항목 현황조회 -->
+	<select id="selectMesureDeviceIemList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MIC.MESURE_CODE
+		     , MIC.MESURE_NM
+	         , CASE WHEN MDI.MESURE_CODE IS NULL THEN 'N' ELSE 'Y' END CHECK_AT
+		  FROM MESURE_IEM_CODE MIC
+	      LEFT JOIN (
+		    	SELECT 
+				       DEVICE_CODE
+				     , MESURE_CODE
+				  FROM MESURE_DEVICE_IEM
+				 WHERE DEVICE_CODE = #{DEVICE_CODE}
+				   AND USE_AT = 'Y' 
+	         ) MDI
+	        ON MIC.MESURE_CODE = MDI.MESURE_CODE
+		 WHERE MIC.USE_AT = 'Y'
+	     ORDER BY MIC.MESURE_CODE ASC
+ 	</select>
+ 
+ 	<!-- 블루투스 장비 측정항목 저장처리 -->
+	<insert id="insertMesureDeviceIemInfo" parameterType="hmap">
+		INSERT INTO MESURE_DEVICE_IEM (
+		       DEVICE_CODE
+		     , MESURE_CODE
+		     , REGIST_DT
+		     , USE_AT
+		) VALUES (
+		       #{DEVICE_CODE}
+		     , #{MESURE_CODE}
+		     , NOW()
+		     , 'Y'
+		)
+	</insert>
+
+	<!-- 블루투스 장비 측정항목 상세조회 -->
+	<select id="selectMesureDeviceIemInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       DEVICE_CODE
+		     , MESURE_CODE
+		  FROM MESURE_DEVICE_IEM
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		   AND USE_AT = 'Y'
+	</select>
+   
+	<!-- 블루투스 장비 측정항목 건수조회 -->
+	<select id="selectMesureDeviceIemCnt" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       COUNT(*) MESURE_CNT
+		  FROM MESURE_DEVICE_IEM
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		   AND MESURE_CODE = #{MESURE_CODE}
+	</select>
+   
+	<!-- 블루투스 장비 측정항목 수정처리 -->
+	<update id="updateMesureDeviceIemInfo" parameterType="hmap">
+		UPDATE MESURE_DEVICE_IEM SET
+		       USE_AT = #{USE_AT}
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		<if test="MESURE_CODE != null and MESURE_CODE != ''">
+		   AND MESURE_CODE = #{MESURE_CODE}
+		</if>	 
+	</update>
+   
+	<!-- 블루투스 장비 펌웨어 현황조회 -->
+	<select id="selectMesureDeviceFrmwrList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MDF.FRMWR_VER
+		     , MDF.VER_CODE
+		     , MDF.FRMWR_MTH_CODE
+		     , F_CODE_NM('MS06', MDF.FRMWR_MTH_CODE, #{LOCALE}) FRMWR_MTH_CODE_NM
+		     , MDF.FRMWR_DC
+		     , MDF.FRMWR_URL
+		     , MDF.ATCHMNFL_NO
+		     , AI.ORGINL_FILE_NM
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , MDF.USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(MDF.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM MESURE_DEVICE_FRMWR MDF
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MDF.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		 WHERE MDF.DEVICE_CODE = #{DEVICE_CODE}
+		 ORDER BY MDF.VER_CODE DESC
+	</select>
+ 
+ 	<!-- 블루투스 장비 펌웨어 저장처리 -->
+	<insert id="insertMesureDeviceFrmwrInfo" parameterType="hmap">
+		INSERT INTO MESURE_DEVICE_FRMWR (
+		       DEVICE_CODE
+		     , FRMWR_VER
+		     , VER_CODE
+		     , FRMWR_MTH_CODE
+		     , FRMWR_DC
+		     , FRMWR_URL
+		     , ATCHMNFL_NO
+		     , REGIST_DT
+		     , USE_AT
+		) VALUES (
+		       #{DEVICE_CODE}
+		     , #{FRMWR_VER}
+		     , #{VER_CODE}
+		     , #{FRMWR_MTH_CODE}
+		     , #{FRMWR_DC}
+		     , #{FRMWR_URL}
+		     , #{ATCHMNFL_NO}
+		     , NOW()
+		     , 'Y'
+		)
+	</insert>
+
+	<!-- 블루투스 장비 펌웨어 상세조회 -->
+	<select id="selectMesureDeviceFrmwrInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MDF.FRMWR_VER
+		     , MDF.VER_CODE
+		     , MDF.FRMWR_MTH_CODE
+		     , F_CODE_NM('MS06', MDF.FRMWR_MTH_CODE, #{LOCALE}) FRMWR_MTH_CODE_NM
+		     , MDF.FRMWR_DC
+		     , MDF.FRMWR_URL
+		     , MDF.ATCHMNFL_NO
+		     , AI.ORGINL_FILE_NM
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , MDF.USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(MDF.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM MESURE_DEVICE_FRMWR MDF
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MDF.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		 WHERE MDF.DEVICE_CODE = #{DEVICE_CODE}
+		   AND MDF.FRMWR_VER = #{FRMWR_VER}
+	</select>
+   
+	<!-- 블루투스 장비 펌웨어 수정처리 -->
+	<update id="updateMesureDeviceFrmwrInfo" parameterType="hmap">
+		UPDATE MESURE_DEVICE_FRMWR SET
+		       DEVICE_CODE = DEVICE_CODE
+		<if test="VER_CODE != null and VER_CODE != ''">
+		     , VER_CODE = #{VER_CODE}
+		</if>
+		<if test="FRMWR_MTH_CODE != null and FRMWR_MTH_CODE != ''">
+		     , FRMWR_MTH_CODE = #{FRMWR_MTH_CODE}
+		</if>
+		<if test="FRMWR_DC != null and FRMWR_DC != ''">
+		     , FRMWR_DC = #{FRMWR_DC}
+		</if>
+		<if test="FRMWR_URL != null and FRMWR_URL != ''">
+		     , FRMWR_URL = #{FRMWR_URL}
+		</if>
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+		     , ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+		     , USE_AT = #{USE_AT}
+		</if>
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		   AND FRMWR_VER = #{FRMWR_VER}
+	</update>
+   
+	<!-- 블루투스 장비 기기관리 현황조회 -->
+	<select id="selectMesureDeviceMapngList" parameterType="hmap" resultType="hmap">  
+		SELECT 
+		       DEVICE_ADRES
+		     , SERIAL_NO
+		     , USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM MESURE_DEVICE_MAPNG
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		 ORDER BY REGIST_DT DESC
+	</select>
+ 
+	<!-- 블루투스 장비 기기관리 저장처리 -->
+	<insert id="insertMesureDeviceMapngInfo" parameterType="hmap">
+		INSERT INTO MESURE_DEVICE_MAPNG (
+		       DEVICE_CODE
+		     , DEVICE_ADRES
+		     , SERIAL_NO
+		     , REGIST_DT
+		     , USE_AT
+		) VALUES (
+		       #{DEVICE_CODE}
+		     , #{DEVICE_ADRES}
+		     , #{SERIAL_NO}
+		     , NOW()
+		     , 'Y'
+		)
+	</insert>
+
+	<!-- 블루투스 장비 기기관리 상세조회 -->
+	<select id="selectMesureDeviceMapngInfo" parameterType="hmap" resultType="hmap">  
+		SELECT 
+		       DEVICE_ADRES
+		     , SERIAL_NO
+		     , USE_AT
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		  FROM MESURE_DEVICE_MAPNG
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		   AND DEVICE_ADRES = #{DEVICE_ADRES}
+	</select>
+ 
+ 	<!-- 블루투스 장비 기기관리 수정처리 -->
+	<update id="updateMesureDeviceMapngInfo" parameterType="hmap">
+		UPDATE MESURE_DEVICE_MAPNG SET
+		       DEVICE_CODE = DEVICE_CODE
+		<if test="SERIAL_NO != null and SERIAL_NO != ''">
+		     , SERIAL_NO = #{SERIAL_NO}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+		     , USE_AT = #{USE_AT}
+		</if>
+		 WHERE DEVICE_CODE = #{DEVICE_CODE}
+		   AND DEVICE_ADRES = #{DEVICE_ADRES}
+	</update>
+	
+	<!-- 관리자 처리 이력 저장처리 -->
+	<insert id="insertInstChargerProcessHistInfo" parameterType="hmap">
+		<selectKey order="BEFORE" keyProperty="PROCESS_SN,PROCESS_DT" resultType="hmap">
+			SELECT 
+				   IFNULL(MAX(PROCESS_SN), 0) + 1 PROCESS_SN
+				 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s') PROCESS_DT
+			  FROM INST_CHARGER_PROCESS_HIST
+			 WHERE MBER_NO = #{MBER_NO}
+			   AND INST_NO = #{INST_NO}
+			   AND PROCESS_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		</selectKey>
+		INSERT INTO INST_CHARGER_PROCESS_HIST (
+			   MBER_NO
+			 , INST_NO
+			 , PROCESS_DT
+			 , PROCESS_SN
+			 , MENU_CODE
+			 , CALL_URL
+			 , PARAMTR
+			 , DWLD_AT
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{INST_NO}
+			 , #{PROCESS_DT}
+			 , #{PROCESS_SN}
+			 , #{MENU_CODE}
+			 , #{CALL_URL}
+			 , #{PARAMTR}
+			 , #{DWLD_AT}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- SMS 비즈 메세지 저장처리 -->
+	<insert id="insertBizMsgInfo" parameterType="hmap">
+		INSERT INTO bizppurio.BIZ_MSG (
+			   MSG_TYPE
+			 , CMID
+			 , REQUEST_TIME
+			 , SEND_TIME
+			 , DEST_PHONE
+			 , SEND_PHONE
+			 , MSG_BODY
+			 , ATTACHED_FILE
+			 , TEMPLATE_CODE
+			 , SENDER_KEY
+			 , NATION_CODE
+			 , RE_TYPE
+			 , RE_BODY
+		) VALUES (
+			   #{MSG_TYPE}
+		<choose>
+			<when test="SMS_SN != null and SMS_SN != ''">	   
+			 , CONCAT(DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'), #{SMS_SN})
+			</when>
+			<otherwise>
+			 , CONCAT(DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'), 1)
+			</otherwise>
+		</choose>	
+		<choose>
+			<when test="SNDNG_DT != null and SNDNG_DT != ''">
+			 , #{SNDNG_DT}
+			 , #{SNDNG_DT}
+			</when>
+			<otherwise>
+			 , NOW()
+			 , NOW()
+			</otherwise>
+		</choose>			 
+			 , #{DEST_PHONE}
+			 , #{SEND_PHONE}
+			 , #{MSG_BODY}
+			 , #{ATTACHED_FILE}
+			 , #{TEMPLATE_CODE}
+			 , #{SENDER_KEY}
+			 , #{NATION_CODE}
+			 , #{RE_TYPE}
+			 , #{RE_BODY}
+		)
+	</insert>
+	
+	<!-- DEVICE SSAID 인증 -->
+	<select id="selectAppAuthDevice" parameterType="hmap" resultType="hmap">
+		SELECT 
+			DEVICE_NO
+		FROM APP_AUTH_DEVICE
+		WHERE DEVICE_ID = #{DEVICE_ID}
+		AND USE_AT = 'Y'
+	</select>
+	
+	<!-- 시리얼키 인증 -->
+	<select id="selectSerialKey" parameterType="hmap" resultType="hmap">
+		SELECT 
+			SNO,
+			USE_AT
+		FROM APP_SERIAL_KEY
+		WHERE SKEY = REPLACE(#{SKEY}, '-', '')
+		AND ISOPEN = 'Y'
+	</select>
+	
+	<!-- 시리얼키 업데이트 -->
+	<update id="updateSerailKey" parameterType="hmap">
+		UPDATE APP_SERIAL_KEY 
+		SET USE_AT = 'Y'
+		WHERE SNO = #{SNO}
+	</update>
+	
+	<!-- 인증 기록 -->
+	<insert id="insertAppAuthDevice" parameterType="hmap">
+		INSERT INTO APP_AUTH_DEVICE
+		(
+			DEVICE_ID,
+		    DEVICE_TYPE
+		)
+		VALUES
+		(
+			#{DEVICE_ID},
+		    #{DEVICE_TYPE}
+		)
+	</insert>
+	
+	<!-- 시리얼키 저장 -->
+	<insert id="insertSerialKey" parameterType="hmap">
+		INSERT INTO APP_SERIAL_KEY
+		(
+			SKEY
+		)
+		VALUES		
+	    (
+	    	REPLACE(#{SKEY}, '-', '')
+	    )	    
+	</insert>
+	
+	<!-- 허가된 테블릿 디바이스 -->
+	<select id="selectSerialAuthDevice" parameterType="hmap" resultType="hmap">
+		SELECT 
+			AAD.DEVICE_ID,
+		    AAD.DEVICE_TYPE,
+			IC.IEM_NM
+		FROM APP_AUTH_DEVICE AAD
+		LEFT JOIN IEM_CODE IC
+		ON AAD.DEVICE_TYPE = IC.IEM_CODE
+		WHERE IC.GROUP_CODE = 'CM09'
+		LIMIT ${START_PAGE}, 30
+	</select>
+	
+	<!-- 허가된 테블릿 디바이스  총페이지-->
+	<select id="selectSerialAuthDeviceCount" parameterType="hmap" resultType="hmap">
+		SELECT 			
+			COUNT(IC.IEM_NM) TOTCNT
+		FROM APP_AUTH_DEVICE AAD
+		LEFT JOIN IEM_CODE IC
+		ON AAD.DEVICE_TYPE = IC.IEM_CODE
+		WHERE IC.GROUP_CODE = 'CM09'		
+	</select>
+	
+	
+	<!-- 시리얼키 총 페이지 -->
+	<select id="selectSerialKeyInfoCount" parameterType="hmap" resultType="hmap">
+		SELECT 	
+			COUNT(SKEY) TOTCNT
+		FROM APP_SERIAL_KEY 
+		WHERE 1=1
+		<if test='USE_AT != null and USE_AT != ""'>
+		AND USE_AT = #{USE_AT}
+		</if>
+		<if test='SKEY != null and SKEY != ""'>
+		AND SKEY = REPLACE(#{SKEY}, '-', '')
+		</if>			
+	</select>
+	
+	<!-- 시리얼키  조회-->
+	<select id="selectSerialKeyInfo" parameterType="hmap" resultType="hmap">
+		SELECT 	
+			CONCAT(SUBSTRING(SKEY, 1, 4), '-', SUBSTRING(SKEY, 5, 4), '-', SUBSTRING(SKEY, 9, 4), '-', SUBSTRING(SKEY, 13, 4)) SKEY, 
+		    ISOPEN, 
+		    USE_AT 
+		FROM APP_SERIAL_KEY 
+		WHERE 1=1
+		<if test='USE_AT != null and USE_AT != ""'>
+		AND USE_AT = #{USE_AT}
+		</if>
+		<if test='SKEY != null and SKEY != ""'>
+		AND SKEY = REPLACE(#{SKEY}, '-', '')
+		</if>
+		LIMIT ${START_PAGE}, 30
+	</select>
+	
+	<!-- 시리얼키 발급-->
+	<update id="updateSerialKeyOpen" parameterType="hmap">
+		UPDATE APP_SERIAL_KEY
+		SET ISOPEN = 'Y'
+		WHERE SKEY = REPLACE(#{SKEY}, '-', '')
+		AND USE_AT = 'N'
+		<selectKey order="AFTER" keyProperty="ISOPEN" resultType="hmap">
+			SELECT ISOPEN FROM APP_SERIAL_KEY
+			WHERE SKEY = REPLACE(#{SKEY}, '-', '')
+		</selectKey>
+	</update>
+	
+	<!-- IP 유효성 체크 -->
+	<select id="selectIpInfo" parameterType="hmap" resultType="hmap">
+		SELECT USE_AT
+		  FROM IP_MANAGE
+		 WHERE IP_RANGE LIKE CONCAT(#{IP_RANGE}, '%')
+		   AND DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN IP_BGNDE AND IP_ENDDE
+	</select>
+	
+	<!-- 관리자 약관관리 현황조회 쿼리 -->
+	<sql id="selectStplatManageInfoQuery">
+        SELECT
+               SM.STPLAT_SE_CODE
+             , F_CODE_NM('CM20', SM.STPLAT_SE_CODE, #{LOCALE}) STPLAT_SE_CODE_NM
+             , SM.STPLAT_KND_CODE
+             , F_CODE_NM('CM21', SM.STPLAT_KND_CODE, #{LOCALE}) STPLAT_KND_CODE_NM
+             , SM.STPLAT_SN
+             , SM.STPLAT_CHANGE_DE
+             , SM.STPLAT_CHANGE_RESN
+          FROM STPLAT_MANAGE SM
+         INNER JOIN (
+              SELECT
+                     STPLAT_SE_CODE
+                   , STPLAT_KND_CODE
+                   , MAX(STPLAT_SN) STPLAT_SN
+                FROM STPLAT_MANAGE
+               WHERE USE_AT = 'Y'
+               GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+             ) MSM
+            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+           AND SM.STPLAT_SN = MSM.STPLAT_SN
+	</sql>
+	
+	<!-- 관리자 약관관리 현황조회 건수 -->
+	<select id="selectStplatManageInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectStplatManageInfoQuery" />
+		     ) TBL
+	</select>
+
+	<!-- 관리자 약관관리 현황조회 -->
+	<select id="selectStplatManageInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectStplatManageInfoQuery" />
+		     ) TBL
+		 ORDER BY STPLAT_SE_CODE, STPLAT_KND_CODE, STPLAT_CHANGE_DE DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+
+	<!-- 관리자 약관관리 등록 처리 -->
+	<insert id="insertStplatManageInfo" parameterType="hmap">
+		<selectKey keyProperty="STPLAT_SN" order="BEFORE" resultType="int">
+			SELECT
+			       STPLAT_SN + 1 STPLAT_SN
+			  FROM (
+			        SELECT 0 STPLAT_SN
+			         UNION ALL
+			        SELECT 
+			               MAX(STPLAT_SN) STPLAT_SN
+			          FROM STPLAT_MANAGE
+			         WHERE STPLAT_SE_CODE = #{STPLAT_SE_CODE}
+			           AND STPLAT_KND_CODE = #{STPLAT_KND_CODE}
+			         GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+			     ) TBL
+			 ORDER BY STPLAT_SN DESC
+			 LIMIT 1
+		</selectKey>
+		INSERT INTO STPLAT_MANAGE (
+		       STPLAT_SE_CODE
+		     , STPLAT_KND_CODE
+		     , STPLAT_SN
+		     , STPLAT_CHANGE_DE
+		     , STPLAT_CHANGE_RESN
+		     , STPLAT_DC
+		     , REGIST_DT
+		     , REGIST_ID
+		     , USE_AT
+		) VALUES (
+		       #{STPLAT_SE_CODE}
+		     , #{STPLAT_KND_CODE}
+		     , #{STPLAT_SN}
+		     , #{STPLAT_CHANGE_DE}
+		     , #{STPLAT_CHANGE_RESN}
+		     , #{STPLAT_DC}
+		     , NOW()
+		     , #{REGIST_ID}
+		     , 'Y'
+		)
+	</insert>
+
+	<!-- 관리자 약관관리 상세조회 -->
+	<select id="selectStplatManageInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       SM.STPLAT_SE_CODE
+		     , F_CODE_NM('CM20', SM.STPLAT_SE_CODE, #{LOCALE}) STPLAT_SE_CODE_NM
+             , SM.STPLAT_KND_CODE
+             , F_CODE_NM('CM21', SM.STPLAT_KND_CODE, #{LOCALE}) STPLAT_KND_CODE_NM
+		     , SM.STPLAT_SN
+		     , SM.STPLAT_CHANGE_DE
+		     , SM.STPLAT_CHANGE_RESN
+		     , SM.STPLAT_DC
+		     , DATE_FORMAT(SM.REGIST_DT, '%Y%m%d%H%i%s') REGIST_DT
+		     , SM.REGIST_ID
+		     , SM.USE_AT
+		  FROM STPLAT_MANAGE  SM
+         INNER JOIN (
+              SELECT
+                     STPLAT_SE_CODE
+                   , STPLAT_KND_CODE
+                   , MAX(STPLAT_SN) STPLAT_SN
+                FROM STPLAT_MANAGE
+               WHERE USE_AT = 'Y'
+                 AND STPLAT_SE_CODE = #{STPLAT_SE_CODE}
+		   		 AND STPLAT_KND_CODE = #{STPLAT_KND_CODE}
+		<if test="STPLAT_SN != null and STPLAT_SN != ''">
+				 AND STPLAT_SN = #{STPLAT_SN}
+		</if>
+               GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+             ) MSM
+            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+           AND SM.STPLAT_SN = MSM.STPLAT_SN
+	</select>
+	
+	<!-- 관리자 약관관리 이력현황조회 -->
+	<select id="selectStplatManageHistList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       STPLAT_SE_CODE
+		     , STPLAT_KND_CODE
+		     , STPLAT_SN
+		     , DATE_FORMAT(STPLAT_CHANGE_DE, '%Y-%m-%d') STPLAT_CHANGE_DE
+		     , CONCAT(STPLAT_CHANGE_RESN, IF(USE_AT = 'N', '(삭제)', '')) STPLAT_CHANGE_RESN
+		  FROM STPLAT_MANAGE
+		 WHERE STPLAT_SE_CODE = #{STPLAT_SE_CODE}
+		   AND STPLAT_KND_CODE = #{STPLAT_KND_CODE}
+		 ORDER BY STPLAT_SN
+	</select>
+
+	<!-- 관리자 약관관리 수정 처리 -->
+	<update id="updateStplatManageInfo" parameterType="hmap">
+		UPDATE STPLAT_MANAGE SET
+		       STPLAT_SE_CODE = #{STPLAT_SE_CODE}
+		<if test="STPLAT_CHANGE_DE != null and STPLAT_CHANGE_DE != ''">
+		     , STPLAT_CHANGE_DE = #{STPLAT_CHANGE_DE}
+		</if>
+		<if test="STPLAT_CHANGE_RESN != null and STPLAT_CHANGE_RESN != ''">
+		     , STPLAT_CHANGE_RESN = #{STPLAT_CHANGE_RESN}
+		</if>
+		<if test="STPLAT_DC != null and STPLAT_DC != ''">
+		     , STPLAT_DC = #{STPLAT_DC}
+		</if>
+		<if test="USE_AT != null and USE_AT != ''">
+		     , USE_AT = #{USE_AT}
+		</if>
+		WHERE STPLAT_SE_CODE = #{STPLAT_SE_CODE}
+		   AND STPLAT_KND_CODE = #{STPLAT_KND_CODE}
+		   AND STPLAT_SN = #{STPLAT_SN}
+	</update>
+	
+	<!-- 약관관리 정보조회 -->
+	<select id="selectStplatInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+			   STPLAT_KND_CODE
+			 , STPLAT_KND_CODE_NM
+			 , STPLAT_DC
+		  FROM (
+		<if test='STPLAT_KND != null and STPLAT_KND.equals("DF")'>
+				SELECT
+					   SM.STPLAT_KND_CODE
+				     , F_CODE_NM('CM21', SM.STPLAT_KND_CODE, #{LOCALE}) STPLAT_KND_CODE_NM
+				     , CASE WHEN SM.STPLAT_KND_CODE = 'US' THEN 1
+				            WHEN SM.STPLAT_KND_CODE = 'II' THEN 4
+				            WHEN SM.STPLAT_KND_CODE = 'SI' THEN 5
+				            WHEN SM.STPLAT_KND_CODE = 'MP' THEN 6
+				            WHEN SM.STPLAT_KND_CODE = 'MI' THEN 7
+				            ELSE 9
+				        END ORD
+				     , STPLAT_DC
+				  FROM STPLAT_MANAGE SM
+				 INNER JOIN (
+				        SELECT
+				               STPLAT_SE_CODE
+				             , STPLAT_KND_CODE
+				             , MAX(STPLAT_SN) STPLAT_SN
+				          FROM STPLAT_MANAGE
+				         WHERE USE_AT = 'Y'
+				           AND STPLAT_SE_CODE = 'HMAX'
+				           AND STPLAT_KND_CODE IN ('US', 'II', 'SI', 'MP', 'MI')
+				         GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				     ) MSM
+				    ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				   AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				   AND SM.STPLAT_SN = MSM.STPLAT_SN
+				 UNION ALL  
+		</if>
+		<![CDATA[
+				SELECT
+					   STPLAT_KND_CODE
+				     , F_CODE_NM('CM21', STPLAT_KND_CODE, #{LOCALE}) STPLAT_KND_CODE_NM
+				     , 2 ORD
+				     , CONCAT('<span style="color:#444c53;font-size:12px;">㈜헬스맥스는 회원들의 개인정보를 안전하게 처리하는데 최선을 다합니다. 회원의 개인정보는 아래와 같은 목적으로 제공됩니다.</span><BR /><BR />', GROUP_CONCAT(STPLAT_DC SEPARATOR '<BR /><BR />'), '<BR /><BR /><span style="color:#444c53;font-size:12px;">* 동의는 거부하실 수 있으며, 거부 시 당사의 바이오그램 서비스 이용에 제한이 있을 수 있습니다.</span>') STPLAT_DC
+				  FROM (
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , SM.STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_SE_CODE IN ('MDAG', 'SUBS')
+				                   AND STPLAT_KND_CODE = 'IT'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+		]]>
+		<if test="INST_NO != null and INST_NO != ''">
+				         UNION ALL
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , REPLACE(SM.STPLAT_DC, '$INST_NM$', II.INST_NM) STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE SM
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_KND_CODE = 'IT'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+				         INNER JOIN (
+				                SELECT
+				                       IF(II.SIGUNGU_CD != '99999', 'MPAS', 'PSIS') STPLAT_SE_CODE
+				                     , CONCAT(TI.INST_NM, IFNULL(CONCAT(', ', MI.INST_NM), ''), IFNULL(CONCAT(', ', BI.INST_NM), '')) INST_NM
+				                  FROM INST_INFO II
+				                  LEFT JOIN INST_INFO TI
+				                    ON II.TOP_INST_NO = TI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                  LEFT JOIN INST_INFO MI
+				                    ON II.MIDDLE_INST_NO = MI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                  LEFT JOIN INST_INFO BI
+				                    ON II.BOTTOM_INST_NO = BI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                 WHERE II.INST_NO = #{INST_NO}
+				                   AND II.USE_AT = 'Y'
+				             ) II
+				            ON SM.STPLAT_SE_CODE = II.STPLAT_SE_CODE
+		</if>
+		<if test="MBER_NO != null and MBER_NO != ''">
+				         UNION ALL
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , REPLACE(SM.STPLAT_DC, '$INST_NM$', II.INST_NM) STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE SM
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_KND_CODE = 'IT'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+				         INNER JOIN (
+				              SELECT 
+				                     IF(II.SIGUNGU_CD != '99999', 'MPAS', 'PSIS') STPLAT_SE_CODE
+				                   , GROUP_CONCAT(INST_NM ORDER BY II.INST_NO SEPARATOR ', ') INST_NM
+				                FROM INST_INFO II
+				               INNER JOIN (
+				                      SELECT 
+				                             INST_NO
+				                        FROM (
+				                              SELECT 
+				                                     TOP_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                               UNION ALL
+				                              SELECT 
+				                                     MIDDLE_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                                UNION ALL
+				                              SELECT 
+				                                     BOTTOM_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                           ) II
+				                       GROUP BY INST_NO
+				                   ) MPI
+				                  ON II.INST_NO = MPI.INST_NO
+				               WHERE II.INST_NO IS NOT NULL
+				             ) II
+				            ON SM.STPLAT_SE_CODE = II.STPLAT_SE_CODE
+		</if>
+		<![CDATA[
+				     ) IT_TBL
+				 GROUP BY STPLAT_KND_CODE
+				 UNION ALL
+				SELECT
+					   STPLAT_KND_CODE
+				     , F_CODE_NM('CM21', STPLAT_KND_CODE, #{LOCALE}) STPLAT_KND_CODE_NM
+				     , 3 ORD
+				     , CONCAT('<span style="color:#444c53;font-size:12px;">㈜헬스맥스는 회원들의 개인정보를 안전하게 처리하는데 최선을 다합니다. 회원의 민감정보는 아래와 같은 목적으로 처리됩니다.</span><BR /><BR />', GROUP_CONCAT(STPLAT_DC SEPARATOR '<BR /><BR />'), '<BR /><BR /><span style="color:#444c53;font-size:12px;">* 동의는 거부하실 수 있으며, 거부 시 당사의 바이오그램 서비스의 이용에 제한이 있을 수 있습니다.</span>') STPLAT_DC
+				  FROM (
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , SM.STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_SE_CODE IN ('MDAG', 'SUBS')
+				                   AND STPLAT_KND_CODE = 'ST'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+		]]>
+		<if test="INST_NO != null and INST_NO != ''">
+				         UNION ALL
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , REPLACE(SM.STPLAT_DC, '$INST_NM$', II.INST_NM) STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE SM
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_KND_CODE = 'ST'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+				         INNER JOIN (
+				                SELECT
+				                       IF(II.SIGUNGU_CD != '99999', 'MPAS', 'PSIS') STPLAT_SE_CODE
+				                     , CONCAT(TI.INST_NM, IFNULL(CONCAT(', ', MI.INST_NM), ''), IFNULL(CONCAT(', ', BI.INST_NM), '')) INST_NM
+				                  FROM INST_INFO II
+				                  LEFT JOIN INST_INFO TI
+				                    ON II.TOP_INST_NO = TI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                  LEFT JOIN INST_INFO MI
+				                    ON II.MIDDLE_INST_NO = MI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                  LEFT JOIN INST_INFO BI
+				                    ON II.BOTTOM_INST_NO = BI.INST_NO
+				                   AND TI.USE_AT = 'Y'
+				                 WHERE II.INST_NO = #{INST_NO}
+				                   AND II.USE_AT = 'Y'
+				             ) II
+				            ON SM.STPLAT_SE_CODE = II.STPLAT_SE_CODE
+		</if>
+		<if test="MBER_NO != null and MBER_NO != ''">
+				         UNION ALL
+				        SELECT
+				               SM.STPLAT_KND_CODE
+				             , REPLACE(SM.STPLAT_DC, '$INST_NM$', II.INST_NM) STPLAT_DC
+				          FROM STPLAT_MANAGE SM
+				         INNER JOIN (
+				                SELECT
+				                       STPLAT_SE_CODE
+				                     , STPLAT_KND_CODE
+				                     , MAX(STPLAT_SN) STPLAT_SN
+				                  FROM STPLAT_MANAGE SM
+				                 WHERE USE_AT = 'Y'
+				                   AND STPLAT_KND_CODE = 'ST'
+				                 GROUP BY STPLAT_SE_CODE, STPLAT_KND_CODE
+				             ) MSM
+				            ON SM.STPLAT_SE_CODE = MSM.STPLAT_SE_CODE
+				           AND SM.STPLAT_KND_CODE = MSM.STPLAT_KND_CODE
+				           AND SM.STPLAT_SN = MSM.STPLAT_SN
+				         INNER JOIN (
+				              SELECT 
+				                     IF(II.SIGUNGU_CD != '99999', 'MPAS', 'PSIS') STPLAT_SE_CODE
+				                   , GROUP_CONCAT(INST_NM ORDER BY II.INST_NO SEPARATOR ', ') INST_NM
+				                FROM INST_INFO II
+				               INNER JOIN (
+				                      SELECT 
+				                             INST_NO
+				                        FROM (
+				                              SELECT 
+				                                     TOP_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                               UNION ALL
+				                              SELECT 
+				                                     MIDDLE_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                                UNION ALL
+				                              SELECT 
+				                                     BOTTOM_INST_NO INST_NO
+				                                FROM INST_INFO II
+				                               INNER JOIN (
+				                                      SELECT
+				                                             INST_NO
+				                                        FROM MBER_PSTINST_INFO
+				                                       WHERE MBER_NO = #{MBER_NO}
+				                                         AND CONFM_AT = 'Y'
+				                                         AND SECSN_AT = 'N'
+				                                         AND INST_NO > 1000
+				                                   ) MPI
+				                                  ON II.INST_NO = MPI.INST_NO
+				                                 AND II.USE_AT = 'Y'
+				                           ) II
+				                       GROUP BY INST_NO
+				                   ) MPI
+				                  ON II.INST_NO = MPI.INST_NO
+				               WHERE II.INST_NO IS NOT NULL
+				             ) II
+				            ON SM.STPLAT_SE_CODE = II.STPLAT_SE_CODE
+		</if>
+		<![CDATA[
+				     ) ST_TBL
+				 GROUP BY STPLAT_KND_CODE
+			 ) TBL
+		 ORDER BY ORD 
+		]]>
+	</select>
+	
+	<!-- zone 으로 기관 번호 가져오기 -->
+	<select id="selectZoneToInstNo" parameterType="hmap" resultType="hmap">
+		SELECT INST_NO FROM UHEALTH_ZONE_MANAGE
+		WHERE UHEALTH_ZONE_NO = #{UHEALTH_ZONE_NO}
+		AND USE_AT = 'Y'
+	</select>
+</mapper>

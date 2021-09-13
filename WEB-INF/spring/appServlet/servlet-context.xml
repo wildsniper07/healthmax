@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc https://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<!-- DispatcherServlet Context: defines this servlet's request-processing infrastructure -->
+	
+	<!-- Enables the Spring MVC @Controller programming model -->
+	<annotation-driven />
+
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving up static resources in the ${webappRoot}/resources directory -->
+	<resources mapping="/resources/**" location="/resources/" />
+
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources in the /WEB-INF/views directory -->
+	<beans:bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+	</beans:bean>
+	
+	<interceptors>
+		<interceptor>
+			<mapping path="/**/"/>
+			<exclude-mapping path="/mber/v1/login/id"/>									<!-- ID/PW 로그인 -->			
+			<exclude-mapping path="/mber/v1/charger/login/id"/>							<!-- 관리자 ID/PW 로그인 -->			
+			<exclude-mapping path="/mber/v1/login/sns/*"/>								<!-- SNS 로그인 -->
+			<exclude-mapping path="/mber/v1/mbtlnum_crtfc/*"/>							<!-- 휴대폰 인증 -->
+			<exclude-mapping path="/mber/v1/check"/>									<!-- 회원가입 여부 체크 -->
+			<exclude-mapping path="/mber/v1/check/usid/*"/>								<!-- 사용자 아이디 -->
+			<exclude-mapping path="/mber/v1/check/email"/>								<!-- 이메일 중복체크 -->
+			<exclude-mapping path="/mber/v1/check/mbtlnum"/>							<!-- 휴대폰번호 중복체크 -->
+			<exclude-mapping path="/mber/v1/find/id"/>									<!-- 회원 정보 계정찾기 -->
+			<exclude-mapping path="/mber/v1/tmpr_login_info/send_sms/*/update"/>		<!-- 임시 계정 SMS 재발송 -->
+			<exclude-mapping path="/mber/v1/info/password/change"/>						<!-- 회원 비밀번호 변경 -->
+			<exclude-mapping path="/mber/v1"/>											<!-- 회원가입 -->
+			<exclude-mapping path="/mber/v1/kiosk/validateMberVeinNo"/>					<!-- 지정맥 번호 인증 -->
+			<exclude-mapping path="/common/file"/>										<!-- 첨부파일 다운로드 -->
+			<exclude-mapping path="/common/file/no"/>									<!-- 첨부파일 다운로드 -->
+			<exclude-mapping path="/common/app/ver/*/*"/>   							<!-- 앱 최종버전 조회 -->
+			<exclude-mapping path="/mber/v1/koisk/vein"/>	    						<!-- 지정맥 등록 (키오스크) -->
+			<exclude-mapping path="/mber/v1/koisk"/>	        						<!-- 회원 가입 (키오스크) -->
+			<exclude-mapping path="/mber/v1/koisk/vein"/>       						<!-- 핸드폰 번호로 지정맥 템플릿 및 회원번호 반환 -->
+			<exclude-mapping path="/mber/v1/kiosk/login/vein"/> 						<!-- 휴대폰번호 & 지정맥 로그인 -->
+			<exclude-mapping path="/mber/v1/kiosk/login/birth"/>						<!-- 휴대폰번호 & 생년월일 로그인 -->
+			<exclude-mapping path="/data/v1/mesure_cnt/*"/> 							<!-- 회원의 1년간 측정데이터 카운트 -->
+			<exclude-mapping path="/mber/v1/rfid/login/*"/> 							<!-- RFID UUID 로그인 -->				
+			<exclude-mapping path="/trans/v1/mber/login"/>								<!-- Trans Server Login -->		
+			<exclude-mapping path="/trans/v1/mber/selectMberNo"/>						<!-- Trans Server 회원 번호 조회 -->	
+			<exclude-mapping path="/trans/v1/mber/validateCadyMber"/>					<!-- Trans Server 지정맥 번호 인증 -->
+			<exclude-mapping path="/api_token/v1/make/token"/>							<!-- 연계 API용 ID/PW 사용 토큰 생성 -->
+			<exclude-mapping path="/api_token/v1/make/day_token"/>						<!-- 연계 API용 ID/PW 사용 하루용 토큰 생성 -->
+			<exclude-mapping path="/api_token/v1/make/token/authorize_code"/>			<!-- GIFT TING AuthorizeCode 사용 토큰 생성 -->
+			<exclude-mapping path="/api_token/v1/make/authorize_code"/>					<!-- 연계 API용 AuthorizeCode 생성 -->
+			<exclude-mapping path="/api_token/v1/make/token/authorize_code/mber_info"/>	<!-- 연계 API용 AuthorizeCode 사용 토큰 생성 -->
+			<exclude-mapping path="/update/v1/*"/>										<!-- 디바이스 앱(키오스크, 지정맥) 업데이트 관련 API -->
+			<exclude-mapping path="/mber/v1/login/otp"/>								<!-- otp 를 이용한 로그인 -->
+			<exclude-mapping path="/mber/v1/extern/login"/> 							<!-- 외부 서비스 로그인 -->
+			<exclude-mapping path="/mber/v1/extern/serviceTokenToMberNo"/> 				<!-- 외부 서비스 토큰으로 회원번호 호출 -->
+			<exclude-mapping path="/inst/v1/extern/checkApiKey"/> 						<!-- 외부 기관 api 키 확인 -->
+			<exclude-mapping path="/hp/v1/**"/> 											<!-- 외부 기관 api 키 확인 -->
+			<exclude-mapping path="/common/v1/app/serial"/> 							<!-- 시리얼키 인증 -->
+			<exclude-mapping path="/common/v1/app/serial_auth"/> 						<!-- 시리얼키 인증 - 인증 기록 -->
+			<exclude-mapping path="/common/v1/app/generateKey"/> 						<!-- 시리얼키 생성 -->
+			<exclude-mapping path="/assist/v1/conhist"/> 								<!-- 최근 접속 이력 확인 -->
+			<exclude-mapping path="/common/v1/snapshot"/> 								<!-- 리얼타임 스냅샷 API -->			
+			<exclude-mapping path="/common/v1/stplat/info"/>							<!-- 약관조회 API -->	
+			<exclude-mapping path="/common/v1/stplat/info/*"/>							<!-- 기관별 약관조회 API -->			
+			<exclude-mapping path="/common/v1/stplat/infoZone/*"/>					    <!-- 존번호 기관별 약관조회 API -->
+				
+			<exclude-mapping path="/extern/**"/> 										<!-- BsLine API -->
+			<beans:bean id="authInterceptor" class="com.healthmax.biogram.intercept.AuthorityInterceptor"></beans:bean>
+		</interceptor>
+		<interceptor>			
+			<mapping path="/extern/**"/>
+			<beans:bean id="externServiceInterceptor" class="com.healthmax.biogram.intercept.ExternServiceInterceptor"/>
+		</interceptor>		
+	</interceptors>
+	
+	<beans:bean id="localeChangeInterceptor" class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor">
+        <beans:property name="paramName" value="language" />
+    </beans:bean>
+	<beans:bean id="localeResolver" class="org.springframework.web.servlet.i18n.SessionLocaleResolver">
+    	<beans:property name="defaultLocale" value="ko" />
+    </beans:bean>
+	
+    <!-- 멀티파트 리졸버 -->
+	<beans:bean id="multipartResolver"  class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+         <!-- 최대업로드 가능한 바이트크기 -->
+         <beans:property name="maxUploadSize" value="314572800" />
+         <!-- 디스크에 임시 파일을 생성하기 전에 메모리에 보관할수있는 최대 바이트 크기 -->	
+         <!-- property name="maxInMemorySize" value="52428800" / -->
+         <!-- defaultEncoding -->
+         <beans:property name="defaultEncoding" value="utf-8" />
+	</beans:bean>
+	
+	<context:component-scan base-package="com.healthmax.biogram" />
+	
+	<aop:aspectj-autoproxy/>
+	
+	
+</beans:beans>

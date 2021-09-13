@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.trans.mapper.TransMberMapper">
+	<!-- 회원 최근 측정 데이터 조회 -->
+	<select id="selectMesureInfoCmmnWhereMberInMesureCode" parameterType="hmap" resultType="hmap">
+				
+		SELECT MESURE_CODE, MESURE_DATA
+			FROM MESURE_INFO_CMMN
+		    WHERE(MESURE_CODE,MESURE_DT)
+		     IN (
+				SELECT MESURE_CODE, MAX(MESURE_DT) MAX_MESURE_DT
+					FROM MESURE_INFO_CMMN 
+					WHERE 1=1 
+						and MBER_NO = #{MBER_NO}
+						and MESURE_CODE in 
+						<foreach item ="item" collection="MESURE_CODES" open="(" separator="," close=")">
+							#{item}
+						</foreach>
+				GROUP BY MESURE_CODE
+				)
+		GROUP BY MESURE_CODE
+	</select>
+	<!-- 회원 번호 조회  -->
+	<select id="selectMberNo" parameterType="hmap" resultType="hmap">
+		SELECT MBER_NO
+		<if test='SELECT_TYPE != null and SELECT_TYPE == 4 and MBERINFOYN != null and MBERINFOYN.equals("Y")'>
+			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%S') AS SYSDATE
+             , CASE SEXDSTN WHEN 'M' THEN 1
+                            WHEN 'F' THEN 2
+                            END AS SEX
+             , YEAR(CURDATE()) - YEAR(BRTHDY) - (RIGHT(DATE_FORMAT(CURDATE(), '%Y%M%D'), 4) <![CDATA[ < ]]> RIGHT(BRTHDY, 4)) AS AGE
+             , IFNULL((SELECT MESURE_DATA 
+                         FROM MESURE_INFO_CMMN
+                        WHERE MESURE_CODE = '6022'
+                          AND MBER_NO =  #{MBER_NO}
+                        ORDER BY REGIST_DT DESC
+                        LIMIT 1)
+                      ,0) AS BODY_FAT
+             , IFNULL((SELECT MESURE_DATA 
+                         FROM MESURE_INFO_CMMN
+                        WHERE MESURE_CODE = '6A35'
+                          AND MBER_NO =  #{MBER_NO}
+                        ORDER BY REGIST_DT DESC
+                        LIMIT 1)
+                      ,0) AS HEIGHT
+             , IFNULL((SELECT MESURE_DATA 
+                         FROM MESURE_INFO_CMMN
+                        WHERE MESURE_CODE = '6021'
+                          AND MBER_NO =  #{MBER_NO}
+                        ORDER BY REGIST_DT DESC
+                        LIMIT 1)
+                      ,0) AS WEIGHT
+             , 1 AS WEAR
+             , 1 AS BODY_TYPE
+             , NM
+		</if>
+		  FROM MBER_INFO
+		 WHERE MBER_SECSN_AT = 'N'
+		   AND MBTLNUM_CRTFC_AT = 'Y'
+		<if test="SELECT_TYPE != null and SELECT_TYPE !=''">
+			<choose>
+				<when test="SELECT_TYPE == 1">
+		   AND MBTLNUM = REPLACE(#{MBTLNUM}, '-', '')
+					<if test="BRTHDY != null and BRTHDY != ''">
+		   AND BRTHDY LIKE CONCAT('%', #{BRTHDY})
+					</if>
+				</when>
+				<when test="SELECT_TYPE == 2">
+		   AND MBER_NO = (SELECT MBER_NO 
+		                    FROM RFID_INFO
+                           WHERE UUID = #{SERIAL_NO})
+				</when>
+				<when test="SELECT_TYPE == 4">
+		   AND MBER_NO = #{MBER_NO}
+				</when>
+			</choose>
+		 LIMIT 1
+		</if>
+	</select>
+	
+	
+	<!-- 캐디 지정맥 데이터를 가져온다 -->
+	<select id="selectCadyVein" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MBER_NO, 
+			B.VEIN_DATA 
+		FROM MBER_INFO A
+			LEFT JOIN MG_MBER_VEIN_INFO B
+		ON A.MBER_NO = B.MBER_NO
+			WHERE A.MBTLNUM = REPLACE(#{MBTLNUM}, '-', '')
+		AND A.MBTLNUM_CRTFC_AT = 'Y'
+		AND A.MBER_SECSN_AT = 'N'
+		LIMIT 1
+	</select>
+	
+	<insert id="insertBioVein" parameterType="hmap">
+		INSERT 
+		INTO MBER_VEIN_INFO
+		(
+			MBER_NO, 
+			VEIN_DATA
+		)
+		<foreach collection="list" item="item" separator=",">
+			VALUES(
+				#{item.MBER_NO}, 
+				#{item.VEIN_DATA}
+			)
+		</foreach>
+	</insert>
+	
+	<!-- 핸드폰 번호로 회원의 지정맥 등록 여부 확인 (키오스크)-->
+	<select id="selectCheckVeinPhone" parameterType="hmap" resultType="hmap">
+		SELECT A.MBER_NO
+		     , B.VEIN_DATA 
+		  FROM MBER_INFO A
+		  LEFT JOIN MBER_VEIN_INFO B ON A.MBER_NO = B.MBER_NO
+	     WHERE A.MBTLNUM = REPLACE(#{MBTLNUM}, '-', '')
+		   AND A.MBTLNUM_CRTFC_AT = 'Y'
+		   AND A.MBER_SECSN_AT = 'N'
+		   AND B.VEIN_DATA IS NOT NULL
+	</select>
+	
+	
+	<!-- 지정맥 회원번호를 바이오그램 회원번호 반환  -->
+	<select id="vailidateMberVeinNo" parameterType="hmap" resultType="hmap">
+		SELECT MBER_NO FROM MBER_INFO
+		WHERE LEGACY_MBER_NO = #{VEIN_NO}
+		AND REPLACE(MBTLNUM, '-', '')  = REPLACE(#{MBTLNUM}, '-', '')
+		AND MBER_NO = #{MBER_NO}		
+	</select>
+</mapper>

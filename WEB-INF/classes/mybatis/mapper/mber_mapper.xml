@@ -1,0 +1,2446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.MberMapper">
+
+	<!-- 관리자 회원관리 현황 조회 쿼리 -->
+	<sql id="selectMberInfoListQuery">
+		SELECT
+		       MI.MBER_NO
+		     , MI.NM
+		     , MI.USID
+		     , MI.MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		     , MI.MBTLNUM_CRTFC_AT_NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+ 		     , MI.BRTHDY
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+ 			 , MI.BRTHDY
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+  			 , MI.BRTHDY
+			</when>
+			<otherwise>
+             , CASE WHEN LENGTH(MI.BRTHDY) = 14 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', SUBSTRING(MI.BRTHDY, 9, 2), ':', SUBSTRING(MI.BRTHDY, 11, 2), ':',  RIGHT(MI.BRTHDY, 2))
+                    WHEN LENGTH(MI.BRTHDY) = 12 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', SUBSTRING(MI.BRTHDY, 9, 2), ':', RIGHT(MI.BRTHDY, 2))
+                    WHEN LENGTH(MI.BRTHDY) = 10 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', RIGHT(MI.BRTHDY, 2))
+                    WHEN LENGTH(MI.BRTHDY) = 8  THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', RIGHT(MI.BRTHDY, 2))
+                    WHEN LENGTH(MI.BRTHDY) = 6  THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', RIGHT(MI.BRTHDY, 2))
+                    ELSE ''
+                END BRTHDY
+			</otherwise>
+		</choose>
+		     , MI.SEXDSTN
+		     , MI.SEXDSTN_NM
+		     , IFNULL(MPI.INST_NO, 0) INST_NO
+		     , IFNULL(MPI.INST_NM, '') INST_NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 	 , SUBSTRING(MCH.CONECT_DT, 1, 8) CONECT_DT
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 	 , SUBSTRING(MCH.CONECT_DT, 1, 8) CONECT_DT
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  	 , SUBSTRING(MCH.CONECT_DT, 1, 8) CONECT_DT
+			</when>
+			<otherwise>
+	         , CASE WHEN LENGTH(SUBSTRING(MCH.CONECT_DT, 1, 8)) = 14 THEN CONCAT(LEFT(SUBSTRING(MCH.CONECT_DT, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 7, 2), ' ', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 9, 2), ':', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 11, 2), ':',  RIGHT(SUBSTRING(MCH.CONECT_DT, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MCH.CONECT_DT, 1, 8)) = 12 THEN CONCAT(LEFT(SUBSTRING(MCH.CONECT_DT, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 7, 2), ' ', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 9, 2), ':', RIGHT(SUBSTRING(MCH.CONECT_DT, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MCH.CONECT_DT, 1, 8)) = 10 THEN CONCAT(LEFT(SUBSTRING(MCH.CONECT_DT, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 7, 2), ' ', RIGHT(SUBSTRING(MCH.CONECT_DT, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MCH.CONECT_DT, 1, 8)) = 8  THEN CONCAT(LEFT(SUBSTRING(MCH.CONECT_DT, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MCH.CONECT_DT, 1, 8), 5, 2), '-', RIGHT(SUBSTRING(MCH.CONECT_DT, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MCH.CONECT_DT, 1, 8)) = 6  THEN CONCAT(LEFT(SUBSTRING(MCH.CONECT_DT, 1, 8), 4), '-', RIGHT(SUBSTRING(MCH.CONECT_DT, 1, 8), 2))
+	                ELSE ''
+	            END CONECT_DT
+			</otherwise>
+		</choose>
+		     , MI.REGIST_DT
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 	 , IFNULL(CASH.TOT_CASH, 0) TOT_CASH
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 	 , IFNULL(CASH.TOT_CASH, 0) TOT_CASH
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  	 , IFNULL(CASH.TOT_CASH, 0) TOT_CASH
+			</when>
+			<otherwise>
+	         , IFNULL(FORMAT(CASH.TOT_CASH, 0), 0) TOT_CASH
+			</otherwise>
+		</choose>
+		     , IFNULL(MI.MEMO, '') MEMO
+       	     , IFNULL(PNS.SV00_NTCN_AT, IFNULL(PNS.AL00_NTCN_AT, 'Y')) SV00_NTCN_AT
+		  FROM (
+	            SELECT
+        		       MI.MBER_NO
+        		     , MI.NM
+        		     , MI.USID
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		     , MI.MBTLNUM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			 , MI.MBTLNUM
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			 , MI.MBTLNUM
+			</when>
+			<otherwise>
+	                 , CASE WHEN LENGTH(MI.MBTLNUM) = 11 THEN CONCAT(LEFT(MI.MBTLNUM, 3), '-', SUBSTRING(MI.MBTLNUM, 4, 4), '-', RIGHT(MI.MBTLNUM, 4))
+	                        WHEN LENGTH(MI.MBTLNUM) = 10 AND LEFT(MI.MBTLNUM, 2) = '02' THEN CONCAT(LEFT(MI.MBTLNUM, 2), '-', SUBSTRING(MI.MBTLNUM, 3, 4), '-', RIGHT(MI.MBTLNUM, 4))
+	                        WHEN LENGTH(MI.MBTLNUM) = 10 AND LEFT(MI.MBTLNUM, 2) != '02' THEN CONCAT(LEFT(MI.MBTLNUM, 3), '-', SUBSTRING(MI.MBTLNUM, 4, 3), '-', RIGHT(MI.MBTLNUM, 4))
+	                        ELSE CONCAT(LEFT(MI.MBTLNUM, 2), '-', SUBSTRING(MI.MBTLNUM, 3, 3), '-', RIGHT(MI.MBTLNUM, 4))
+	                    END MBTLNUM
+			</otherwise>
+		</choose>
+	        		 , MI.MBTLNUM_CRTFC_AT
+	                 , IC1.IEM_NM MBTLNUM_CRTFC_AT_NM
+	                 , MI.TELNO
+
+					 , MI.BRTHDY
+	        		 , MI.SEXDSTN
+	                 , IC2.IEM_NM SEXDSTN_NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		     , MI.REGIST_DT
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			 , MI.REGIST_DT
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			 , MI.REGIST_DT
+			</when>
+			<otherwise>
+	                 , DATE_FORMAT(MI.REGIST_DT, '%Y-%m-%d %H:%i:%s') REGIST_DT
+			</otherwise>
+		</choose>
+	        	     , IFNULL(MI.MEMO, '') MEMO
+	        	  FROM MBER_INFO MI
+	             INNER JOIN (
+	                    SELECT 
+	                            IEM_CODE
+	                          , CASE WHEN #{LOCALE} = 'US' THEN IEM_NM_US
+	                                 WHEN #{LOCALE} = 'ES' THEN IEM_NM_ES
+	                                 WHEN #{LOCALE} = 'ID' THEN IEM_NM_ID
+	                                 ELSE IEM_NM
+	                             END IEM_NM
+	                      FROM IEM_CODE
+	                     WHERE GROUP_CODE = 'CM06'
+	                 ) IC1
+	                ON MI.MBTLNUM_CRTFC_AT = IC1.IEM_CODE
+	             INNER JOIN (
+	                    SELECT 
+	                            IEM_CODE
+	                          , CASE WHEN #{LOCALE} = 'US' THEN IEM_NM_US
+	                                 WHEN #{LOCALE} = 'ES' THEN IEM_NM_ES
+	                                 WHEN #{LOCALE} = 'ID' THEN IEM_NM_ID
+	                                 ELSE IEM_NM
+	                             END IEM_NM
+	                      FROM IEM_CODE
+	                     WHERE GROUP_CODE = 'MB03'
+	                 ) IC2
+	                ON MI.SEXDSTN = IC2.IEM_CODE
+	             WHERE MI.MBER_SECSN_AT = 'N'
+             ) MI 
+		<if test="INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+	            SELECT MBER_NO
+	              FROM MBER_PSTINST_INFO MPI
+	             INNER JOIN (
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND TOP_INST_NO = #{INST_NO}
+	                     UNION ALL
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND MIDDLE_INST_NO = #{INST_NO}
+	                     UNION ALL
+	                    SELECT INST_NO
+	                      FROM INST_INFO
+	                     WHERE USE_AT = 'Y'
+	                       AND BOTTOM_INST_NO = #{INST_NO}
+	                 ) II
+	             WHERE MPI.INST_NO = II.INST_NO
+	               AND CONFM_AT = 'Y'
+	               AND SECSN_AT = 'N'
+	             GROUP BY MBER_NO
+	         ) IMPI
+	        ON MI.MBER_NO = IMPI.MBER_NO
+		</if>  
+		  LEFT JOIN (
+		        SELECT
+		               MPI.MBER_NO
+		             , MPI.INST_NO
+		             , CONCAT(MPI.INST_NM, IF(MMPI.INST_CNT > 0, CONCAT(' 외 ', MMPI.INST_CNT), '')) INST_NM
+		             , IF(@PRE_MBER_NO != MPI.MBER_NO, @RN := 0, @RN := @RN + 1) RN
+		             , IF(@PRE_MBER_NO != MPI.MBER_NO, @PRE_MBER_NO := MPI.MBER_NO, MPI.MBER_NO)
+		          FROM (
+		                SELECT
+		                       MPI.MBER_NO
+		                     , MPI.INST_NO
+		                     , II.INST_NM
+		                     , CASE WHEN II.TOP_INST_NO = #{INST_NO} OR II.MIDDLE_INST_NO = #{INST_NO} OR II.BOTTOM_INST_NO = #{INST_NO} THEN 0
+	                                ELSE 1
+	                            END ODR
+		                  FROM MBER_PSTINST_INFO MPI
+		                 INNER JOIN INST_INFO II
+		                    ON MPI.INST_NO = II.INST_NO
+		                   AND MPI.CONFM_AT = 'Y'
+		                   AND MPI.SECSN_AT = 'N'
+		                   AND II.USE_AT = 'Y'
+		                 ORDER BY MPI.MBER_NO, ODR, II.INST_NO
+		             ) MPI
+		          LEFT JOIN (
+		              SELECT
+		                     MBER_NO
+		                   , IF (COUNT(*) > 1, COUNT(*) - 1, 0) INST_CNT
+		                FROM MBER_PSTINST_INFO
+		               WHERE CONFM_AT = 'Y'
+		                 AND SECSN_AT = 'N'
+		               GROUP BY MBER_NO
+		             ) MMPI
+		            ON MPI.MBER_NO = MMPI.MBER_NO
+		         INNER JOIN (SELECT @PRE_MBER_NO := 0, @RN := 0) R
+		     ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		   AND MPI.RN = 0
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , MAX(CONECT_DT) CONECT_DT
+		          FROM MBER_CONECT_HIST
+		         GROUP BY MBER_NO
+		     ) MCH
+		    ON MI.MBER_NO = MCH.MBER_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , SUM(ACCML_CASH) - SUM(USE_CASH) TOT_CASH
+		             , SUM(ACCML_CASH) ACCML_CASH
+		             , SUM(USE_CASH) USE_CASH
+		          FROM CASH_ACCML_LIST
+		         WHERE USE_END_DT >= DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		         GROUP BY MBER_NO
+		     ) CASH
+		    ON MI.MBER_NO = CASH.MBER_NO
+		  LEFT JOIN (
+	          SELECT 
+	                 MBER_NO
+	               , MAX(IF(PUSH_CODE = 'AL00', NTCN_AT, NULL)) AL00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'MC00', NTCN_AT, NULL)) MC00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'SV00', NTCN_AT, NULL)) SV00_NTCN_AT
+	               , MAX(IF(PUSH_CODE = 'TM00', NTCN_AT, NULL)) TM00_NTCN_AT
+	            FROM PUSH_NTCN_SETUP
+	           GROUP BY MBER_NO
+	         ) PNS
+		    ON MI.MBER_NO = PNS.MBER_NO
+		 WHERE 1 = 1
+		<if test="REGIST_DT_FROM != null and REGIST_DT_FROM != ''">
+		   AND MI.REGIST_DT >= DATE_FORMAT(#{REGIST_DT_FROM}, '%Y%m%d')
+		</if>
+		<if test="REGIST_DT_TO != null and REGIST_DT_TO != ''">
+		   AND MI.REGIST_DT <![CDATA[ <= ]]> DATE_FORMAT(#{REGIST_DT_TO}, '%Y%m%d')
+		</if>
+		<if test="BRTHDY_FROM != null and BRTHDY_FROM != ''">
+		   AND MI.BRTHDY >= #{BRTHDY_FROM}
+		</if>
+		<if test="BRTHDY_TO != null and BRTHDY_TO != ''">
+		   AND MI.BRTHDY <![CDATA[ <= ]]> #{BRTHDY_TO}
+		</if> 
+		<if test="CONECT_DT_FROM != null and CONECT_DT_FROM != ''">
+		   AND MCH.CONECT_DT >= #{CONECT_DT_FROM}
+		</if>
+		<if test="CONECT_DT_TO != null and CONECT_DT_TO != ''">
+		   AND MCH.CONECT_DT <![CDATA[ <= ]]> #{CONECT_DT_TO}
+		</if> 
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+		   AND MI.SEXDSTN = #{SEXDSTN}
+		</if>
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+		   AND (
+		   		  USID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+		   	   OR REPLACE(TELNO, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+		   	   OR REPLACE(MBTLNUM, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+		       )
+		</if>
+		<if test="NM != null and NM != ''">
+		   AND MI.NM LIKE CONCAT('%',#{NM},'%') 
+		</if>
+	</sql>
+	
+	<!-- 관리자 회원관리 현황 조회 건수 -->
+	<select id="selectMberInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectMberInfoListQuery" />
+		     ) TBL
+	</select>
+
+	<!-- 관리자 회원관리 현황 조회 -->
+	<select id="selectMberInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectMberInfoListQuery" />
+		     ) TBL
+		 ORDER BY
+		<choose>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MBER_NO")'>
+				MBER_NO
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("NM")'>
+				NM
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("USID")'>
+				USID
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MBTLNUM")'>
+				MBTLNUM
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MBTLNUM_CRTFC_AT_NM")'>
+				MBTLNUM_CRTFC_AT_NM
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("BRTHDY")'>
+				BRTHDY
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("SEXDSTN_NM")'>
+				SEXDSTN_NM
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("INST_NM")'>
+				INST_NM
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("CONECT_DT")'>
+				CONECT_DT
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("TOT_CASH")'>
+				TOT_CASH
+			</when>
+			<when test='COLUMN_NAME != null and COLUMN_NAME.equals("MEMO")'>
+				MEMO
+			</when>
+			<otherwise>
+				REGIST_DT DESC, MBER_NO 
+			</otherwise>
+		</choose>
+		<choose>
+			<when test='ODR != null and ODR.equals("ASC")'>
+				ASC
+			</when>
+			<otherwise>
+				DESC
+			</otherwise>
+		</choose>
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 관리자 회원관리 소속기관 현황 조회 -->
+	<select id="selectMberPstinstInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MPI.INST_NO
+		     , II.INST_NM
+		  FROM MBER_PSTINST_INFO MPI
+		 INNER JOIN INST_INFO II
+		    ON II.INST_NO = MPI.INST_NO
+		   AND II.USE_AT = 'Y'
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND CONFM_AT = 'Y'
+		   AND SECSN_AT = 'N'
+	</select>
+	
+	<!-- 관리자용 회원 상세조회 -->
+	<select id="selectChargerMberInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , MI.NM
+		     , MI.EMAIL_ADRES
+		     , F_STR_FORMAT('TEL', MI.MBTLNUM, #{LOCALE}) MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		     , F_STR_FORMAT('DATE', MI.BRTHDY, #{LOCALE}) BRTHDY
+		     , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(MI.BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTR(MI.BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+		     , MI.SEXDSTN SEX
+		     , F_CODE_NM('MB03', MI.SEXDSTN, #{LOCALE}) SEXDSTN
+		     , MI.USID
+		     , F_STR_FORMAT('DATE', DATE_FORMAT(MI.REGIST_DT, '%Y%m%d'), #{LOCALE}) REGIST_DT
+		     , F_STR_FORMAT('NUM', CASH.TOT_CASH, #{LOCALE}) TOT_CASH
+		     , MS.TOT_SCORE
+		     ,CASE
+				WHEN COUNT(MI.SERIAL_NO) > 0 THEN 'Y'
+				ELSE 'N'
+	          END SERIAL_AT
+		     , MI.MEMO
+		     , IF(IFNULL(VEIN_CNT, 0) > 0, 'Y', 'N') VEIN_REGIST_AT
+		     , IFNULL(MBTLNUM_CNT, 0) MBTLNUM_CNT
+		     , USE_STPLAT_AGRE_AT
+		     , INDVDLINFO_AGRE_AT
+		     , SNSTIIVEINFO_AGRE_AT
+		     , MARKTINFO_AGRE_AT
+		     , INDVDLINFO_THIRD_AGRE_AT
+		     , SNSTIIVEINFO_THIRD_AGRE_AT
+		     , MARKTINFO_PURPOSE_AGRE_AT
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , SUM(ACCML_CASH) - SUM(USE_CASH) TOT_CASH
+		             , SUM(ACCML_CASH) ACCML_CASH
+		             , SUM(USE_CASH) USE_CASH
+		          FROM CASH_ACCML_LIST
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND USE_END_DT >= DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		         GROUP BY MBER_NO
+		     ) CASH
+		    ON MI.MBER_NO = CASH.MBER_NO
+		  LEFT JOIN (
+				SELECT
+				  	   MMS.MBER_NO
+				  	 , MMS.CALC_DT
+				     , ROUND(((WAIST_SCORE * 100) + (BP_SCORE * 100) + (FBS_SCORE * 100) + (TG_SCORE * 100) + (HDLC_SCORE * 100)) / 5, 1) TOT_SCORE
+				  FROM MYBODY_MANAGE_SCORE MMS
+				 INNER JOIN (
+				    		SELECT
+				    			   MBER_NO
+				    			 , MAX(CALC_DT) CALC_DT
+				    		  FROM MYBODY_MANAGE_SCORE
+				         WHERE MBER_NO = #{MBER_NO}
+				    		 GROUP BY MBER_NO  
+					   ) MMMS
+					  ON MMS.MBER_NO = MMMS.MBER_NO
+				   AND MMS.CALC_DT = MMMS.CALC_DT
+		     ) MS
+		    ON MI.MBER_NO = MS.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MBER_NO
+				     , COUNT(*) VEIN_CNT 
+				  FROM MBER_VEIN_INFO 
+				 GROUP BY MBER_NO
+		     ) MVI
+		    ON MI.MBER_NO = MVI.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MBTLNUM 
+				     , COUNT(*) MBTLNUM_CNT
+				  FROM MBER_INFO 
+				 WHERE MBER_SECSN_AT = 'N' 
+				 GROUP BY MBTLNUM
+		     ) MMI
+		    ON MI.MBTLNUM = MMI.MBTLNUM
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 관리자 로그인 조회 -->
+	<select id="selectChargerLoginInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , MI.USID
+		     , IFNULL(MI.NM, '') NM
+		     , IFNULL(MI.NCM, '') NCM
+		     , MI.MBTLNUM
+		     , IFNULL(II1.INST_NM, II2.INST_NM) INST_NM
+		     , IFNULL(SM_INST_NO, '') SM_INST_NO
+		     , IFNULL(IM_INST_NO, '') IM_INST_NO
+		     , IFNULL(SM_AUTH_CNT, 0) SM_AUTH_CNT
+		     , IFNULL(IM_AUTH_CNT, 0) IM_AUTH_CNT
+			 , IFNULL(II2.TOP_INST_NO, '') TOP_INST_NO
+			 , IFNULL(II2.MIDDLE_INST_NO, '') MIDDLE_INST_NO
+			 , CASE WHEN SM_ICI.CONECT_LMTT_AT IS NULL AND IM_ICI.CONECT_LMTT_AT IS NULL THEN 'N'
+			 		WHEN SM_ICI.CONECT_LMTT_AT IS NULL AND IM_ICI.CONECT_LMTT_AT = 'Y' THEN 'Y'
+			        WHEN SM_ICI.CONECT_LMTT_AT = 'N'   AND IM_ICI.CONECT_LMTT_AT = 'Y' THEN 'Y'
+			        ELSE IFNULL(SM_ICI.CONECT_LMTT_AT, 'N')
+			    END CONECT_LMTT_AT
+			 , CASE WHEN SM_ICI.CONECT_LMTT_AT IS NULL AND IM_ICI.CONECT_LMTT_AT IS NULL THEN ''
+			 		WHEN SM_ICI.CONECT_LMTT_AT IS NULL AND IM_ICI.CONECT_LMTT_AT = 'Y' THEN IM_ICI.CONECT_IP
+			        WHEN SM_ICI.CONECT_LMTT_AT = 'N'   AND IM_ICI.CONECT_LMTT_AT = 'Y' THEN IM_ICI.CONECT_IP
+			        ELSE IFNULL(SM_ICI.CONECT_IP, '')
+			    END CONECT_IP   
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , COUNT(*) SM_AUTH_CNT
+		             , MIN(INST_NO) SM_INST_NO
+		             , MAX(CONECT_LMTT_AT) CONECT_LMTT_AT
+		             , MAX(CONECT_IP) CONECT_IP
+		          FROM INST_CHARGER_INFO ICI
+		         WHERE USE_AT = 'Y'
+		           AND AUTHOR_CODE = 'SM00'
+		         GROUP BY MBER_NO
+		     ) SM_ICI
+		    ON MI.MBER_NO = SM_ICI.MBER_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , COUNT(*) IM_AUTH_CNT
+		             , MIN(INST_NO) IM_INST_NO
+		             , MAX(CONECT_LMTT_AT) CONECT_LMTT_AT
+		             , MAX(CONECT_IP) CONECT_IP
+		          FROM INST_CHARGER_INFO ICI
+		         WHERE USE_AT = 'Y'
+		           AND AUTHOR_CODE = 'IM00'
+		         GROUP BY MBER_NO
+		     ) IM_ICI
+		    ON MI.MBER_NO = IM_ICI.MBER_NO
+		  LEFT JOIN INST_INFO II1
+		    ON II1.INST_NO = SM_ICI.SM_INST_NO  
+		  LEFT JOIN INST_INFO II2
+		    ON II2.INST_NO = IM_ICI.IM_INST_NO
+		 WHERE MI.MBER_SECSN_AT = 'N'
+		   AND MI.USID = BINARY(#{USID})
+		   AND MI.PASSWORD = F_ENCRYPT(#{PASSWORD})
+	</select>
+
+	<!-- 회원 로그인 조회 -->
+	<select id="selectMberLoginInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MI.MBER_NO
+		     , MI.USID
+		     , IFNULL(MI.NM, '') NM
+		     , IFNULL(MI.NCM, '') NCM
+		     , MI.MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		     , IFNULL(BA.BUDGET_ASIGN_COUNT, 0) BUDGET_ASIGN_COUNT
+		     , MI.SBSCRB_COURS_CODE
+		     , IFNULL(MI.TMPR_SBSCRB_AT, 'N') TMPR_SBSCRB_AT
+		     , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(MI.BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTR(MI.BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+			 , MI.SEXDSTN
+			 , MI.BRTHDY
+			 , IFNULL(HT.HEIGHT, 0) HEIGHT
+			 , IFNULL(WT.BDWGH, 0) BDWGH
+			 , IFNULL(WT_GOAL.GOAL_BDWGH, IFNULL(WT.BDWGH, 0)) GOAL_BDWGH
+			 , IFNULL(WAIST.WAIST_CRCMFRNC, 0) WAIST_CRCMFRNC
+			 , IFNULL(STEP_GOAL.GOAL_STEP, 10000) GOAL_STEP		 
+			 , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		  FROM MBER_INFO MI
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		    		 , COUNT(*) BUDGET_ASIGN_COUNT
+		          FROM MBER_PSTINST_INFO MPI
+		         INNER JOIN BUDGET_ASIGN BA
+		            ON MPI.INST_NO = BA.INST_NO
+		         WHERE MPI.SECSN_AT = 'N'
+		           AND MPI.CONFM_AT = 'Y'
+		           AND NOW() BETWEEN BA.BUDGET_BGNDE AND BA.BUDGET_ENDDE
+             	 GROUP BY MBER_NO
+		     ) BA
+		    ON MI.MBER_NO = BA.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) HEIGHT
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '6A35'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) HT
+		    ON MI.MBER_NO = HT.MBER_NO  
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) BDWGH
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '6021'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) WT
+		    ON MI.MBER_NO = WT.MBER_NO 
+		  LEFT JOIN (
+				SELECT 
+				       MEG.MBER_NO
+				     , ROUND(MEG.GOAL_VALUE, 1) GOAL_STEP
+				  FROM MBER_ESTBS_GOAL MEG
+				 WHERE MEG.MESURE_CODE = '4010'
+		     ) STEP_GOAL
+		    ON MI.MBER_NO = STEP_GOAL.MBER_NO 
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) WAIST_CRCMFRNC
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '8072'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) WAIST
+		    ON MI.MBER_NO = WAIST.MBER_NO 
+		  LEFT JOIN (
+				SELECT 
+				       MEG.MBER_NO
+				     , ROUND(MEG.GOAL_VALUE, 1) GOAL_BDWGH
+				  FROM MBER_ESTBS_GOAL MEG
+				 WHERE MEG.MESURE_CODE = '6021'
+		     ) WT_GOAL
+		    ON MI.MBER_NO = WT_GOAL.MBER_NO 
+		 WHERE MI.MBER_SECSN_AT = 'N'
+		<choose>
+			<when test='LOGIN_GBN != null and LOGIN_GBN.equals("I")'>
+		   AND MI.USID = BINARY(#{USID})
+		   AND MI.PASSWORD = F_ENCRYPT(#{PASSWORD})
+		    </when>
+		    <when test='LOGIN_GBN != null and LOGIN_GBN.equals("V")'>
+		   AND MI.USID = BINARY(#{USID})
+		   AND MI.PASSWORD = #{PASSWORD}
+		    </when>
+			<when test='LOGIN_GBN != null and LOGIN_GBN.equals("S")'>
+				<if test="SNS_LOGIN_TKN != null and SNS_LOGIN_TKN != ''">
+					<choose>
+						<when test='SNS_LOGIN_CODE != null and SNS_LOGIN_CODE.equals("K")'>
+		   AND MI.SNS_LOGIN_TKN_K = #{SNS_LOGIN_TKN}
+		   				</when>
+		   				<when test='SNS_LOGIN_CODE != null and SNS_LOGIN_CODE.equals("F")'>
+		   AND MI.SNS_LOGIN_TKN_F = #{SNS_LOGIN_TKN}
+		   				</when>
+		   				<when test='SNS_LOGIN_CODE != null and SNS_LOGIN_CODE.equals("I")'>
+		   AND MI.SNS_LOGIN_TKN_I = #{SNS_LOGIN_TKN}
+		   				</when>
+		   			</choose>
+				</if>
+		    </when>
+		</choose>
+
+	</select>
+	
+	<!-- 회원 번호로 회원정보 조회 -->
+	<select id="selectMberNoInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MI.MBER_NO
+		     , MI.USID
+		     , IFNULL(MI.NM, '') NM
+		     , IFNULL(MI.NCM, '') NCM
+		     , MI.MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		     , IFNULL(BA.BUDGET_ASIGN_COUNT, 0) BUDGET_ASIGN_COUNT
+		     , MI.SBSCRB_COURS_CODE
+		     , IFNULL(MI.TMPR_SBSCRB_AT, 'N') TMPR_SBSCRB_AT
+		     , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(MI.BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTR(MI.BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+		     , MI.BRTHDY
+			 , MI.SEXDSTN
+			 , IFNULL(HT.HEIGHT, 0) HEIGHT
+			 , IFNULL(WT.BDWGH, 0) BDWGH
+			 , IFNULL(WT_GOAL.GOAL_BDWGH, IFNULL(WT.BDWGH, 0)) GOAL_BDWGH
+			 , IFNULL(WAIST.WAIST_CRCMFRNC, 0) WAIST_CRCMFRNC
+			 , IFNULL(STEP_GOAL.GOAL_STEP, 10000) GOAL_STEP
+			 , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		  FROM MBER_INFO MI
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		    		 , COUNT(*) BUDGET_ASIGN_COUNT
+		          FROM MBER_PSTINST_INFO MPI
+		         INNER JOIN BUDGET_ASIGN BA
+		            ON MPI.INST_NO = BA.INST_NO
+		         WHERE MPI.MBER_NO = #{MBER_NO}
+		           AND MPI.SECSN_AT = 'N'
+		           AND MPI.CONFM_AT = 'Y'
+		           AND NOW() BETWEEN BA.BUDGET_BGNDE AND BA.BUDGET_ENDDE
+		         GROUP BY MBER_NO
+		     ) BA
+		    ON MI.MBER_NO = BA.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) HEIGHT
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '6A35'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) HT
+		    ON MI.MBER_NO = HT.MBER_NO  
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) BDWGH
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '6021'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) WT
+		    ON MI.MBER_NO = WT.MBER_NO 
+		  LEFT JOIN (
+				SELECT 
+				       MEG.MBER_NO
+				     , ROUND(MEG.GOAL_VALUE, 1) GOAL_STEP
+				  FROM MBER_ESTBS_GOAL MEG
+				 WHERE MEG.MESURE_CODE = '4010'
+		     ) STEP_GOAL
+		    ON MI.MBER_NO = STEP_GOAL.MBER_NO
+		  LEFT JOIN (
+				SELECT 
+				       MIC.MBER_NO
+				     , ROUND(MIC.MESURE_DATA, 1) WAIST_CRCMFRNC
+				  FROM MESURE_INFO_CMMN MIC
+				 INNER JOIN (
+				 		SELECT
+					   		   MBER_NO
+					         , MESURE_CODE
+					   		 , MAX(MESURE_DT) MESURE_DT
+				 		  FROM MESURE_INFO_CMMN
+				         WHERE MESURE_CODE = '8072'
+				 		 GROUP BY MBER_NO, MESURE_CODE
+				     ) MMIC
+				    ON MIC.MBER_NO = MMIC.MBER_NO
+				   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+				   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		     ) WAIST
+		    ON MI.MBER_NO = WAIST.MBER_NO  
+		  LEFT JOIN (
+				SELECT 
+				       MEG.MBER_NO
+				     , ROUND(MEG.GOAL_VALUE, 1) GOAL_BDWGH
+				  FROM MBER_ESTBS_GOAL MEG
+				 WHERE MEG.MESURE_CODE = '6021'
+		     ) WT_GOAL
+		    ON MI.MBER_NO = WT_GOAL.MBER_NO 
+		 WHERE MI.MBER_NO = #{MBER_NO}
+		   AND MI.MBER_SECSN_AT = 'N'
+	</select>
+	
+	<!-- 회원가입 여부 체크 조회 -->
+	<select id="selectMberJoinCheckList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MI.MBER_NO
+		     , MI.NM
+		     <choose>
+		     	<when test='NOSTAR != null and NOSTAR.equals("Y")'>
+		     	,USID
+		     	</when>
+		     	<otherwise>
+		     	, RPAD(SUBSTRING(USID, 1, 3), LENGTH(USID), '*') USID
+		     	</otherwise>
+		     </choose>
+		     , EMAIL_ADRES
+		     , IFNULL(CONECT_DT, DATE_FORMAT(MI.REGIST_DT, '%Y%m%d%H%i%s')) CONECT_DT
+		     , IFNULL(MCH.INSTL_PLACE, UZM.INSTL_PLACE) INSTL_PLACE
+		     , CASE WHEN ((NM IS NOT NULL AND LENGTH(NM) > 0) AND (EMAIL_ADRES IS NOT NULL AND LENGTH(EMAIL_ADRES) > 0)) OR TMPR_SBSCRB_AT = 'N' THEN 'LJM'
+		            WHEN ((NM IS NULL     OR  LENGTH(NM) = 0) OR  (EMAIL_ADRES IS NULL     OR  LENGTH(EMAIL_ADRES) = 0)) OR TMPR_SBSCRB_AT = 'Y' THEN 'KJM'
+		            ELSE 'ETC'
+		        END JOIN_MTHD
+		     , MI.MBTLNUM_CRTFC_AT
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MCH.MBER_NO
+		             , MCH.CONECT_DT
+		             , MCH.UHEALTH_ZONE_NO
+		             , UZM.INSTL_PLACE
+		          FROM MBER_CONECT_HIST MCH
+		         INNER JOIN (
+		                SELECT
+		                       MCH.MBER_NO
+		                     , MAX(MCH.CONECT_DT) CONECT_DT
+		                  FROM MBER_CONECT_HIST MCH
+		                 INNER JOIN MBER_INFO MI
+		                    ON MCH.MBER_NO = MI.MBER_NO
+		                   AND MI.MBTLNUM = #{MBTLNUM}
+		                   AND MI.BRTHDY = #{BRTHDY}
+		        		   AND MI.SEXDSTN = #{SEXDSTN}
+		                   AND MI.MBER_SECSN_AT = 'N'
+		                 GROUP BY MCH.MBER_NO
+		              ) MMCH
+		             ON MCH.MBER_NO = MMCH.MBER_NO
+		            AND MCH.CONECT_DT = MMCH.CONECT_DT
+		          INNER JOIN UHEALTH_ZONE_MANAGE UZM
+		             ON MCH.UHEALTH_ZONE_NO = UZM.UHEALTH_ZONE_NO
+		     ) MCH
+		    ON MI.MBER_NO = MCH.MBER_NO
+		  LEFT JOIN UHEALTH_ZONE_MANAGE UZM
+		    ON MI.SBSCRB_ZONE_NO = UZM.UHEALTH_ZONE_NO
+		 WHERE MI.MBTLNUM = #{MBTLNUM}
+		   AND MI.BRTHDY = #{BRTHDY}
+		   AND MI.SEXDSTN = #{SEXDSTN}
+		   AND MI.MBER_SECSN_AT = 'N'
+		 ORDER BY MI.MBTLNUM_CRTFC_AT DESC, IFNULL(CONECT_DT, DATE_FORMAT(MI.REGIST_DT, '%Y%m%d%H%i%s')) DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- 휴대폰 인증 키 정보 저장 -->
+	<insert id="insertMoblphonCrtfcKey" parameterType="hmap">
+		INSERT INTO USER_MOBLPHON_CRTFC_KEY (
+		       MBTLNUM
+		     , CRTFC_KEY_CREAT_DT
+		     , CRTFC_KEY
+		     , REGIST_DT
+		) VALUES (
+		       #{MBTLNUM}
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		     , #{CRTFC_KEY}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 휴대폰 인증키 체크 조회-->
+	<select id="selectMoblphonCrtfcKeyCheckInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       CASE WHEN CRTFC_KEY = #{CRTFC_KEY} AND TIMESTAMPDIFF(MINUTE, CRTFC_KEY_CREAT_DT, DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')) <= 3 THEN 'OK'
+		            WHEN CRTFC_KEY = #{CRTFC_KEY} AND TIMESTAMPDIFF(MINUTE, CRTFC_KEY_CREAT_DT, DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')) >  3 THEN 'TO'
+		            ELSE 'NC'
+		        END CRTFC_RESULT    
+		  FROM USER_MOBLPHON_CRTFC_KEY
+		 WHERE MBTLNUM = #{MBTLNUM}
+		 ORDER BY CRTFC_KEY_CREAT_DT DESC
+		 LIMIT 1
+		 ]]>
+	</select>
+	
+	<!-- 회원가입 사용자 아이디 중복 체크 -->
+	<select id="selectMberUsidDupCheckInfo" parameterType="hmap" resultType="int">
+		SELECT
+		       COUNT(*) MBER_CNT
+		  FROM MBER_INFO
+		 WHERE USID = BINARY(#{USID})
+	</select>
+	
+	<!-- 회원 이메일 주소 중복 체크 -->
+	<select id="selectMberEmailAdresDupCheckInfo" parameterType="hmap" resultType="int">
+		SELECT
+		       COUNT(*) MBER_CNT
+		  FROM MBER_INFO
+		 WHERE EMAIL_ADRES = BINARY(#{EMAIL_ADRES})
+	</select>
+	
+	<!-- 회원 휴대폰 번호 중복 체크 -->
+	<select id="selectMberMbtlnumDupCheckInfo" parameterType="hmap" resultType="int">
+		SELECT
+		       COUNT(*) MBER_CNT
+		  FROM MBER_INFO
+		 WHERE MBTLNUM = #{MBTLNUM}
+	</select>
+	
+	<!-- 회원 RFID 번호 중복 체크 -->
+	<select id="selectMberSerialNoDupCheckInfo" parameterType="hmap" resultType="int">
+		SELECT
+		       COUNT(*) MBER_CNT
+		  FROM MBER_INFO
+		 WHERE SERIAL_NO = #{SERIAL_NO}
+	</select>
+	
+	<!-- 회원 SNS 토큰 중복 체크 -->
+	<select id="selectMberSnsTokenDupCheckInfo" parameterType="hmap" resultType="int">
+		SELECT
+		       COUNT(*) MBER_CNT
+		  FROM MBER_INFO
+		 WHERE MBER_SECSN_AT = 'N'
+		<if test="SNS_LOGIN_TKN_K != null and SNS_LOGIN_TKN_K != ''">
+		   AND SNS_LOGIN_TKN_K = #{SNS_LOGIN_TKN_K}
+		</if>
+		<if test="SNS_LOGIN_TKN_F != null and SNS_LOGIN_TKN_F != ''">
+		   AND SNS_LOGIN_TKN_F = #{SNS_LOGIN_TKN_F}
+		</if>
+		<if test="SNS_LOGIN_TKN_I != null and SNS_LOGIN_TKN_I != ''">
+		   AND SNS_LOGIN_TKN_I = #{SNS_LOGIN_TKN_I}
+		</if>
+	</select>
+	
+	<!-- 회원정보 저장 처리 -->
+	<insert id="insertMberInfo" parameterType="hmap">
+		INSERT INTO MBER_INFO (
+		       USID
+		     , PASSWORD
+		     , NM
+		     , NCM
+		     , SBSCRB_COURS_CODE
+		     , BRTHDY
+		     , SEXDSTN
+		     , TELNO
+		     , MBTLNUM
+		     , MBTLNUM_CRTFC_AT
+		     , SMS_SNDNG_AT
+		     , EMAIL_ADRES
+		     , EMAIL_SNDNG_AT
+		     , USE_STPLAT_AGRE_AT
+		     , INDVDLINFO_AGRE_AT
+		     , SNSTIIVEINFO_AGRE_AT
+		     , MARKTINFO_AGRE_AT
+		     <if test='INDVDLINFO_THIRD_AGRE_AT != null and INDVDLINFO_THIRD_AGRE_AT != ""'>
+		     , INDVDLINFO_THIRD_AGRE_AT
+		     </if>
+		     <if test='SNSTIIVEINFO_THIRD_AGRE_AT != null and SNSTIIVEINFO_THIRD_AGRE_AT != ""'>
+		     , SNSTIIVEINFO_THIRD_AGRE_AT		     
+		     </if>
+		     <if test='MARKTINFO_PURPOSE_AGRE_AT != null and MARKTINFO_PURPOSE_AGRE_AT != ""'>
+		     , MARKTINFO_PURPOSE_AGRE_AT
+		     </if>		     
+		     , SNS_LOGIN_TKN_K
+		     , SNS_LOGIN_TKN_F
+		     , SNS_LOGIN_TKN_I
+		     , SBSCRB_ZONE_NO
+		     , MBER_SECSN_AT
+		     , ATCHMNFL_NO
+		     , REGIST_DT
+		     , REGIST_ID
+		     <if test='TMPR_SBSCRB_AT != null and TMPR_SBSCRB_AT != ""'>
+		     , TMPR_SBSCRB_AT
+		     </if>
+		) VALUES (
+		       #{USID}
+		     , F_ENCRYPT(#{PASSWORD})
+		     , #{NM}
+		<choose>
+			<when test="NCM != null and NCM != ''">
+		     , #{NCM}
+			</when>
+			<otherwise>
+			 , #{NM}
+			</otherwise>
+		</choose>
+		     , #{SBSCRB_COURS_CODE}
+		     , #{BRTHDY}
+		     , #{SEXDSTN}
+		     , #{TELNO}
+		     , #{MBTLNUM}
+		     , #{MBTLNUM_CRTFC_AT}
+		     , 'Y'
+		     , #{EMAIL_ADRES}
+		     , 'Y'
+		     , #{USE_STPLAT_AGRE_AT}
+		     , #{INDVDLINFO_AGRE_AT}
+		     , #{SNSTIIVEINFO_AGRE_AT}
+		     , #{MARKTINFO_AGRE_AT}
+		     <if test='INDVDLINFO_THIRD_AGRE_AT != null and INDVDLINFO_THIRD_AGRE_AT != ""'>
+		     , #{INDVDLINFO_THIRD_AGRE_AT}
+		     </if>
+		     <if test='SNSTIIVEINFO_THIRD_AGRE_AT != null and SNSTIIVEINFO_THIRD_AGRE_AT != ""'>
+		      , #{SNSTIIVEINFO_THIRD_AGRE_AT}		     
+		     </if>
+		     <if test='MARKTINFO_PURPOSE_AGRE_AT != null and MARKTINFO_PURPOSE_AGRE_AT != ""'>
+		     , #{MARKTINFO_PURPOSE_AGRE_AT}
+		     </if>
+		     , #{SNS_LOGIN_TKN_K}
+		     , #{SNS_LOGIN_TKN_F}
+		     , #{SNS_LOGIN_TKN_I}
+		     , #{SBSCRB_ZONE_NO}
+		     , 'N'
+		     , 0
+		     , NOW()
+		     , #{REGIST_ID}
+		     <if test='TMPR_SBSCRB_AT != null and TMPR_SBSCRB_AT != ""'>
+		     , #{TMPR_SBSCRB_AT}
+		     </if>
+		)
+		<selectKey order="AFTER" keyProperty="MBER_NO" resultType="int">
+    	    SELECT LAST_INSERT_ID()
+    	</selectKey>
+	</insert>
+
+	<!-- 회원 상환판 정보 저장처리 -->	
+	<insert id="insertMberSttbrdInfo" parameterType="hmap">
+		INSERT INTO MBER_STTBRD (
+			   MBER_NO
+			 , STEP_CTNU_ACHIV_DAYCNT
+			 , STEP_CTNU_ACHIV_LAST_DE
+			 , STEP_MESURE_LAST_DE
+			 , LOGIN_LAST_DE
+			 , KIOSK_VISIT_LAST_DE
+			 , IS_MESURE_LAST_DE
+			 , BP_MESURE_LAST_DE
+			 , BS_MESURE_LAST_DE
+			 , BC_MESURE_LAST_DE
+			 , PHR_CASE_ID
+			 , PHR_MSSAGE_STEP
+		) VALUES (
+			   #{MBER_NO}
+			 , 0
+			 , #{STEP_CTNU_ACHIV_LAST_DE}
+			 , #{STEP_MESURE_LAST_DE}
+			 , #{LOGIN_LAST_DE}
+			 , #{KIOSK_VISIT_LAST_DE}
+			 , #{IS_MESURE_LAST_DE}
+			 , #{BP_MESURE_LAST_DE}
+			 , #{BS_MESURE_LAST_DE}
+			 , #{BC_MESURE_LAST_DE}
+			 , #{PHR_CASE_ID}
+			 , #{PHR_MSSAGE_STEP}
+		)
+	</insert>
+	
+	<!-- PHR 큐레이션 메세지 전송을 위한 회원 상황판 정보 상세조회 -->
+	<select id="selectPhrMberSttbrdInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT
+			   MBER_NO
+			 , STEP_CTNU_ACHIV_DAYCNT
+			 , STEP_CTNU_ACHIV_LAST_DE
+			 , STEP_MESURE_LAST_DE
+			 , LOGIN_LAST_DE
+			 , KIOSK_VISIT_LAST_DE
+			 , IS_MESURE_LAST_DE
+			 , BP_MESURE_LAST_DE
+			 , BS_MESURE_LAST_DE
+			 , BC_MESURE_LAST_DE
+		     , CASE WHEN PHR_CASE_ID = #{PHR_CASE_ID} THEN PHR_CASE_ID
+		            ELSE #{PHR_CASE_ID}
+		        END PHR_CASE_ID
+		     , CASE WHEN PHR_CASE_ID = #{PHR_CASE_ID} AND PHR_MSSAGE_STEP <= 6 THEN PHR_MSSAGE_STEP + 1
+		            ELSE 1
+		        END PHR_MSSAGE_STEP
+		  FROM MBER_STTBRD
+		 WHERE MBER_NO = #{MBER_NO}
+		]]>
+	</select>
+
+	<!-- 회원 상황판 정보 수정처리 -->	
+	<update id="updateMberSttbrdInfo" parameterType="hmap">
+		UPDATE MBER_STTBRD SET
+			   MBER_NO = MBER_NO
+		<if test="STEP_CTNU_ACHIV_DAYCNT != null and STEP_CTNU_ACHIV_DAYCNT != ''">
+			 , STEP_CTNU_ACHIV_DAYCNT = #{STEP_CTNU_ACHIV_DAYCNT}
+		</if>
+		<if test="STEP_CTNU_ACHIV_LAST_DE != null and STEP_CTNU_ACHIV_LAST_DE != ''">
+			 , STEP_CTNU_ACHIV_LAST_DE = #{STEP_CTNU_ACHIV_LAST_DE}
+		</if>
+		<if test="STEP_MESURE_LAST_DE != null and STEP_MESURE_LAST_DE != ''">
+			 , STEP_MESURE_LAST_DE = #{STEP_MESURE_LAST_DE}
+		</if>
+		<if test="LOGIN_LAST_DE != null and LOGIN_LAST_DE != ''">
+			 , LOGIN_LAST_DE = #{LOGIN_LAST_DE}
+		</if>
+		<if test="KIOSK_VISIT_LAST_DE != null and KIOSK_VISIT_LAST_DE != ''">
+			 , KIOSK_VISIT_LAST_DE = #{KIOSK_VISIT_LAST_DE}
+		</if>
+		<if test="IS_MESURE_LAST_DE != null and IS_MESURE_LAST_DE != ''">
+			 , IS_MESURE_LAST_DE = #{IS_MESURE_LAST_DE}
+		</if>
+		<if test="BP_MESURE_LAST_DE != null and BP_MESURE_LAST_DE != ''">
+			 , BP_MESURE_LAST_DE = #{BP_MESURE_LAST_DE}
+		</if>
+		<if test="BS_MESURE_LAST_DE != null and BS_MESURE_LAST_DE != ''">
+			 , BS_MESURE_LAST_DE = #{BS_MESURE_LAST_DE}
+		</if>
+		<if test="BC_MESURE_LAST_DE != null and BC_MESURE_LAST_DE != ''">
+			 , BC_MESURE_LAST_DE = #{BC_MESURE_LAST_DE}
+		</if>
+		<if test="PHR_CASE_ID != null and PHR_CASE_ID != ''">
+			 , PHR_CASE_ID = #{PHR_CASE_ID}
+		</if>
+		<if test="PHR_MSSAGE_STEP != null and PHR_MSSAGE_STEP != ''">
+			 , PHR_MSSAGE_STEP = #{PHR_MSSAGE_STEP}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+	</update>
+	
+	<!-- 동일한 휴대폰 번호 사용자 인증해제 -->
+	<update id="updateMberMbtlnumCrtfcAtInfo" parameterType="hmap">
+		<![CDATA[
+		UPDATE MBER_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = 'USER-SELF'
+			 , MBTLNUM_CRTFC_AT = 'N'
+	     WHERE MBTLNUM = #{MBTLNUM} 
+	       AND MBER_NO != #{MBER_NO}
+		]]>
+	</update>
+	
+	<!-- 회원 정보 상세조회 -->
+	<select id="selectMberInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   TBL.*
+			 , CASE WHEN AGE <![CDATA[ < ]]>  20 THEN  0 ELSE CAST(FLOOR(AGE / 10) * 10     AS UNSIGNED) END AS BEGIN_AGE
+			 , CASE WHEN AGE <![CDATA[ < ]]>  20 THEN 19 ELSE CAST(FLOOR(AGE / 10) * 10 + 9 AS UNSIGNED) END AS END_AGE
+		  FROM (
+				SELECT
+					   MBER_NO
+					 , USID
+					 , RPAD(SUBSTRING(USID, 1, 3), LENGTH(USID), '*') HIDE_USID
+					 , NM
+					 , NCM
+					 , SBSCRB_COURS_CODE
+					 , IFNULL(MI.TMPR_SBSCRB_AT, 'N') TMPR_SBSCRB_AT
+					 , F_STR_FORMAT('DATE', BRTHDY, #{LOCALE}) BRTHDY
+					 , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+					 , SEXDSTN
+					 , F_STR_FORMAT('TEL', TELNO, #{LOCALE}) TELNO
+					 , F_STR_FORMAT('TEL', MBTLNUM, #{LOCALE}) MBTLNUM
+					 , MBTLNUM_CRTFC_AT
+					 , SMS_SNDNG_AT
+					 , EMAIL_ADRES
+					 , EMAIL_SNDNG_AT
+					 , ZIP
+					 , ADRES
+					 , DETAIL_ADRES
+					 , MEMO
+					 , SEARCH_KWRD
+					 , USE_STPLAT_AGRE_AT
+					 , INDVDLINFO_AGRE_AT
+					 , SNSTIIVEINFO_AGRE_AT
+					 , MARKTINFO_AGRE_AT
+					 , INDVDLINFO_THIRD_AGRE_AT
+					 , SNSTIIVEINFO_THIRD_AGRE_AT
+					 , MARKTINFO_PURPOSE_AGRE_AT
+					 , SNS_LOGIN_TKN_K
+					 , SNS_LOGIN_TKN_F
+					 , SNS_LOGIN_TKN_I
+					 , SBSCRB_ZONE_NO
+					 , MBER_SECSN_AT
+					 , MBER_SECSN_DATE
+					 , SECSN_RESN_CODE
+					 , SECSN_RESN_ETC
+					 , EXTRL_DATA_INTRLCK_AT
+					 , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+				  FROM MBER_INFO MI
+				  LEFT JOIN ATCHMNFL_INFO AI
+				    ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+				 WHERE MBER_SECSN_AT = 'N'
+		<if test="MBTLNUM_CRTFC_AT != null and MBTLNUM_CRTFC_AT != ''">
+				   AND MBTLNUM_CRTFC_AT = #{MBTLNUM_CRTFC_AT}
+		</if>
+		<if test="MBER_NO != null and MBER_NO != ''">
+				   AND MBER_NO = #{MBER_NO}
+		</if>
+		<if test="MBTLNUM != null and MBTLNUM != ''">
+				   AND MBTLNUM = #{MBTLNUM}
+		</if>
+		<if test="BRTHDY != null and BRTHDY != ''">
+				   AND BRTHDY = #{BRTHDY}
+		</if>
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+				   AND SEXDSTN = #{SEXDSTN}
+		</if>
+		     ) TBL
+	</select>
+	
+	<!-- 회원 프로파일 정보 조회 -->
+	<select id="selectMberProfileInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , IFNULL(MI.NM, '') NM
+		     , CASE WHEN MI.NCM IS NOT NULL AND LENGTH(MI.NCM) > 0 THEN MI.NCM
+		            ELSE IFNULL(MI.NM, '')
+		        END NCM
+		     , IFNULL(MI.EMAIL_ADRES, '') EMAIL_ADRES
+		     , IFNULL(INST.INST_NM, '') INST_NM
+		     , IFNULL(TOT_CASH, 0) TOT_CASH
+		     , MI.ATCHMNFL_NO
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , MI.SNS_LOGIN_TKN_K
+		     , MI.SNS_LOGIN_TKN_F
+		     , MI.SNS_LOGIN_TKN_I
+		     , IF(MI.EXTRL_DATA_INTRLCK_AT IS NULL, 'Y', 'N') EXTRL_DATA_PAGE_FIRST_VISIT
+		     , IFNULL(MI.EXTRL_DATA_INTRLCK_AT, 'N') EXTRL_DATA_INTRLCK_AT
+		     , MI.MBTLNUM
+		     , MI.MBTLNUM_CRTFC_AT
+		  FROM MBER_INFO MI
+		  LEFT JOIN ATCHMNFL_INFO AI
+			ON MI.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN (
+		        SELECT
+		               MPI.MBER_NO
+		             , GROUP_CONCAT(CONCAT('#', INST_NM) ORDER BY MPI.INST_NO ASC SEPARATOR ', ') INST_NM
+		          FROM MBER_PSTINST_INFO MPI
+		         INNER JOIN INST_INFO II
+		            ON MPI.INST_NO = II.INST_NO
+		         WHERE MPI.MBER_NO = #{MBER_NO}
+		           AND MPI.CONFM_AT = 'Y'
+		           AND MPI.SECSN_AT = 'N'  
+		     ) INST
+		    ON MI.MBER_NO = INST.MBER_NO
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , SUM(ACCML_CASH) - SUM(USE_CASH) TOT_CASH
+		             , SUM(ACCML_CASH) ACCML_CASH
+		             , SUM(USE_CASH) USE_CASH
+		          FROM CASH_ACCML_LIST
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND USE_END_DT >= DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		         GROUP BY MBER_NO
+		     ) CASH
+		    ON MI.MBER_NO = CASH.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 회원 캐쉬 적립 저장 처리 -->
+	<insert id="insertCashAccmlListInfo" parameterType="hmap">
+		<selectKey keyProperty="ACCML_DT" order="BEFORE" resultType="String">
+			SELECT DATE_FORMAT(NOW(), '%Y%m%d%H%i%s') ACCML_DT
+		</selectKey>
+		INSERT INTO CASH_ACCML_LIST (
+		       MBER_NO
+		     , ACCML_DT
+		     , ACCML_CASH
+		     , USE_CASH
+		     , USE_END_DT
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{ACCML_DT}
+		     , #{ACCML_CASH}
+		     , 0
+		     , CONCAT(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 364 DAY), '%Y%m%d'), '235959')
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 캐쉬 사용 내역 저장 -->
+	<insert id="insertCashUseListInfo" parameterType="hmap">
+		<selectKey keyProperty="USE_DT" order="BEFORE" resultType="String">
+			SELECT DATE_FORMAT(NOW(), '%Y%m%d%H%i%s') USE_DT
+		</selectKey>
+		INSERT INTO CASH_USE_LIST( 
+		       MBER_NO
+		     , USE_DT
+		     , USE_CASH
+		     , USE_RESN
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{USE_DT}
+		     , #{USE_CASH}
+		     , #{USE_RESN}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 캐쉬 사용 내역 상세조회 -->
+	<select id="selectCashUseListInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MBER_NO
+		     , USE_DT
+		     , USE_CASH
+		     , USE_RESN
+		     , REGIST_DT
+		  FROM CASH_USE_LIST
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND USE_DT = #{USE_DT}
+	</select>
+	
+	<!-- 회원 캐쉬 변경 이력 저장 처리 -->
+	<insert id="insertCashChangeHistInfo" parameterType="hmap">
+		INSERT INTO CASH_CHANGE_HIST (
+		       MBER_NO
+		     , ACCML_DT
+		     , CHANGE_DT
+		     , CHANGE_SE_CODE
+		     , CHANGE_CASH
+		     , USE_DT
+		     , CHANGE_RESN
+		     , PAY_NO
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{ACCML_DT}
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		     , #{CHANGE_SE_CODE}
+		     , #{CHANGE_CASH}
+		     , #{USE_DT}
+		     , #{CHANGE_RESN}
+		     , #{PAY_NO}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 캐쉬 과거순 사용금액 차감 내역 조회 -->
+	<select id="selectMberUsedCashListByPastOrder" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT 
+		       MBER_NO
+		     , ACCML_DT
+		     , ACCML_CASH
+		     , CAST(IF(((ACCML_CASH - USE_CASH) - @USE_CASH) <= 0, (ACCML_CASH - USE_CASH), @USE_CASH) AS UNSIGNED) CAL_USE_CASH
+		     , CAST(USE_CASH + IF(((ACCML_CASH - USE_CASH) - @USE_CASH) <= 0, (ACCML_CASH - USE_CASH), @USE_CASH) AS UNSIGNED) USE_CASH
+		     , @USE_CASH := IF(((ACCML_CASH - USE_CASH) - @USE_CASH) <= 0, ABS((ACCML_CASH - USE_CASH) - @USE_CASH), 0)
+		  FROM CASH_ACCML_LIST CAL
+		 INNER JOIN (SELECT @USE_CASH := #{USE_CASH}) R
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND USE_END_DT >= DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		   AND ACCML_CASH > USE_CASH
+		 ORDER BY ACCML_DT ASC
+		]]>
+	</select>
+	
+	<!-- 회원 캐쉬 적립 수정 처리 -->
+	<update id="updateCashAccmlListInfo" parameterType="hmap">
+		UPDATE CASH_ACCML_LIST SET
+			   USE_CASH = #{USE_CASH}
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND ACCML_DT = #{ACCML_DT}
+	</update>
+	
+	<!-- 회원 캐쉬 정보 조회 -->
+	<select id="selectMberCashInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MI.MBER_NO
+		     , MI.MBTLNUM  
+		     , IFNULL(TOT_CASH, 0) TOT_CASH
+		     , IFNULL(ACCML_CASH, 0) ACCML_CASH
+		     , IFNULL(USE_CASH, 0) USE_CASH
+		  FROM MBER_INFO MI
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , SUM(ACCML_CASH) - SUM(USE_CASH) TOT_CASH
+		             , SUM(ACCML_CASH) ACCML_CASH
+		             , SUM(USE_CASH) USE_CASH
+		          FROM CASH_ACCML_LIST
+		         WHERE MBER_NO = #{MBER_NO}
+		           AND USE_END_DT >= DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		         GROUP BY MBER_NO
+		     ) CAL
+		    ON MI.MBER_NO = CAL.MBER_NO
+		 WHERE MI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 회원 캐쉬 정보 목록 조회 -->
+	<select id="selectMberCashList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MBER_NO
+		     , CHANGE_DE
+		     , CHANGE_SE_CODE
+		     , F_CODE_NM('MB12', CHANGE_SE_CODE, #{LOCALE}) CHANGE_SE_CODE_NM
+		     , CHANGE_CASH
+		     , CHANGE_RESN
+		  FROM (
+		        SELECT 
+		               CAL.MBER_NO
+		             , SUBSTRING(CAL.ACCML_DT, 1, 8) CHANGE_DE
+		             , SUBSTRING(CAL.ACCML_DT, 9, 6) CHANGE_TIME
+		             , CCH.CHANGE_SE_CODE
+		             , CONCAT('+', CAL.ACCML_CASH) CHANGE_CASH
+		             , CCH.CHANGE_RESN
+		          FROM CASH_ACCML_LIST CAL
+		         INNER JOIN CASH_CHANGE_HIST CCH
+		            ON CAL.MBER_NO = CCH.MBER_NO
+		           AND CAL.ACCML_DT = CCH.ACCML_DT
+		           AND CCH.CHANGE_SE_CODE = 'P'
+		         WHERE CAL.MBER_NO = #{MBER_NO}
+		         UNION ALL 
+		        SELECT 
+		               CUL.MBER_NO
+		             , SUBSTRING(CUL.USE_DT, 1, 8) CHANGE_DE
+		             , SUBSTRING(CUL.USE_DT, 9, 6) CHANGE_TIME
+		             , 'M' CHANGE_SE_CODE
+		             , CONCAT('-', CUL.USE_CASH) CHANGE_CASH
+		             , CCH.CHANGE_RESN
+		          FROM CASH_USE_LIST CUL
+		         INNER JOIN (
+		                SELECT 
+		                       MBER_NO
+		                     , USE_DT
+		                     , MAX(CHANGE_RESN) CHANGE_RESN
+		                  FROM CASH_CHANGE_HIST
+		                 WHERE MBER_NO = #{MBER_NO}
+		                   AND CHANGE_SE_CODE = 'M'
+		                 GROUP BY MBER_NO, USE_DT
+		             ) CCH
+		            ON CUL.MBER_NO = CCH.MBER_NO
+		           AND CUL.USE_DT = CCH.USE_DT
+		         WHERE CUL.MBER_NO = #{MBER_NO}
+		     ) A
+		 WHERE 1 = 1
+		<if test="START_DE != null and START_DE != ''">
+		   AND CHANGE_DE <![CDATA[>=]]> #{START_DE}
+		</if>
+		<if test="END_DE != null and END_DE != ''">
+		   AND CHANGE_DE <![CDATA[<=]]> #{END_DE}
+		</if>
+		<if test="CHANGE_SE_CODE != null and CHANGE_SE_CODE != ''">
+		   AND CHANGE_SE_CODE = #{CHANGE_SE_CODE}
+		</if>
+		<choose>
+			<when test='ORDER_GBN != null and ORDER_GBN.equals("A")'>
+		 ORDER BY CHANGE_DE ASC, CHANGE_TIME ASC
+	 		</when>
+	 		<otherwise>
+		 ORDER BY CHANGE_DE DESC, CHANGE_TIME DESC
+	 		</otherwise>
+	 	</choose>
+	</select>
+	
+	<!-- 회원정보 수정 처리 -->
+	<update id="updateMberInfo" parameterType="hmap">
+		UPDATE MBER_INFO SET
+			   UPDT_DT = NOW()
+			 , UPDT_ID = 'USER-SELF'
+		<if test="USID != null and USID != ''">	
+			 , USID = #{USID}
+		</if>
+		<if test="PASSWORD != null and PASSWORD != ''">	
+			 , PASSWORD = F_ENCRYPT(#{PASSWORD})
+		</if>
+		<if test="NM != null and NM != ''">
+			 , NM = #{NM}
+		</if>
+		<if test="NCM != null and NCM != ''">
+			 , NCM = #{NCM}
+		</if>
+		<if test="SBSCRB_COURS_CODE != null and SBSCRB_COURS_CODE != ''">
+			 , SBSCRB_COURS_CODE = #{SBSCRB_COURS_CODE}
+		</if>
+		<if test="BRTHDY != null and BRTHDY != ''">
+			 , BRTHDY = #{BRTHDY}
+		</if>
+		<if test="SEXDSTN != null and SEXDSTN != ''">
+	 		 , SEXDSTN = #{SEXDSTN}
+		</if>
+		<if test="TELNO != null and TELNO != ''">
+			 , TELNO = REPLACE(#{TELNO}, '-', '')
+		</if>
+		<if test="MBTLNUM != null and MBTLNUM != ''">
+			 , MBTLNUM = REPLACE(#{MBTLNUM}, '-', '')
+		</if>
+		<if test="MBTLNUM_CRTFC_AT != null and MBTLNUM_CRTFC_AT != ''">
+			 , MBTLNUM_CRTFC_AT = #{MBTLNUM_CRTFC_AT}
+		</if>
+		<if test="SMS_SNDNG_AT != null and SMS_SNDNG_AT != ''">
+			 , SMS_SNDNG_AT = #{SMS_SNDNG_AT}
+		</if>
+		<if test="EMAIL_ADRES != null and EMAIL_ADRES != ''">
+			 , EMAIL_ADRES = #{EMAIL_ADRES}
+		</if>
+		<if test="EMAIL_SNDNG_AT != null and EMAIL_SNDNG_AT != ''">
+			 , EMAIL_SNDNG_AT = #{EMAIL_SNDNG_AT}
+		</if>
+		<if test="ZIP != null and ZIP != ''">
+			 , ZIP = #{ZIP}
+		</if>
+		<if test="ADRES != null and ADRES != ''">
+			 , ADRES = #{ADRES}
+		</if>
+		<if test="DETAIL_ADRES != null and DETAIL_ADRES != ''">
+			 , DETAIL_ADRES = #{DETAIL_ADRES}
+		</if>
+		<if test="MEMO != null and MEMO != ''">			 
+			 , MEMO = #{MEMO}
+		</if>
+		<if test="SEARCH_KWRD != null and SEARCH_KWRD != ''">
+			 , SEARCH_KWRD = #{SEARCH_KWRD}
+		</if>
+		<if test="USE_STPLAT_AGRE_AT != null and USE_STPLAT_AGRE_AT != ''">
+			 , USE_STPLAT_AGRE_AT = #{USE_STPLAT_AGRE_AT}
+		</if>
+		<if test="INDVDLINFO_AGRE_AT != null and INDVDLINFO_AGRE_AT != ''">
+			 , INDVDLINFO_AGRE_AT = #{INDVDLINFO_AGRE_AT}
+		</if>
+		<if test="SNSTIIVEINFO_AGRE_AT != null and SNSTIIVEINFO_AGRE_AT != ''">
+			 , SNSTIIVEINFO_AGRE_AT = #{SNSTIIVEINFO_AGRE_AT}
+		</if>
+		<if test="MARKTINFO_AGRE_AT != null and MARKTINFO_AGRE_AT != ''">
+			 , MARKTINFO_AGRE_AT = #{MARKTINFO_AGRE_AT}
+		</if>
+		<if test='INDVDLINFO_THIRD_AGRE_AT != null and INDVDLINFO_THIRD_AGRE_AT != ""'>
+	    	, INDVDLINFO_THIRD_AGRE_AT = #{INDVDLINFO_THIRD_AGRE_AT}
+	    </if>
+	    <if test='SNSTIIVEINFO_THIRD_AGRE_AT != null and SNSTIIVEINFO_THIRD_AGRE_AT != ""'>
+	     	, SNSTIIVEINFO_THIRD_AGRE_AT = #{SNSTIIVEINFO_THIRD_AGRE_AT}		     
+	    </if>
+	    <if test='MARKTINFO_PURPOSE_AGRE_AT != null and MARKTINFO_PURPOSE_AGRE_AT != ""'>
+	    	, MARKTINFO_PURPOSE_AGRE_AT = #{MARKTINFO_PURPOSE_AGRE_AT}
+	    </if>
+		<if test="SNS_LOGIN_TKN_K != null and SNS_LOGIN_TKN_K != ''">
+			 , SNS_LOGIN_TKN_K = #{SNS_LOGIN_TKN_K}
+		</if>
+		<if test="SNS_LOGIN_TKN_F != null and SNS_LOGIN_TKN_F != ''">
+			 , SNS_LOGIN_TKN_F = #{SNS_LOGIN_TKN_F}
+		</if>
+		<if test="SNS_LOGIN_TKN_I != null and SNS_LOGIN_TKN_I != ''">
+			 , SNS_LOGIN_TKN_I = #{SNS_LOGIN_TKN_I}
+		</if>
+		<if test="SBSCRB_ZONE_NO != null and SBSCRB_ZONE_NO != ''">
+			 , SBSCRB_ZONE_NO = #{SBSCRB_ZONE_NO}
+		</if>
+		<if test='MBER_SECSN_AT != null and MBER_SECSN_AT.equals("Y")'>
+			 , MBER_SECSN_AT = #{MBER_SECSN_AT}
+			 , MBER_SECSN_DATE = DATE_FORMAT(NOW(), '%Y%m%d')
+		</if>
+		<if test="SECSN_RESN_CODE != null and SECSN_RESN_CODE != ''">
+			 , SECSN_RESN_CODE = #{SECSN_RESN_CODE}
+		</if>
+		<if test="SECSN_RESN_ETC != null and SECSN_RESN_ETC != ''">
+			 , SECSN_RESN_ETC = #{SECSN_RESN_ETC}
+		</if>
+		<if test="EXTRL_DATA_INTRLCK_AT != null and EXTRL_DATA_INTRLCK_AT != ''">
+			 , EXTRL_DATA_INTRLCK_AT = #{EXTRL_DATA_INTRLCK_AT}
+		</if>
+		<if test="ATCHMNFL_NO != null and ATCHMNFL_NO != ''">
+			 , ATCHMNFL_NO = #{ATCHMNFL_NO}
+		</if>
+		<if test="TMPR_SBSCRB_AT != null and TMPR_SBSCRB_AT != ''">
+			 , TMPR_SBSCRB_AT = #{TMPR_SBSCRB_AT}
+		</if>
+		<if test="SERIAL_NO != null and SERIAL_NO != ''">
+			 , SERIAL_NO = #{SERIAL_NO}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+	</update>
+	
+	<!-- 회원 목적 삭제 -->
+	<delete id="deleteMberPurpsInfo" parameterType="hmap">
+		DELETE FROM MBER_PURPS
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND PURPS_CODE = #{PURPS_CODE}
+	</delete>
+	
+	<!-- 회원 목적 등록 -->
+	<insert id="insertMberPurpsInfo" parameterType="hmap">
+		INSERT INTO MBER_PURPS (
+		       MBER_NO
+		     , PURPS_CODE
+		     , REGIST_DT
+		)  VALUES (
+		       #{MBER_NO}
+		     , #{PURPS_CODE}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 푸시 알림 설정 갯수 조회 -->
+	<select id="selectPushNtcnSetupCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*)
+		  FROM PUSH_NTCN_SETUP
+		 WHERE MBER_NO = #{MBER_NO}
+		<if test="PUSH_CODE != null and PUSH_CODE != ''">
+		   AND PUSH_CODE = #{PUSH_CODE}
+		</if>
+	</select>
+	
+	<!-- 푸시 알림설정 정보 조회 -->
+	<select id="selectPushNtcnSetupInfo" parameterType="hmap" resultType="hmap">
+        SELECT
+               MBER_NO
+             , MAX(IF(PUSH_CODE = 'AL00', NTCN_AT, 'N')) AL_NTCN_AT
+             , MAX(IF(PUSH_CODE = 'TM00', NTCN_AT, 'N')) TM_NTCN_AT
+             , MAX(IF(PUSH_CODE = 'MC00', NTCN_AT, 'N')) MC_NTCN_AT
+             , MAX(IF(PUSH_CODE = 'SV00', NTCN_AT, 'N')) SV_NTCN_AT
+          FROM PUSH_NTCN_SETUP
+         WHERE MBER_NO = #{MBER_NO}
+         GROUP BY MBER_NO
+	</select>
+	
+	<!-- 푸시 알림 설정 저장 -->
+	<insert id="insertPushNtcnSetupInfo" parameterType="hmap">
+		INSERT INTO PUSH_NTCN_SETUP (
+		       MBER_NO
+		     , PUSH_CODE
+		     , NTCN_AT
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , #{PUSH_CODE}
+		     , #{NTCN_AT}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 푸시 알림 설정 수정 -->
+	<update id="updatePushNtcnSetupInfo" parameterType="hmap">
+		UPDATE PUSH_NTCN_SETUP SET
+		       UPDT_DT = NOW()
+		     , NTCN_AT = #{NTCN_AT}
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND PUSH_CODE = #{PUSH_CODE}
+	</update>
+	
+	<!-- 연결된 블루투스 장비 건수 조회 -->
+	<select id="selectDeviceCnncCnt" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) MESURE_CNNC_CNT
+		  FROM MESURE_DEVICE_CNNC MDC
+		 INNER JOIN MESURE_DEVICE MD
+		    ON MDC.DEVICE_CODE = MD.DEVICE_CODE
+		   AND MD.USE_AT = 'Y'
+		 WHERE MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 블루투스 장비 목록 조회 -->
+	<select id="selectDeviceList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MD.DEVICE_CODE
+		     , MD.DEVICE_NM
+		     , MD.DEVICE_MODEL
+		     , F_FILE_PATH(AI.ATCHMNFL_NM) ATCHMNFL_PATH
+		     , CONCAT('V', IFNULL(FRMWR_VER, 0.0)) FRMWR_VER
+		     , IFNULL(MDC.DEVICE_ADRES, '') DEVICE_ADRES
+		     , IF(LENGTH(MDC.DEVICE_ADRES) > 0, 'Y', 'N') CNNC_AT
+		  FROM MESURE_DEVICE MD
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MD.ATCHMNFL_NO = AI.ATCHMNFL_NO
+		  LEFT JOIN MESURE_DEVICE_FRMWR MDF
+	        ON MD.DEVICE_CODE = MDF.DEVICE_CODE
+	       AND MDF.USE_AT = 'Y'
+		  LEFT JOIN (
+		        SELECT 
+		               MBER_NO
+		             , DEVICE_CODE
+		             , DEVICE_ADRES
+		          FROM MESURE_DEVICE_CNNC
+		         WHERE MBER_NO = #{MBER_NO}
+		     ) MDC
+		    ON MD.DEVICE_CODE = MDC.DEVICE_CODE
+		 WHERE MD.USE_AT = 'Y'
+		   AND MD.USEPRPS_CODE = 'B'
+	</select>
+	
+	<!-- 시리얼 번호로 장비주소 검색 -->
+	<select id="selectDeviceAdresBySerialNo" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MD.DEVICE_CODE
+		     , MD.DEVICE_MODEL
+		     , MD.DEVICE_NM
+		     , MDM.DEVICE_ADRES
+		  FROM MESURE_DEVICE MD
+		  LEFT JOIN (
+		        SELECT 
+		               MDP.DEVICE_CODE
+		             , MDP.DEVICE_ADRES
+		             , MDP.SERIAL_NO
+		          FROM MESURE_DEVICE_MAPNG MDP
+		          LEFT JOIN MESURE_DEVICE_CNNC MDC
+		            ON MDP.DEVICE_CODE = MDC.DEVICE_CODE
+		           AND MDP.DEVICE_ADRES = MDC.DEVICE_ADRES
+		     ) MDM
+		    ON MD.DEVICE_CODE = MDM.DEVICE_CODE
+		 WHERE MDM.SERIAL_NO = #{SERIAL_NO}
+		   AND MD.USE_AT = 'Y'
+		   AND MD.USEPRPS_CODE = 'B'
+	</select>
+	
+	<!-- 블루투스 장비 연결 -->
+	<insert id="insertMesureDeviceCnncInfo" parameterType="hmap">
+		INSERT INTO MESURE_DEVICE_CNNC (
+			   MBER_NO
+			 , DEVICE_CODE
+			 , DEVICE_ADRES
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{DEVICE_CODE}
+			 , #{DEVICE_ADRES}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 블루투스 장비 해제 -->
+	<delete id="deleteMesureDeviceCnncInfo" parameterType="hmap">
+		DELETE FROM MESURE_DEVICE_CNNC
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DEVICE_CODE = #{DEVICE_CODE}
+		   AND DEVICE_ADRES = #{DEVICE_ADRES}
+	</delete>
+	
+	<!-- 블루투스 장비 펌웨어 정보 조회 -->
+	<select id="selectMesureDeviceFrmwrInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       MDF.DEVICE_CODE
+        	 , PRE_MDF.FRMWR_VER CURR_FRMWR_VER
+		     , MDF.FRMWR_VER
+		     , CASE WHEN #{VER_CODE} IS NULL OR MDF.VER_CODE != #{VER_CODE} THEN 'Y'
+		            ELSE 'N'
+		        END UPDATE_AT
+		     , IF(FRMWR_MTH_CODE = 'F', F_FILE_PATH(AI.ATCHMNFL_NM), FRMWR_URL) FRMWR_URL
+		  FROM MESURE_DEVICE_FRMWR MDF
+		  LEFT JOIN ATCHMNFL_INFO AI
+		    ON MDF.ATCHMNFL_NO = AI.ATCHMNFL_NO
+	      LEFT JOIN (
+	          SELECT 
+	                 DEVICE_CODE
+	               , FRMWR_VER
+	            FROM MESURE_DEVICE_FRMWR
+	           WHERE DEVICE_CODE = #{DEVICE_CODE}
+	             AND VER_CODE = #{VER_CODE}
+	         ) PRE_MDF
+	        ON MDF.DEVICE_CODE = PRE_MDF.DEVICE_CODE
+		 WHERE MDF.DEVICE_CODE = #{DEVICE_CODE}
+		 ORDER BY MDF.FRMWR_VER DESC
+		 LIMIT 1
+	</select>
+	
+	<!-- OTP 인증키 조회 -->
+	<select id="selectMberCrtfcKeyInfo" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT CRTFC_KEY
+		  FROM MBER_CRTFC_KEY
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND TIMESTAMPDIFF(MINUTE, CREAT_DT, DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')) < 3
+		 ORDER BY CREAT_DT DESC
+		 LIMIT 1
+		]]>
+	</select>
+	
+	<!-- OTP 를 이용한 USER ID, PASS 가져오기 -->
+	<select id="selectCrtfcKeyToLoginData" parameterType="hmap" resultType="hmap">
+		<![CDATA[
+		SELECT USID, PASSWORD, MBER_NO FROM MBER_INFO
+		WHERE MBER_NO = (
+			SELECT MBER_NO
+			FROM MBER_CRTFC_KEY
+			WHERE CRTFC_KEY = #{CRTFC_KEY}
+			AND TIMESTAMPDIFF(MINUTE, CREAT_DT, DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')) < 3
+			ORDER BY CREAT_DT DESC
+			LIMIT 1
+		)
+		]]>
+	</select>
+	
+	
+	<!-- OTP 인증키 -->
+	<insert id="insertMberCrtfcKeyInfo" parameterType="hmap">
+		INSERT INTO MBER_CRTFC_KEY (
+		       MBER_NO
+		     , CREAT_DT
+		     , INST_NO
+		     , CRTFC_KEY
+		     , TIME_LMTT
+		     , REGIST_DT
+		) VALUES (
+		       #{MBER_NO}
+		     , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+		     , #{INST_NO}
+		     , #{CRTFC_KEY}
+		     , #{TIME_LMTT}
+		     , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 접속 이력 저장 -->
+	<insert id="insertMberConectHist" parameterType="hmap">
+		INSERT INTO MBER_CONECT_HIST (
+			   MBER_NO
+			 , CONECT_DT
+			 , UHEALTH_ZONE_NO
+			 , CONECT_MTH
+			 , CONECT_IP
+			 , REGIST_DT
+		) VALUES (
+			   #{MBER_NO}
+			 , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+			 , #{UHEALTH_ZONE_NO}
+			 , #{CONECT_MTH}
+			 , #{CONECT_IP}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- 회원 번호로 회원 장치정보 현황조회 -->
+	<select id="selectMberDeviceInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       MDI.MBER_NO
+		     , MDI.PUSH_KEY
+		     , MDI.PLTFOM_KND_CODE
+		     , IFNULL(PNS.NTCN_AT, 'Y') NTCN_AT
+		  FROM MBER_DEVICE_INFO MDI
+		  LEFT JOIN PUSH_NTCN_SETUP PNS
+		    ON MDI.MBER_NO = PNS.MBER_NO
+		   AND PNS.PUSH_CODE = 'SV00'
+		 WHERE MDI.USE_AT = 'Y'
+		   AND MDI.MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 장치 아이디 별 회원 장치 정보 조회 -->
+	<select id="selectMberDeviceInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+			   MBER_NO
+			 , DEVICE_ID
+			 , PUSH_KEY
+			 , PLTFOM_KND_CODE
+			 , DEVICE_MODEL
+			 , USE_AT
+		  FROM MBER_DEVICE_INFO
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DEVICE_ID = #{DEVICE_ID}
+		   AND PUSH_KEY = #{PUSH_KEY}
+		<if test="USE_AT != null and USE_AT != ''">
+		   AND USE_AT = #{USE_AT}
+		</if>
+	</select>
+	
+	<!-- 장치 아이디 별 신규 PUSH KEY 등록 처리 -->
+	<insert id="insertMberDeviceInfo" parameterType="hmap">
+		INSERT INTO MBER_DEVICE_INFO (
+			   MBER_NO
+			 , DEVICE_ID
+			 , PUSH_KEY
+			 , PLTFOM_KND_CODE
+			 , DEVICE_MODEL
+			 , REGIST_DT
+			 , USE_AT
+		) VALUES (
+			   #{MBER_NO}
+			 , #{DEVICE_ID}
+			 , #{PUSH_KEY}
+			 , #{PLTFOM_KND_CODE}
+			 , #{DEVICE_MODEL}
+			 , NOW()
+			 , 'Y'
+		)
+	</insert>
+	
+	<!-- 장치 아이디 별 신규 PUSH KEY 수정 처리  -->
+	<update id="updateMberDeviceInfo" parameterType="hmap">
+		UPDATE MBER_DEVICE_INFO SET
+		       USE_AT = #{USE_AT}
+		<if test="PLTFOM_KND_CODE != null and PLTFOM_KND_CODE != ''">
+		     , PLTFOM_KND_CODE = #{PLTFOM_KND_CODE}
+		</if>
+		<if test="DEVICE_MODEL != null and DEVICE_MODEL != ''">
+		     , DEVICE_MODEL = #{DEVICE_MODEL}
+		</if>
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DEVICE_ID = #{DEVICE_ID}
+		   AND PUSH_KEY = #{PUSH_KEY}
+	</update>
+	
+	<!-- 장치 아이디의 기존 PUSH KEY 삭제 처리 -->
+	<update id="deleteMberDeviceInfo" parameterType="hmap">
+		UPDATE MBER_DEVICE_INFO SET
+		       USE_AT = 'N'
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND DEVICE_ID = #{DEVICE_ID}
+		   AND USE_AT = 'Y'
+	</update>
+	
+	<!-- 지정맥 등록 여부 체크 -->
+	<select id="checkMberVein" parameterType="hmap" resultType="hmap">
+		SELECT A.VEIN_DATA FROM MBER_VEIN_INFO A
+		LEFT JOIN MBER_INFO B
+		ON A.MBER_NO = B.MBER_NO
+		WHERE A.MBER_NO = #{MBER_NO}
+	</select>
+	
+	
+	<!-- 지정맥 등록 -->
+	<insert id="insertMberVein" parameterType="hmap">
+		INSERT INTO MBER_VEIN_INFO
+		(
+			MBER_NO,
+		    VEIN_DATA,
+		    REGIST_DT
+		)
+		VALUES
+		(
+			#{MBER_NO},
+		    #{VEIN_DATA},
+		    NOW()
+		)
+	</insert>
+	
+	
+	<!-- 지정맥 등록 업데이트 -->
+	<update id="updateMberVein" parameterType="hmap">
+		UPDATE 
+			MBER_VEIN_INFO
+		SET VEIN_DATA = #{VEIN_DATA},
+			REGIST_DT = NOW()
+		WHERE MBER_NO = #{MBER_NO}
+	</update>
+	
+	<!-- 핸드폰 번호로 회원의 지정맥 등록 여부 확인 (키오스크)-->
+	<select id="selectCheckVeinPhone" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MBER_NO, 
+			B.VEIN_DATA 
+		FROM MBER_INFO A
+			LEFT JOIN MBER_VEIN_INFO B
+		ON A.MBER_NO = B.MBER_NO
+			WHERE A.MBTLNUM = #{MBTLNUM}
+		AND A.MBTLNUM_CRTFC_AT = 'Y'
+		AND A.MBER_SECSN_AT = 'N'
+		LIMIT 1
+	</select>
+	
+	
+	<!-- 휴대폰번호 & 지정맥 로그인  사용-->
+	<select id="selectPhoneVeinIdPass" parameterType="hmap" resultType="hmap">
+		SELECT USID, PASSWORD FROM MBER_INFO
+		WHERE MBER_NO = #{MBER_NO}
+		AND MBTLNUM_CRTFC_AT = 'Y'
+		AND MBER_SECSN_AT = 'N'
+	</select>
+	
+	
+	<!-- 생년월일 & 지정맥 로그인  사용-->
+	<select id="selectPhoneBirthIdPass" parameterType="hmap" resultType="hmap">
+		SELECT USID, PASSWORD FROM MBER_INFO	
+		WHERE MBTLNUM = #{MBTLNUM}
+		AND MBTLNUM_CRTFC_AT = 'Y'
+		AND MBER_SECSN_AT = 'N'
+		AND BRTHDY like CONCAT('%', #{BRTHDY}) 
+	</select>
+	
+	
+	<!-- RFID 로그인 -->
+	<select id="selectRfidLogin" parameterType="hmap" resultType="hmap">
+		SELECT USID, PASSWORD FROM MBER_INFO			
+		WHERE MBTLNUM_CRTFC_AT = 'Y'
+		AND MBER_SECSN_AT = 'N'
+		AND SERIAL_NO = #{UUID}
+	</select>
+	
+	
+	<!-- 지정맥 회원번호를 바이오그램 회원번호 반환  -->
+	<select id="vailidateMberVeinNo" parameterType="hmap" resultType="hmap">
+		SELECT MBER_NO FROM MBER_INFO
+		WHERE LEGACY_MBER_NO = #{VEIN_NO}
+		AND MBTLNUM = #{MBTLNUM}
+		AND MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 캐디 지정맥 데이터를 가져온다 -->
+	<select id="selectCadyVein" parameterType="hmap" resultType="hmap">
+		SELECT 
+			A.MBER_NO, 
+			B.VEIN_DATA 
+		FROM MBER_INFO A
+			LEFT JOIN MG_MBER_VEIN_INFO B
+		ON A.MBER_NO = B.MBER_NO
+			WHERE A.MBTLNUM = #{MBTLNUM}
+		AND A.MBTLNUM_CRTFC_AT = 'Y'
+		AND A.MBER_SECSN_AT = 'N'
+		LIMIT 1
+	</select>
+	
+	<!-- 컨버팅한 캐디 지정맥을 바이오그램 지정맥 테이블에 기록 -->
+	<insert id="insertBioVein" parameterType="hmap">
+		INSERT 
+		INTO MBER_VEIN_INFO
+		(
+			MBER_NO, 
+			VEIN_DATA
+		)
+		<foreach collection="list" item="item" separator=",">
+			VALUES(
+				#{item.MBER_NO}, 
+				#{item.VEIN_DATA}
+			)
+		</foreach>
+		
+		
+	</insert>
+	
+	<!-- 기관 회원당 최근 데이터  -->
+	<select id="selectMberToLatestMesure" parameterType="hmap" resultType="hmap">
+		SELECT 
+			BB.*,
+		    AA.SEXDSTN,
+		    AA.BRTHDY,
+		    AA.MBTLNUM,
+		    AA.NM,
+		    AA.USID
+		FROM MBER_INFO AA
+		INNER JOIN (
+			SELECT 
+				SM.MBER_NO,
+		        SM.SYSTOLIC,        
+		        DM.DIASTOLIC,        
+		        WC.WAIST_CRCMFRNC,        
+		        BW.BDWGH,        
+		        FB.FBS,        
+		        PP.PP2,        
+		        SL.SLM,        
+		        FA.FAT_MAS
+			FROM
+		    (
+				SELECT MBER_NO, SYSTOLIC FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE SYSTOLIC is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND SYSTOLIC is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC
+			) SM
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, DIASTOLIC FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE DIASTOLIC is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND DIASTOLIC is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC        
+				
+			) DM
+		    ON SM.MBER_NO = DM.MBER_NO
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, WAIST_CRCMFRNC FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE WAIST_CRCMFRNC is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND WAIST_CRCMFRNC is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC         
+			) WC
+		    ON SM.MBER_NO = WC.MBER_NO
+		    LEFT JOIN
+		    (
+		        SELECT MBER_NO, BDWGH FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE BDWGH is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND BDWGH is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC 
+		        
+			) BW
+		    ON SM.MBER_NO = BW.MBER_NO
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, FBS FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE FBS is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND FBS is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC 
+			) FB
+		    ON SM.MBER_NO = FB.MBER_NO
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, PP2 FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE PP2 is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND PP2 is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC    
+			) PP
+		    ON SM.MBER_NO = PP.MBER_NO
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, SLM FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE SLM is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND SLM is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC        
+			) SL
+		    ON SM.MBER_NO = SL.MBER_NO
+		    LEFT JOIN
+		    (
+				SELECT MBER_NO, FAT_MAS FROM MESURE_INFO_CMMN_DALY
+		        WHERE (MBER_NO, MESURE_DE) IN (
+					SELECT 			
+						MBER_NO,
+						MAX(MESURE_DE) AS DT
+					FROM MESURE_INFO_CMMN_DALY
+					WHERE FAT_MAS is NOT NULL  
+					GROUP BY MBER_NO
+		        )
+		        AND FAT_MAS is NOT NULL  
+		        AND STR_TO_DATE(MESURE_DE, '%Y%m%d') BETWEEN STR_TO_DATE(#{START_DT}, '%Y%m%d') AND STR_TO_DATE(#{END_DT}, '%Y%m%d')
+		        ORDER BY MESURE_DE DESC      
+			) FA
+		    ON SM.MBER_NO = FA.MBER_NO
+		) BB
+		ON AA.MBER_NO = BB.MBER_NO
+		<if test="INST_NO != null and INST_NO != ''">
+		INNER JOIN (
+			SELECT B.MBER_NO FROM MBER_PSTINST_INFO A
+			INNER JOIN MBER_INFO B
+			ON A.MBER_NO = B.MBER_NO	
+			WHERE A.INST_NO IN (
+				SELECT INST_NO
+					FROM INST_INFO
+				WHERE USE_AT = 'Y'
+				AND TOP_INST_NO = #{INST_NO}
+				UNION ALL
+				SELECT INST_NO
+					FROM INST_INFO
+				WHERE USE_AT = 'Y'
+				AND MIDDLE_INST_NO = #{INST_NO}
+				UNION ALL
+				SELECT INST_NO
+					FROM INST_INFO
+				WHERE USE_AT = 'Y'
+				AND BOTTOM_INST_NO = #{INST_NO}
+		    )
+			AND (B.NM like CONCAT('%', #{SEARCHKEY}, '%') OR B.MBTLNUM like CONCAT('%', #{SEARCHKEY}, '%'))
+		    AND B.SEXDSTN = #{SEXDSTN}
+		    GROUP BY MBER_NO
+		) CC
+		ON AA.MBER_NO = CC.MBER_NO
+		</if>
+		AND AA.MBER_SECSN_AT = 'N'
+		AND (AA.NM like CONCAT('%', #{SEARCHKEY}, '%') OR AA.MBTLNUM like CONCAT('%', #{SEARCHKEY}, '%'))	
+		AND AA.SEXDSTN = #{SEXDSTN}
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, #{ITEM_COUNT}
+		</if>
+	</select>
+	
+	
+	
+	<!-- 기관 회원 등록 유무 체크 -->
+	<select id="selectMberToInst" parameterType="hmap" resultType="int">
+		SELECT 
+			COUNT(MBER_NO) CNT
+		FROM MBER_PSTINST_INFO
+		WHERE INST_NO = #{INST_NO}
+		AND MBER_NO = #{MBER_NO}
+		AND SECSN_AT = 'N'
+		AND CONFM_AT = 'Y'
+	</select>
+	
+	<!--기관 회원 등록 -->
+	<insert id="insertMberToInst" parameterType="hmap">
+		INSERT INTO MBER_PSTINST_INFO
+		(
+			MBER_NO,
+		    INST_NO,
+		    CONFM_AT,
+		    CONFM_DE,
+		    SECSN_AT,    
+		    REGIST_DT
+		)
+		VALUES 
+		(
+			#{MBER_NO},
+		    #{INST_NO},
+		    'Y',
+		    DATE_FORMAT(NOW(), '%Y%m%d'),
+		    'N',
+		    NOW()
+		)
+		ON DUPLICATE KEY UPDATE  
+		MBER_NO = #{MBER_NO}, 
+		INST_NO = #{INST_NO},
+		CONFM_AT = 'Y',
+		CONFM_DE = DATE_FORMAT(NOW(), '%Y%m%d'),
+		SECSN_AT = 'N'
+	</insert>
+	
+	<!-- 연계용 특정기관 전체 인원수, 성별 인원수, 연령별 인원수 조회 -->
+	<select id="selectCntcMberCountInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       COUNT(*) CNT
+		     , IFNULL(SUM(IF(SEXDSTN = 'M', 1, 0)), 0) MAN_CNT
+		     , IFNULL(SUM(IF(SEXDSTN = 'F', 1, 0)), 0) WOMAN_CNT
+		     , IFNULL(SUM(IF(AGE <![CDATA[ < ]]> 20, 1, 0)), 0) 10_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 2, 1, 0)), 0) 20_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 3, 1, 0)), 0) 30_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 4, 1, 0)), 0) 40_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 5, 1, 0)), 0) 50_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 6, 1, 0)), 0) 60_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 7, 1, 0)), 0) 70_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) = 8, 1, 0)), 0) 80_AGES_CNT
+		     , IFNULL(SUM(IF(FLOOR(AGE / 10) > 8, 1, 0)), 0) 90_AGES_CNT
+		  FROM (
+		        SELECT
+		               MI.MBER_NO
+		             , MI.SEXDSTN
+		             , CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+		          FROM MBER_INFO MI
+		         INNER JOIN (
+		                SELECT MBER_NO
+		                  FROM MBER_PSTINST_INFO
+		                 WHERE INST_NO IN
+		<foreach collection="INST_LIST" index="index" item="INST_NO" open="(" close=")" separator=",">
+		                  #{INST_NO}
+		</foreach>
+		                   AND SECSN_AT = 'N'
+		             ) MPI
+		            ON MI.MBER_NO = MPI.MBER_NO
+		     ) TBL
+	</select>
+	
+	
+	<!-- 외부 기관 약관 유무 및 회원이 기관의 약관 동의 여부-->
+	<select id="selectExternMberTerm" parameterType="hmap" resultType="hmap">
+		SELECT 	
+			II.INST_NO,
+		    MPI.MBER_NO,
+			II.SPUSE_STPLAT_AT,
+		    MPI.STPLAT_AGRE_AT
+		FROM INST_INFO II
+		LEFT JOIN 
+		(
+			SELECT
+				MBER_NO,
+		        INST_NO,
+		        STPLAT_AGRE_AT
+		    FROM MBER_PSTINST_INFO 
+		    WHERE MBER_NO = #{MBER_NO}
+		) MPI
+		ON II.INST_NO = MPI.INST_NO
+		WHERE II.INST_NO = #{INST_NO}
+	</select>
+	
+	
+	<!-- 외부 기관 가입 등록 및 약관 저장 -->
+	<insert id="insertExtermTerm" parameterType="hmap">
+		INSERT INTO MBER_PSTINST_INFO
+		(
+			MBER_NO, 
+		    INST_NO,
+		    CONFM_AT,
+		    CONFM_DE,
+		    SECSN_AT,
+		    REGIST_DT,
+		    STPLAT_AGRE_AT
+		)
+		VALUES
+		(
+			#{MBER_NO},
+		    #{INST_NO},
+		    'Y',
+		    DATE_FORMAT(NOW(), '%Y%m%d'),
+		    'N',
+		    NOW(),
+		    'Y'
+		)
+		ON DUPLICATE KEY UPDATE  
+		MBER_NO = #{MBER_NO}, 
+		INST_NO = #{INST_NO},
+		CONFM_AT = 'Y',
+		CONFM_DE = DATE_FORMAT(NOW(), '%Y%m%d'),
+		SECSN_AT = 'N',
+		STPLAT_AGRE_AT = 'Y'
+			
+	</insert>
+	
+	<!-- 외부 기관 약관 업데이트 저장 -->
+	<update id="widthDrawExternTerm" parameterType="hmap">
+		UPDATE MBER_PSTINST_INFO SET
+		STPLAT_AGRE_AT = 'N'
+		WHERE MBER_NO = #{MBER_NO}
+		AND INST_NO = #{INST_NO}
+		AND CONFM_AT = 'Y'
+		AND SECSN_AT = 'N'
+	</update>
+	
+	<!-- 외부 서비스토큰에 해당하는 회원 번호 반환 -->
+	<select id="selectExternServiceTokenToMberNo" parameterType="hmap" resultType="hmap">
+		SELECT
+			MI.MBER_NO,
+		    MI.USID,
+		    MI.NM,
+		    MI.BRTHDY,
+		    MPK.EXTERN_KEY,
+		    MI.MBER_SECSN_AT,
+		    MI.MBTLNUM_CRTFC_AT
+		FROM MBER_INFO MI
+		INNER JOIN MBER_PSTINST_KEY MPK
+		ON MI.MBER_NO = MPK.MBER_NO
+		WHERE EXTERN_KEY = #{SERVICE_TOKEN}
+		AND INST_NO = #{INST_NO}
+		AND MI.MBER_SECSN_AT = 'N'
+		AND MI.MBTLNUM_CRTFC_AT = 'Y'
+	</select>
+	
+	
+	<!-- 외부 서비스토큰 저장 -->
+	<insert id="insertExternServiceToken" parameterType="hmap">
+		INSERT INTO MBER_PSTINST_KEY(
+			MBER_NO,
+			INST_NO,
+			EXTERN_KEY,
+			REGIST_DT
+		)
+		VALUES(
+			#{MBER_NO},
+			#{INST_NO},
+			#{SERVICE_TOKEN},
+			NOW()
+		)
+		ON DUPLICATE KEY UPDATE  
+	    	MBER_NO = #{MBER_NO},
+	       	INST_NO = #{INST_NO},
+		   	EXTERN_KEY = #{SERVICE_TOKEN},
+			REGIST_DT = NOW()
+	</insert>
+	
+	<!-- 회원 추가 정보 반환 -->	
+	<select id="selectAdditionalInfo" parameterType="hmap" resultType="hmap">
+	
+		SELECT 
+			MI.*,  
+		    MDB.BDWGH,
+		    MDH.HEIGHT,
+		    IFNULL(GV.GOAL_BDWGH, IFNULL(MDB.BDWGH, 0)) GOAL_BDWGH
+		FROM
+		(
+		
+			SELECT 	
+				MBER_NO,
+				CAST((DATE_FORMAT(NOW(), '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(NOW(), '%m%d') &lt; SUBSTR(BRTHDY, 5, 8), -1, 0) AS CHAR) AS AGE
+			FROM MBER_INFO
+			WHERE MBER_NO = #{MBER_NO}
+			AND MBER_SECSN_AT = 'N'
+		) MI
+		LEFT JOIN
+		(
+			SELECT 
+				MBER_NO,
+				MESURE_DATA BDWGH
+			FROM MESURE_INFO_CMMN
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '6021'
+			ORDER BY MESURE_DT DESC
+			LIMIT 1
+		) MDB
+		ON MI.MBER_NO = MDB.MBER_NO
+		LEFT JOIN
+		(
+			SELECT 
+				MBER_NO,
+				MESURE_DATA HEIGHT
+			FROM MESURE_INFO_CMMN
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '6A35'
+			ORDER BY MESURE_DT DESC
+			LIMIT 1
+		) MDH
+		ON MI.MBER_NO = MDH.MBER_NO
+		LEFT JOIN
+		(	
+			SELECT 
+				MBER_NO,
+				GOAL_VALUE GOAL_BDWGH
+			FROM MBER_ESTBS_GOAL
+			WHERE MBER_NO = #{MBER_NO}
+			AND MESURE_CODE = '6021'
+		
+		) GV
+		ON MI.MBER_NO = GV.MBER_NO
+	</select>
+	
+	<!-- API KEY 사용유저 등록 --> 
+	<insert id="insertApiKeyMber" parameterType="hmap">
+		INSERT INTO API_KEY_MBER (
+			   API_KEY
+			 , API_CODE
+			 , MBER_NO
+			 , REGIST_DT
+		) VALUES (
+			   #{API_KEY}
+			 , #{API_CODE}
+			 , #{MBER_NO}
+			 , NOW()
+		)
+	</insert>
+	
+	<!-- API_KEY 사용유저 확인 -->
+	<select id="selectApiKeyMberInfo" parameterType="hmap" resultType="hmap">
+		SELECT 
+			   API_KEY
+			 , API_CODE
+			 , MBER_NO
+			 , REGIST_DT
+		  FROM API_KEY_MBER
+		 WHERE API_KEY = #{API_KEY}
+		   AND API_CODE = #{API_CODE}
+		   AND MBER_NO = #{MBER_NO}
+	</select>
+	
+	<!-- 회원 계정 통합 주계정 제외 계정 탈퇴처리 -->
+	<update id="updateMberSecsnUnityProcess" parameterType="hmap">
+		UPDATE MBER_INFO MI
+		 INNER JOIN (
+		        SELECT MBER_NO 
+		          FROM MBER_INFO 
+		         WHERE MBTLNUM = #{MBTLNUM}
+		           AND MBER_SECSN_AT = 'N' 
+		           AND MBER_NO != #{MBER_NO}
+		     ) MMI
+		    ON MI.MBER_NO = MMI.MBER_NO
+		   SET
+		       MBER_SECSN_AT = 'Y'
+		     , MBER_SECSN_DATE = DATE_FORMAT(NOW(), '%Y%m%d') 
+		     , SECSN_RESN_CODE = '9999'
+		     , SECSN_RESN_ETC = '중복 데이터'
+		     , MBTLNUM_CRTFC_AT = 'N'
+	</update>
+	
+	<!-- 회원 이용약관 정보조회 -->
+	<select id="selectMberStplatInfo" parameterType="hmap" resultType="hmap">
+		SELECT
+		       USE_STPLAT_AGRE_AT
+		     , INDVDLINFO_AGRE_AT
+		     , SNSTIIVEINFO_AGRE_AT
+		     , MARKTINFO_AGRE_AT
+		     , INDVDLINFO_THIRD_AGRE_AT
+		     , SNSTIIVEINFO_THIRD_AGRE_AT
+		     , MARKTINFO_PURPOSE_AGRE_AT
+		  FROM MBER_INFO
+		 WHERE MBER_NO = #{MBER_NO}
+		   AND MBER_SECSN_AT = 'N'
+	</select>
+</mapper>

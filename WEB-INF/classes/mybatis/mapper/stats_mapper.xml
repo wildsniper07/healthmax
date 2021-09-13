@@ -1,0 +1,2652 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.healthmax.biogram.mapper.StatsMapper">
+
+	<!-- 관리자 회원관리 현황 조회 쿼리 -->
+	<sql id="selectDeviceMesureInfoListQuery">
+		SELECT
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 	   MESURE_DE
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 	   MESURE_DE
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  	   MESURE_DE
+			</when>
+			<otherwise>
+	           CASE WHEN LENGTH(SUBSTRING(MESURE_DE, 1, 8)) = 14 THEN CONCAT(LEFT(SUBSTRING(MESURE_DE, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 7, 2), ' ', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 9, 2), ':', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 11, 2), ':',  RIGHT(SUBSTRING(MESURE_DE, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MESURE_DE, 1, 8)) = 12 THEN CONCAT(LEFT(SUBSTRING(MESURE_DE, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 7, 2), ' ', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 9, 2), ':', RIGHT(SUBSTRING(MESURE_DE, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MESURE_DE, 1, 8)) = 10 THEN CONCAT(LEFT(SUBSTRING(MESURE_DE, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 5, 2), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 7, 2), ' ', RIGHT(SUBSTRING(MESURE_DE, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MESURE_DE, 1, 8)) = 8  THEN CONCAT(LEFT(SUBSTRING(MESURE_DE, 1, 8), 4), '-', SUBSTRING(SUBSTRING(MESURE_DE, 1, 8), 5, 2), '-', RIGHT(SUBSTRING(MESURE_DE, 1, 8), 2))
+	                WHEN LENGTH(SUBSTRING(MESURE_DE, 1, 8)) = 6  THEN CONCAT(LEFT(SUBSTRING(MESURE_DE, 1, 8), 4), '-', RIGHT(SUBSTRING(MESURE_DE, 1, 8), 2))
+	                ELSE ''
+	            END MESURE_DE
+			</otherwise>
+		</choose>
+		     , ODR  
+		     , MBER_CNT
+		     , MBER_NO
+		     , NM
+		     , BRTHDY
+		     , SEXDSTN
+		<if test='IS_DEVICE != null and IS_DEVICE.equals("Y")'>
+		     , WEIGHT
+		     , BMI
+		     , PBF
+		     , SLM
+		     , EST_BN_MAS
+		     , VFL
+		     , WAIST_CRCMFRNC
+		</if>
+		<if test='BP_DEVICE != null and BP_DEVICE.equals("Y")'>
+		     , SYSTOLIC
+		     , DIASTOLIC
+		     , PULS
+		</if>
+		<if test='BS_DEVICE != null and BS_DEVICE.equals("Y")'>
+		     , FBS
+		     , PP2
+		</if>
+		<if test='BC_DEVICE != null and BC_DEVICE.equals("Y")'>
+		     , T_CHOL
+		     , TG
+		     , HDLC
+		     , LDLC
+		</if>
+		<if test='ST_DEVICE != null and ST_DEVICE.equals("Y")'>
+		     , STRS_SCORE
+		     , MNTL_STRS
+		     , PHYSIC_STRS
+		     , STRS_CNTRMSR_ABLTY
+		     , BLDVSS_STEP
+		     , CAD_OUTPUT_IN
+		     , ELSTC_DGREE
+		     , RBV_QY
+		</if>
+		<if test='ET_DEVICE != null and ET_DEVICE.equals("Y")'>
+		     , HEIGHT 
+		     , BDHEAT
+		</if>		     
+		  FROM (
+		        SELECT 
+		               MESURE_DE
+		             , 0 ODR
+		             , COUNT(*) MBER_CNT
+		             , NULL MBER_NO
+		             , NULL NM
+		             , NULL BRTHDY
+		             , NULL SEXDSTN
+		             , NULL WEIGHT
+		             , NULL BMI
+		             , NULL PBF
+		             , NULL SLM
+		             , NULL EST_BN_MAS
+		             , NULL VFL
+		             , NULL WAIST_CRCMFRNC
+		             , NULL SYSTOLIC
+		             , NULL DIASTOLIC
+		             , NULL PULS
+		             , NULL FBS
+		             , NULL PP2
+		             , NULL T_CHOL
+		             , NULL TG
+		             , NULL HDLC
+		             , NULL LDLC
+		             , NULL STRS_SCORE
+		             , NULL MNTL_STRS
+		             , NULL PHYSIC_STRS
+		             , NULL STRS_CNTRMSR_ABLTY
+		             , NULL BLDVSS_STEP
+		             , NULL CAD_OUTPUT_IN
+		             , NULL ELSTC_DGREE
+		             , NULL RBV_QY
+		             , NULL HEIGHT 
+		             , NULL BDHEAT 
+		          FROM (
+		                 SELECT 
+		                         MIC.MBER_NO
+		                       , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		                    FROM MESURE_INFO_CMMN MIC
+		<if test="INST_NO != null and INST_NO != ''">
+                           INNER JOIN (
+		                            SELECT MBER_NO
+						              FROM MBER_PSTINST_INFO MPI
+						             INNER JOIN (
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND TOP_INST_NO = #{INST_NO}
+						                     UNION ALL
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND MIDDLE_INST_NO = #{INST_NO}
+						                     UNION ALL
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND BOTTOM_INST_NO = #{INST_NO}
+						                 ) II
+						             WHERE MPI.INST_NO = II.INST_NO
+						               AND CONFM_AT = 'Y'
+						               AND SECSN_AT = 'N'
+						             GROUP BY MBER_NO
+	                           ) MPI
+	                          ON MIC.MBER_NO = MPI.MBER_NO
+		</if>
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+		                   INNER JOIN (
+		                        SELECT MI.MBER_NO
+		                          FROM MBER_INFO MI
+		                         WHERE MI.MBER_SECSN_AT = 'N'
+		                           AND (
+			                              MI.USID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+			                           OR MI.NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+			                           OR MI.TELNO = #{SEARCH_KEY}
+			                           OR MI.MBTLNUM = #{SEARCH_KEY}
+		                           )
+			                   ) MI
+			                  ON MIC.MBER_NO = MI.MBER_NO 
+		</if>
+		                   WHERE MIC.MESURE_MTHD = 'D'
+		                     AND SUBSTRING(MIC.MESURE_DT, 1, 8) BETWEEN #{BEGIN_DE} AND #{END_DE}
+		                   GROUP BY SUBSTRING(MIC.MESURE_DT, 1, 8), MBER_NO
+		              ) MIC_SUM
+		          GROUP BY MESURE_DE
+		          UNION ALL
+		         SELECT 
+		                SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		              , 1 ODR
+		              , NULL MBER_CNT
+		              , MIC.MBER_NO
+		              , MI.NM
+		<choose>
+			<when test='LOCALE != null and LOCALE.equals("US")'>
+		 		      , MI.BRTHDY
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ES")'>
+		 			  , MI.BRTHDY
+			</when>
+			<when test='LOCALE != null and LOCALE.equals("ID")'>
+		  			  , MI.BRTHDY
+			</when>
+			<otherwise>
+	                  , CASE WHEN LENGTH(MI.BRTHDY) = 14 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', SUBSTRING(MI.BRTHDY, 9, 2), ':', SUBSTRING(MI.BRTHDY, 11, 2), ':',  RIGHT(MI.BRTHDY, 2))
+	                         WHEN LENGTH(MI.BRTHDY) = 12 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', SUBSTRING(MI.BRTHDY, 9, 2), ':', RIGHT(MI.BRTHDY, 2))
+	                         WHEN LENGTH(MI.BRTHDY) = 10 THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', SUBSTRING(MI.BRTHDY, 7, 2), ' ', RIGHT(MI.BRTHDY, 2))
+	                         WHEN LENGTH(MI.BRTHDY) = 8  THEN CONCAT(LEFT(MI.BRTHDY, 4), '-', SUBSTRING(MI.BRTHDY, 5, 2), '-', RIGHT(MI.BRTHDY, 2))
+	                         WHEN LENGTH(MI.BRTHDY) = 6  THEN CONCAT(LEFT(MI.BRTHDY, 4), '.', RIGHT(MI.BRTHDY, 2))
+	                         ELSE ''
+	                     END BRTHDY
+			</otherwise>
+		</choose>
+		              , IC2.IEM_NM SEXDSTN
+		              , MAX(IF(MIC.MESURE_CODE = '6021', MESURE_DATA, 0)) WEIGHT
+		              , MAX(IF(MIC.MESURE_CODE = '6056', MESURE_DATA, 0)) BMI
+		              , MAX(IF(MIC.MESURE_CODE = '6022', MESURE_DATA, 0)) PBF
+		              , MAX(IF(MIC.MESURE_CODE = '6023', MESURE_DATA, 0)) SLM
+		              , MAX(IF(MIC.MESURE_CODE = '6029', MESURE_DATA, 0)) EST_BN_MAS
+		              , MAX(IF(MIC.MESURE_CODE = '6026', MESURE_DATA, 0)) VFL
+		              , MAX(IF(MIC.MESURE_CODE = '8072', MESURE_DATA, 0)) WAIST_CRCMFRNC
+		              , MAX(IF(MIC.MESURE_CODE = '622E', MESURE_DATA, 0)) SYSTOLIC
+		              , MAX(IF(MIC.MESURE_CODE = '622F', MESURE_DATA, 0)) DIASTOLIC
+		              , MAX(IF(MIC.MESURE_CODE = '6230', MESURE_DATA, 0)) PULS
+		              , MAX(IF(MIC.MESURE_CODE = '624A', MESURE_DATA, 0)) FBS
+		              , MAX(IF(MIC.MESURE_CODE = '624B', MESURE_DATA, 0)) PP2
+		              , MAX(IF(MIC.MESURE_CODE = '624C', MESURE_DATA, 0)) T_CHOL
+		              , MAX(IF(MIC.MESURE_CODE = '624D', MESURE_DATA, 0)) TG
+		              , MAX(IF(MIC.MESURE_CODE = '624E', MESURE_DATA, 0)) HDLC
+		              , MAX(IF(MIC.MESURE_CODE = '624F', MESURE_DATA, 0)) LDLC
+		              , MAX(IF(MIC.MESURE_CODE = '7012', MESURE_DATA, 0)) STRS_SCORE
+		              , MAX(IF(MIC.MESURE_CODE = '7014', MESURE_DATA, 0)) MNTL_STRS
+		              , MAX(IF(MIC.MESURE_CODE = '7013', MESURE_DATA, 0)) PHYSIC_STRS
+		              , MAX(IF(MIC.MESURE_CODE = '7015', MESURE_DATA, 0)) STRS_CNTRMSR_ABLTY
+		              , MAX(IF(MIC.MESURE_CODE = '7016', MESURE_DATA, 0)) BLDVSS_STEP
+		              , MAX(IF(MIC.MESURE_CODE = '7017', MESURE_DATA, 0)) CAD_OUTPUT_IN
+		              , MAX(IF(MIC.MESURE_CODE = '7018', MESURE_DATA, 0)) ELSTC_DGREE
+		              , MAX(IF(MIC.MESURE_CODE = '7019', MESURE_DATA, 0)) RBV_QY
+		              , MAX(IF(MIC.MESURE_CODE = '6A35', MESURE_DATA, 0)) HEIGHT 
+		              , MAX(IF(MIC.MESURE_CODE = '5010', MESURE_DATA, 0)) BDHEAT 
+		           FROM MESURE_INFO_CMMN MIC
+		          INNER JOIN (
+		                SELECT 
+		                       MIC.MBER_NO
+		                     , MIC.MESURE_CODE
+		                     , MIC.MESURE_MTHD
+		                     , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		                     , MAX(SUBSTRING(MIC.MESURE_DT, 9, 6)) MESURE_TIME
+		                  FROM MESURE_INFO_CMMN MIC
+		<if test="INST_NO != null and INST_NO != ''">
+                         INNER JOIN (
+		                            SELECT MBER_NO
+						              FROM MBER_PSTINST_INFO MPI
+						             INNER JOIN (
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND TOP_INST_NO = #{INST_NO}
+						                     UNION ALL
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND MIDDLE_INST_NO = #{INST_NO}
+						                     UNION ALL
+						                    SELECT INST_NO
+						                      FROM INST_INFO
+						                     WHERE USE_AT = 'Y'
+						                       AND BOTTOM_INST_NO = #{INST_NO}
+						                 ) II
+						             WHERE MPI.INST_NO = II.INST_NO
+						               AND CONFM_AT = 'Y'
+						               AND SECSN_AT = 'N'
+						             GROUP BY MBER_NO
+	                         ) MPI
+	                        ON MIC.MBER_NO = MPI.MBER_NO
+		</if>
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+		                 INNER JOIN (
+		                        SELECT MI.MBER_NO
+		                          FROM MBER_INFO MI
+		                         WHERE MI.MBER_SECSN_AT = 'N'
+		                           AND (
+			                              MI.USID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+			                           OR MI.NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+			                           OR MI.TELNO = #{SEARCH_KEY}
+			                           OR MI.MBTLNUM = #{SEARCH_KEY}
+		                           )
+			                 ) MI
+			                ON MIC.MBER_NO = MI.MBER_NO 
+		</if>
+		                 WHERE MIC.MESURE_MTHD = 'D'
+		                   AND SUBSTRING(MIC.MESURE_DT, 1, 8) BETWEEN #{BEGIN_DE} AND #{END_DE}
+		                 GROUP BY MIC.MBER_NO, MIC.MESURE_CODE, MIC.MESURE_MTHD, SUBSTRING(MIC.MESURE_DT, 1, 8)
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		           AND MIC.MESURE_MTHD = MMIC.MESURE_MTHD
+		           AND MIC.MESURE_DT = CONCAT(MMIC.MESURE_DE, MMIC.MESURE_TIME)
+		         INNER JOIN MBER_INFO MI
+		            ON MIC.MBER_NO = MI.MBER_NO
+		         INNER JOIN (
+	                    SELECT 
+	                            IEM_CODE
+	                          , CASE WHEN #{LOCALE} = 'US' THEN IEM_NM_US
+	                                 WHEN #{LOCALE} = 'ES' THEN IEM_NM_ES
+	                                 WHEN #{LOCALE} = 'ID' THEN IEM_NM_ID
+	                                 ELSE IEM_NM
+	                             END IEM_NM
+	                      FROM IEM_CODE
+	                     WHERE GROUP_CODE = 'MB03'
+	                 ) IC2
+	                ON MI.SEXDSTN = IC2.IEM_CODE
+		         GROUP BY MIC.MBER_NO, SUBSTRING(MIC.MESURE_DT, 1, 8)
+		     ) MESURE
+	
+	</sql>
+
+	<!-- 기기측정 현황조회 건수 -->
+	<select id="selectDeviceMesureInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectDeviceMesureInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 기기측정 현황조회 -->
+	<select id="selectDeviceMesureInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectDeviceMesureInfoListQuery" />
+		     ) TBL
+		 ORDER BY MESURE_DE DESC, ODR ASC, MBER_NO ASC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 위험요인 현황조회 쿼리 -->
+	<sql id="selectRiskFctrInfoListQuery">
+		SELECT
+		       MIC.MBER_NO
+		     , MI.NM
+		     , MI.BRTHDY
+		     , MI.SEXDSTN
+		     , RF.RISK_FCTR
+		     , MQA.TAKNG_MDCIN
+		     , MIC.MESURE_DT
+		     , MIC.BDWGH
+		     , MIC.BDWGH_JDGMNT
+		     , MIC.PBF
+		     , MIC.PBF_JDGMNT
+		     , MIC.SLM
+		     , MIC.SLM_JDGMNT
+		     , MIC.VFL
+		     , MIC.VFL_JDGMNT
+		     , MIC.EST_BN_MAS
+		     , MIC.EST_BN_MAS_JDGMNT
+		     , MIC.BMI
+		     , MIC.BMI_JDGMNT
+		     , MIC.WAIST
+		     , MIC.WAIST_JDGMNT     
+		     , MIC.SYSTOLIC
+		     , MIC.SYSTOLIC_JDGMNT     
+		     , MIC.DIASTOLIC
+		     , MIC.DIASTOLIC_JDGMNT     
+		     , MIC.PULS
+		     , MIC.FBS
+		     , MIC.FBS_JDGMNT   
+		     , MIC.PP2
+		     , MIC.PP2_JDGMNT          
+		     , MIC.TC
+		     , MIC.TC_JDGMNT   
+		     , MIC.TG
+		     , MIC.TG_JDGMNT     
+		     , MIC.HDLC
+		     , MIC.HDLC_JDGMNT   
+		     , MIC.LDLC
+		     , MIC.LDLC_JDGMNT 
+		  FROM (
+		        SELECT
+		               MIC.MBER_NO
+					 , MAX(MIC.MESURE_DT) MESURE_DT
+		             , MAX(IF(MIC.MESURE_CODE = '6021', ROUND(MIC.MESURE_DATA, 1), NULL)) BDWGH
+		             , MAX(IF(MIC.MESURE_CODE = '6021', MIC.JDGMNT_RESULT, NULL)) BDWGH_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '6022', ROUND(MIC.MESURE_DATA, 1), NULL)) PBF
+		             , MAX(IF(MIC.MESURE_CODE = '6022', MIC.JDGMNT_RESULT, NULL)) PBF_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '6023', ROUND(MIC.MESURE_DATA, 1), NULL)) SLM
+		             , MAX(IF(MIC.MESURE_CODE = '6023', MIC.JDGMNT_RESULT, NULL)) SLM_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '6026', MIC.MESURE_DATA, NULL)) VFL
+		             , MAX(IF(MIC.MESURE_CODE = '6026', MIC.JDGMNT_RESULT, NULL)) VFL_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '6029', ROUND(MIC.MESURE_DATA, 1), NULL)) EST_BN_MAS
+		             , MAX(IF(MIC.MESURE_CODE = '6029', MIC.JDGMNT_RESULT, NULL)) EST_BN_MAS_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '6056', ROUND(MIC.MESURE_DATA, 1), NULL)) BMI
+		             , MAX(IF(MIC.MESURE_CODE = '6056', MIC.JDGMNT_RESULT, NULL)) BMI_JDGMNT
+		             , MAX(IF(MIC.MESURE_CODE = '8072', ROUND(MIC.MESURE_DATA, 1), NULL)) WAIST
+		             , MAX(IF(MIC.MESURE_CODE = '8072', MIC.JDGMNT_RESULT, NULL)) WAIST_JDGMNT     
+		             , MAX(IF(MIC.MESURE_CODE = '622E', MIC.MESURE_DATA, NULL)) SYSTOLIC
+		             , MAX(IF(MIC.MESURE_CODE = '622E', MIC.JDGMNT_RESULT, NULL)) SYSTOLIC_JDGMNT     
+		             , MAX(IF(MIC.MESURE_CODE = '622F', MIC.MESURE_DATA, NULL)) DIASTOLIC
+		             , MAX(IF(MIC.MESURE_CODE = '622F', MIC.JDGMNT_RESULT, NULL)) DIASTOLIC_JDGMNT     
+		             , MAX(IF(MIC.MESURE_CODE = '6230', MIC.MESURE_DATA, NULL)) PULS
+		             , MAX(IF(MIC.MESURE_CODE = '624A', MIC.MESURE_DATA, NULL)) FBS
+		             , MAX(IF(MIC.MESURE_CODE = '624A', MIC.JDGMNT_RESULT, NULL)) FBS_JDGMNT   
+		             , MAX(IF(MIC.MESURE_CODE = '624B', MIC.MESURE_DATA, NULL)) PP2
+		             , MAX(IF(MIC.MESURE_CODE = '624B', MIC.JDGMNT_RESULT, NULL)) PP2_JDGMNT          
+		             , MAX(IF(MIC.MESURE_CODE = '624C', MIC.MESURE_DATA, NULL)) TC
+		             , MAX(IF(MIC.MESURE_CODE = '624C', MIC.JDGMNT_RESULT, NULL)) TC_JDGMNT   
+		             , MAX(IF(MIC.MESURE_CODE = '624D', MIC.MESURE_DATA, NULL)) TG
+		             , MAX(IF(MIC.MESURE_CODE = '624D', MIC.JDGMNT_RESULT, NULL)) TG_JDGMNT     
+		             , MAX(IF(MIC.MESURE_CODE = '624E', MIC.MESURE_DATA, NULL)) HDLC
+		             , MAX(IF(MIC.MESURE_CODE = '624E', MIC.JDGMNT_RESULT, NULL)) HDLC_JDGMNT   
+		             , MAX(IF(MIC.MESURE_CODE = '624F', MIC.MESURE_DATA, NULL)) LDLC
+		             , MAX(IF(MIC.MESURE_CODE = '624F', MIC.JDGMNT_RESULT, NULL)) LDLC_JDGMNT     
+		          FROM MESURE_INFO_CMMN MIC
+		         INNER JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MESURE_CODE
+		                     , MAX(MESURE_DT) MESURE_DT
+		                  FROM MESURE_INFO_CMMN
+		                 WHERE MESURE_CODE IN (
+		                         '6021', '6022', '6023', '6026', '6029', '6056', '8072'
+		                       , '622E', '622F', '6230'
+		                       , '624A', '624B'
+		                       , '624C', '624D', '624E', '624F'
+		                     )
+		                   AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                 GROUP BY MBER_NO, MESURE_CODE
+		             ) MMIC
+		            ON MIC.MBER_NO = MMIC.MBER_NO
+		           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		           AND MIC.MESURE_DT = MMIC.MESURE_DT
+		         GROUP BY MIC.MBER_NO
+		     ) MIC
+		 INNER JOIN (
+		        SELECT
+		               MBER_NO
+		             , SUM(JDGMNT_VAL) RISK_FCTR_CNT
+		             , GROUP_CONCAT(MESURE_CODE_NM ORDER BY MESURE_CODES ASC SEPARATOR ',') RISK_FCTR
+		             , MAX(IF(MESURE_CODES = '6021', 'Y', 'N')) WAIST_AT
+		             , MAX(IF(MESURE_CODES = '622E', 'Y', 'N')) BP_AT
+		             , MAX(IF(MESURE_CODES = '624A', 'Y', 'N')) FBS_AT
+		             , MAX(IF(MESURE_CODES = '624D', 'Y', 'N')) TG_AT
+		             , MAX(IF(MESURE_CODES = '624E', 'Y', 'N')) HDLC_AT
+		          FROM (
+		                SELECT
+		                       MIC.MBER_NO
+		                     , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                            WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                            ELSE MIC.MESURE_CODE
+		                        END MESURE_CODES
+		                     , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                ELSE 0
+		                            END
+		                          ) JDGMNT_VAL
+		                     , MAX(CASE WHEN MIC.MESURE_CODE = '8072' THEN '허리둘레'
+		                                WHEN MIC.MESURE_CODE = '622E' THEN '혈압'
+		                                WHEN MIC.MESURE_CODE = '622F' THEN '혈압'
+		                                WHEN MIC.MESURE_CODE = '624A' THEN '식전혈당'
+		                                WHEN MIC.MESURE_CODE = '624D' THEN '중성지방'
+		                                WHEN MIC.MESURE_CODE = '624E' THEN 'HDL-C'
+		                                ELSE NULL
+		                            END
+		                          ) MESURE_CODE_NM
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , MESURE_CODE
+		                             , MAX(MESURE_DT) MESURE_DT
+		                          FROM MESURE_INFO_CMMN
+		                         WHERE MESURE_CODE IN (
+		                                 '8072'
+		                               , '622E', '622F'
+		                               , '624A'
+		                               , '624D', '624E'
+		                             )
+		                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, MESURE_CODE
+		                     ) MMIC
+		                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                 GROUP BY MBER_NO, MESURE_CODES
+		             ) MICJ
+		         WHERE JDGMNT_VAL = 1
+		         GROUP BY MBER_NO
+		     ) RF
+		    ON MIC.MBER_NO = RF.MBER_NO
+		 INNER JOIN (
+		        SELECT
+		               MBER_NO
+		             , NM
+		             , BRTHDY
+		             , IF(SEXDSTN = 'M', '남', '여') SEXDSTN
+		          FROM MBER_INFO
+		         WHERE MBER_SECSN_AT = 'N'
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+				   AND (
+				   		  USID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+				   	   OR NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+				   	   OR REPLACE(TELNO, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+				   	   OR REPLACE(MBTLNUM, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+				       )
+		</if>
+		     ) MI
+		    ON MIC.MBER_NO = MI.MBER_NO
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+				SELECT MBER_NO
+				  FROM MBER_PSTINST_INFO MPI
+				 INNER JOIN (
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND TOP_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND MIDDLE_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND BOTTOM_INST_NO = #{INST_NO}
+					 ) II
+				 WHERE MPI.INST_NO = II.INST_NO
+				   AND CONFM_AT = 'Y'
+				   AND SECSN_AT = 'N'
+				 GROUP BY MBER_NO
+		     ) MPI
+			ON MIC.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT 
+		               MQA.MBER_NO
+		             , REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(MQA.ANSWER, 'OBST', '비만'), 'HBPS', '고혈압'), 'DABT', '당뇨병'), 'DSPD', '고지혈증'), '9999', '기타'), 'NONE', '없음') TAKNG_MDCIN
+		             , IF(INSTR(MQA.ANSWER, 'OBST') > 0, 'Y', 'N') OBST
+		             , IF(INSTR(MQA.ANSWER, 'HBPS') > 0, 'Y', 'N') HBPS
+		             , IF(INSTR(MQA.ANSWER, 'DABT') > 0, 'Y', 'N') DABT
+		             , IF(INSTR(MQA.ANSWER, 'DSPD') > 0, 'Y', 'N') DSPD
+		          FROM MBER_QUSTNR_ANSWER MQA
+		         INNER JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , QUSTNR_SE_CODE
+		                     , QUSTNR_SN
+		                     , QESTN_SN
+		                     , MAX(QUSTNR_DT) QUSTNR_DT
+		                  FROM MBER_QUSTNR_ANSWER
+		                 WHERE QUSTNR_SE_CODE = 'LLHB'
+		                   AND QUSTNR_SN = 1
+		                   AND QESTN_SN = 3
+		                   AND QUSTNR_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                 GROUP BY MBER_NO, QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN
+		             ) MMQA
+		            ON MQA.MBER_NO = MMQA.MBER_NO
+		           AND MQA.QUSTNR_SE_CODE = MMQA.QUSTNR_SE_CODE
+		           AND MQA.QUSTNR_SN = MMQA.QUSTNR_SN
+		           AND MQA.QESTN_SN = MMQA.QESTN_SN
+		           AND MQA.QUSTNR_DT = MMQA.QUSTNR_DT
+		     ) MQA
+		    ON MI.MBER_NO = MQA.MBER_NO
+		 WHERE 1 = 1
+		<if test = "RISK_FCTR_CNT != null and RISK_FCTR_CNT != ''">
+		   AND RF.RISK_FCTR_CNT <![CDATA[ <= ]]> #{RISK_FCTR_CNT}
+		</if>
+		<if test="RISK_FCTR != null and RISK_FCTR != ''">
+		    AND (
+			<trim prefixOverrides="OR">
+			<if test = "WAIST != null and WAIST != ''">
+			   OR RF.WAIST_AT = 'Y'
+			</if>
+			<if test = "BP != null and BP != ''">
+			   OR RF.BP_AT = 'Y'
+			</if>
+			<if test = "FBS != null and FBS != ''">
+			   OR RF.FBS_AT = 'Y'
+			</if>
+			<if test = "TG != null and TG != ''">
+			   OR RF.TG_AT = 'Y'
+			</if>
+			<if test = "HDLC != null and HDLC != ''">
+			   OR RF.HDLC_AT = 'Y'
+			</if>
+			</trim>
+			)
+		</if>
+		<if test="TAKNG_MDCIN != null and TAKNG_MDCIN != ''">
+		   AND (
+			<trim prefixOverrides="OR">
+			<if test = "OBST != null and OBST != ''">
+			   OR MQA.OBST = 'Y'
+			</if>
+			<if test = "HBPS != null and HBPS != ''">
+			   OR MQA.HBPS = 'Y'
+			</if>
+			<if test = "DABT != null and DABT != ''">
+			   OR MQA.DABT = 'Y'
+			</if>
+			<if test = "DSPD != null and DSPD != ''">
+			   OR MQA.DSPD = 'Y'
+			</if>
+			</trim>
+			)
+		</if>
+	</sql>
+	
+	<!-- 위험요인 현황조회 건수 -->
+	<select id="selectRiskFctrInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectRiskFctrInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 위험요인 현황조회 -->
+	<select id="selectRiskFctrInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectRiskFctrInfoListQuery" />
+		     ) TBL
+		 ORDER BY MESURE_DT DESC, NM, MBER_NO
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 측정정보 전후비교 현황조회 쿼리 -->
+	<sql id="selectMesureBrftrCmprInfoListQuery">
+		SELECT
+		       MIC.MBER_NO
+		     , MI.NM
+		     , MI.BRTHDY
+		     , MI.SEXDSTN
+		     , WAIST_0
+		     , CASE WHEN WAIST_CNT = 2 THEN WAIST_3 WHEN WAIST_CNT = 3 THEN WAIST_2 ELSE WAIST_1 END WAIST_1
+		     , CASE WHEN WAIST_CNT = 3 THEN WAIST_3 WHEN WAIST_CNT = 4 THEN WAIST_2 ELSE NULL    END WAIST_2
+		     , CASE WHEN WAIST_CNT = 4 THEN WAIST_3                                 ELSE NULL    END WAIST_3
+		     , BP_0
+		     , CASE WHEN BP_CNT = 2 THEN BP_3 WHEN BP_CNT = 3 THEN BP_2 ELSE BP_1 END BP_1
+		     , CASE WHEN BP_CNT = 3 THEN BP_3 WHEN BP_CNT = 4 THEN BP_2 ELSE NULL END BP_2
+		     , CASE WHEN BP_CNT = 4 THEN BP_3                           ELSE NULL END BP_3
+		     , FBS_0
+		     , CASE WHEN FBS_CNT = 2 THEN FBS_3 WHEN FBS_CNT = 3 THEN FBS_2 ELSE FBS_1 END FBS_1
+		     , CASE WHEN FBS_CNT = 3 THEN FBS_3 WHEN FBS_CNT = 4 THEN FBS_2 ELSE NULL  END FBS_2
+		     , CASE WHEN FBS_CNT = 4 THEN FBS_3                             ELSE NULL  END FBS_3
+		     , TG_0
+		     , CASE WHEN TG_CNT = 2 THEN TG_3 WHEN TG_CNT = 3 THEN TG_2 ELSE TG_1 END TG_1
+		     , CASE WHEN TG_CNT = 3 THEN TG_3 WHEN TG_CNT = 4 THEN TG_2 ELSE NULL END TG_2
+		     , CASE WHEN TG_CNT = 4 THEN TG_3                           ELSE NULL END TG_3
+		     , HDLC_0
+		     , CASE WHEN HDLC_CNT = 2 THEN HDLC_3 WHEN HDLC_CNT = 3 THEN HDLC_2 ELSE HDLC_1 END HDLC_1
+		     , CASE WHEN HDLC_CNT = 3 THEN HDLC_3 WHEN HDLC_CNT = 4 THEN HDLC_2 ELSE NULL   END HDLC_2
+		     , CASE WHEN HDLC_CNT = 4 THEN HDLC_3                               ELSE NULL   END HDLC_3
+		  FROM (
+		        SELECT 
+		               MBER_NO
+		             , MAX(IF(MESURE_CODE = '8072' AND ORD = 0, ROUND(MESURE_DATA, 1), NULL)) WAIST_0
+		             , MAX(IF(MESURE_CODE = '8072' AND ORD = 1, ROUND(MESURE_DATA, 1), NULL)) WAIST_1
+		             , MAX(IF(MESURE_CODE = '8072' AND ORD = 2, ROUND(MESURE_DATA, 1), NULL)) WAIST_2
+		             , MAX(IF(MESURE_CODE = '8072' AND ORD = 3, ROUND(MESURE_DATA, 1), NULL)) WAIST_3
+		             , SUM(IF(MESURE_CODE = '8072', 1, 0)) WAIST_CNT
+		             , CONCAT(MAX(IF(MESURE_CODE = '622E' AND ORD = 0, ROUND(MESURE_DATA, 0), NULL)), ' / ', MAX(IF(MESURE_CODE = '622F' AND ORD = 0, ROUND(MESURE_DATA, 0), NULL))) BP_0
+		             , CONCAT(MAX(IF(MESURE_CODE = '622E' AND ORD = 1, ROUND(MESURE_DATA, 0), NULL)), ' / ', MAX(IF(MESURE_CODE = '622F' AND ORD = 1, ROUND(MESURE_DATA, 0), NULL))) BP_1
+		             , CONCAT(MAX(IF(MESURE_CODE = '622E' AND ORD = 2, ROUND(MESURE_DATA, 0), NULL)), ' / ', MAX(IF(MESURE_CODE = '622F' AND ORD = 2, ROUND(MESURE_DATA, 0), NULL))) BP_2
+		             , CONCAT(MAX(IF(MESURE_CODE = '622E' AND ORD = 3, ROUND(MESURE_DATA, 0), NULL)), ' / ', MAX(IF(MESURE_CODE = '622F' AND ORD = 3, ROUND(MESURE_DATA, 0), NULL))) BP_3
+		             , SUM(IF(MESURE_CODE = '622E', 1, 0)) BP_CNT
+		             , CAST(MAX(IF(MESURE_CODE = '624A' AND ORD = 0, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) FBS_0
+		             , CAST(MAX(IF(MESURE_CODE = '624A' AND ORD = 1, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) FBS_1
+		             , CAST(MAX(IF(MESURE_CODE = '624A' AND ORD = 2, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) FBS_2
+		             , CAST(MAX(IF(MESURE_CODE = '624A' AND ORD = 3, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) FBS_3
+		             , SUM(IF(MESURE_CODE = '624A', 1, 0)) FBS_CNT
+		             , CAST(MAX(IF(MESURE_CODE = '624D' AND ORD = 0, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) TG_0
+		             , CAST(MAX(IF(MESURE_CODE = '624D' AND ORD = 1, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) TG_1
+		             , CAST(MAX(IF(MESURE_CODE = '624D' AND ORD = 2, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) TG_2
+		             , CAST(MAX(IF(MESURE_CODE = '624D' AND ORD = 3, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) TG_3
+		             , SUM(IF(MESURE_CODE = '624D', 1, 0)) TG_CNT
+		             , CAST(MAX(IF(MESURE_CODE = '624E' AND ORD = 0, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) HDLC_0
+		             , CAST(MAX(IF(MESURE_CODE = '624E' AND ORD = 1, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) HDLC_1
+		             , CAST(MAX(IF(MESURE_CODE = '624E' AND ORD = 2, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) HDLC_2
+		             , CAST(MAX(IF(MESURE_CODE = '624E' AND ORD = 3, ROUND(MESURE_DATA, 0), NULL)) AS CHAR) HDLC_3
+		             , SUM(IF(MESURE_CODE = '624E', 1, 0)) HDLC_CNT
+		          FROM (
+		                SELECT
+		                       MIC.MBER_NO
+		                     , 0 ORD
+		                     , MIC.MESURE_CODE
+		                     , MIC.MESURE_DT
+		                     , MIC.MESURE_DATA
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , MESURE_CODE  
+		                             , MIN(MESURE_DT) MESURE_DT
+		                          FROM MESURE_INFO_CMMN
+		                         WHERE MESURE_CODE IN (
+		                                 '8072'
+		                               , '622E', '622F'
+		                               , '624A'
+		                               , '624D', '624E'
+		                             )
+		                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, MESURE_CODE
+		                     ) MMIC
+		                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                 UNION ALL
+		                SELECT 
+		                       OMIC.MBER_NO
+		                     , OMIC.ORDS
+		                     , OMIC.MESURE_CODE
+		                     , OMIC.MESURE_DT
+		                     , OMIC.MESURE_DATA
+		                  FROM (
+		                        SELECT
+		                               MIC.MBER_NO
+		                             , MIC.MESURE_CODE
+		                             , IF(@PRE_MBER_NO = MIC.MBER_NO AND @PRE_MESURE_CODE = MIC.MESURE_CODE, @ORD := @ORD - 1, @ORD := 3) ORDS
+		                             , IF(@PRE_MBER_NO = MIC.MBER_NO, @PRE_MBER_NO, @PRE_MBER_NO := MIC.MBER_NO)
+		                             , IF(@PRE_MESURE_CODE = MIC.MESURE_CODE, @PRE_MESURE_CODE, @PRE_MESURE_CODE := MIC.MESURE_CODE)
+		                             , MIC.MESURE_DT
+		                             , MIC.MESURE_DATA
+		                          FROM (
+		                                SELECT 
+		                                       MIC.MBER_NO
+		                                     , MIC.MESURE_CODE
+		                                     , MIC.MESURE_DT
+		                                     , MIC.MESURE_DATA
+		                                  FROM MESURE_INFO_CMMN MIC
+		                                 INNER JOIN (
+		                                        SELECT
+		                                               MBER_NO
+		                                             , MESURE_CODE  
+		                                             , MIN(MESURE_DT) MESURE_DT
+		                                          FROM MESURE_INFO_CMMN
+		                                         WHERE MESURE_CODE IN (
+		                                                 '8072'
+		                                               , '622E', '622F'
+		                                               , '624A'
+		                                               , '624D', '624E'
+		                                             )
+		                                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                                         GROUP BY MBER_NO, MESURE_CODE
+		                                     ) MMIC
+		                                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                                   AND MIC.MESURE_DT > MMIC.MESURE_DT
+		                                 ORDER BY MIC.MBER_NO, MIC.MESURE_CODE, MIC.MESURE_DT DESC
+		                             ) MIC
+		                         INNER JOIN (SELECT @PRE_MBER_NO := NULL, @PRE_MESURE_CODE := NULL, @ORD := 3) R
+		                     ) OMIC
+		                 WHERE ORDS > 0
+		             ) TBL
+		         GROUP BY MBER_NO
+		     ) MIC
+		 INNER JOIN (
+		        SELECT
+		               MBER_NO
+		             , NM
+		             , BRTHDY
+		             , IF(SEXDSTN = 'M', '남', '여') SEXDSTN
+		          FROM MBER_INFO
+		         WHERE MBER_SECSN_AT = 'N'
+		<if test="SEARCH_KEY != null and SEARCH_KEY != ''">
+				   AND (
+				   		  USID LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+				   	   OR NM LIKE CONCAT('%', #{SEARCH_KEY}, '%')
+				   	   OR REPLACE(TELNO, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+				   	   OR REPLACE(MBTLNUM, '-', '') = REPLACE(#{SEARCH_KEY}, '-', '')
+				       )
+		</if>
+		     ) MI
+		    ON MIC.MBER_NO = MI.MBER_NO
+		<if test="INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+				SELECT MBER_NO
+				  FROM MBER_PSTINST_INFO MPI
+				 INNER JOIN (
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND TOP_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND MIDDLE_INST_NO = #{INST_NO}
+						 UNION ALL
+						SELECT INST_NO
+						  FROM INST_INFO
+						 WHERE USE_AT = 'Y'
+						   AND BOTTOM_INST_NO = #{INST_NO}
+					 ) II
+				 WHERE MPI.INST_NO = II.INST_NO
+				   AND CONFM_AT = 'Y'
+				   AND SECSN_AT = 'N'
+				 GROUP BY MBER_NO
+		     ) MPI
+			ON MIC.MBER_NO = MPI.MBER_NO
+		</if>
+	</sql>
+	
+	<!-- 측정정보 전후비교 현황조회 건수 -->
+	<select id="selectMesureBrftrCmprInfoListCount" parameterType="hmap" resultType="int">
+		SELECT COUNT(*) CNT
+		  FROM (
+		<include refid="selectMesureBrftrCmprInfoListQuery" />
+		     ) TBL
+	</select>
+	
+	<!-- 측정정보 전후비교 현황조회 -->
+	<select id="selectMesureBrftrCmprInfoList" parameterType="hmap" resultType="hmap">
+		SELECT TBL.*
+		  FROM (
+		<include refid="selectMesureBrftrCmprInfoListQuery" />
+		     ) TBL
+		 ORDER BY MBER_NO DESC
+		<if test="START_PAGE != null">
+ 		 LIMIT #{START_PAGE}, 30
+		</if>
+	</select>
+	
+	<!-- 사용자 통계 -->
+	<select id="selectMberStatsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT 
+		       R.AGES
+		     , IFNULL(TOT_MAN, 0) TOT_MAN
+		     , IFNULL(TOT_WOMAN, 0) TOT_WOMAN
+		     , IFNULL(TOT_TOTAL, 0) TOT_TOTAL
+		     , IFNULL(NEW_MAN, 0) NEW_MAN
+		     , IFNULL(NEW_WOMAN, 0) NEW_WOMAN
+		     , IFNULL(NEW_TOTAL, 0) NEW_TOTAL
+		     , IFNULL(RISK_FCTR_MAN, 0) RISK_FCTR_MAN
+		     , IFNULL(RISK_FCTR_WOMAN, 0) RISK_FCTR_WOMAN
+		     , IFNULL(RISK_FCTR_TOTAL, 0) RISK_FCTR_TOTAL
+		     , IFNULL(ALL_TOTAL, 0) ALL_TOTAL
+		  FROM (
+		        SELECT 10 AGES
+		         UNION ALL
+		        SELECT 20
+		         UNION ALL
+		        SELECT 30
+		         UNION ALL
+		        SELECT 40
+		         UNION ALL
+		        SELECT 50
+		         UNION ALL
+		        SELECT 60
+		         UNION ALL
+		        SELECT 70
+		         UNION ALL
+		        SELECT 80
+		     ) R
+		  LEFT JOIN (
+		  
+		        SELECT
+		               AGES
+		             , SUM(IF(SEXDSTN = 'M', 1, 0)) TOT_MAN
+		             , SUM(IF(SEXDSTN = 'F', 1, 0)) TOT_WOMAN
+		             , SUM(1) TOT_TOTAL
+		             , SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959') AND SEXDSTN = 'M', 1, 0)) NEW_MAN
+		             , SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959') AND SEXDSTN = 'F', 1, 0)) NEW_WOMAN
+		             , SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')                  , 1, 0)) NEW_TOTAL
+		             , SUM(IF(JDGMNT_VAL > 0 AND SEXDSTN = 'M', 1, 0)) RISK_FCTR_MAN
+		             , SUM(IF(JDGMNT_VAL > 0 AND SEXDSTN = 'F', 1, 0)) RISK_FCTR_WOMAN
+		             , SUM(IF(JDGMNT_VAL > 0, 1, 0)) RISK_FCTR_TOTAL
+		             , SUM(1) ALL_TOTAL
+		          FROM (
+		                SELECT
+		                       MBER_NO
+		                     , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+		                            WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+		                            ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+		                        END AGES
+		                     , SEXDSTN
+		                     , REGIST_DT
+		                  FROM MBER_INFO
+		                 WHERE MBER_SECSN_AT = 'N'
+		                   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		             ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		         INNER JOIN (
+		            		SELECT MBER_NO
+		            		  FROM MBER_PSTINST_INFO MPI
+		            		 INNER JOIN (
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND TOP_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND MIDDLE_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND BOTTOM_INST_NO = #{INST_NO}
+		            			   ) II
+		            		 WHERE MPI.INST_NO = II.INST_NO
+		            		   AND CONFM_AT = 'Y'
+		            		   AND SECSN_AT = 'N'
+		            		 GROUP BY MBER_NO
+		             ) MPI
+		        	  ON MI.MBER_NO = MPI.MBER_NO
+		</if>		             
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , SUM(JDGMNT_VAL) JDGMNT_VAL
+		                  FROM (
+		                        SELECT
+		                               MIC.MBER_NO
+		                             , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                                    WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                                    ELSE MIC.MESURE_CODE
+		                                END MESURE_CODES
+		                             , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                        WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                        ELSE 0
+		                                    END
+		                                  ) JDGMNT_VAL
+		                             , MAX(CASE WHEN MIC.MESURE_CODE = '8072' THEN '허'
+		                                        WHEN MIC.MESURE_CODE = '622E' THEN '압'
+		                                        WHEN MIC.MESURE_CODE = '622F' THEN '압'
+		                                        WHEN MIC.MESURE_CODE = '624A' THEN '당'
+		                                        WHEN MIC.MESURE_CODE = '624D' THEN '중'
+		                                        WHEN MIC.MESURE_CODE = '624E' THEN 'H'
+		                                        ELSE NULL
+		                                    END
+		                                  ) MESURE_CODE_NM
+		                          FROM MESURE_INFO_CMMN MIC
+		                         INNER JOIN (
+		                                SELECT
+		                                       MBER_NO
+		                                     , MESURE_CODE
+		                                     , MAX(MESURE_DT) MESURE_DT
+		                                  FROM MESURE_INFO_CMMN
+		                                 WHERE MESURE_CODE IN (
+		                                         '8072'
+		                                       , '622E', '622F'
+		                                       , '624A'
+		                                       , '624D', '624E'
+		                                     )
+		                                   AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                                 GROUP BY MBER_NO, MESURE_CODE
+		                             ) MMIC
+		                            ON MIC.MBER_NO = MMIC.MBER_NO
+		                           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                           AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                         GROUP BY MBER_NO, MESURE_CODES
+		                     ) MIC
+		                 GROUP BY MBER_NO
+		             ) MIC
+		            ON MI.MBER_NO = MIC.MBER_NO
+		         GROUP BY AGES
+		         ORDER BY AGES
+		     ) TBL
+		    ON R.AGES = TBL.AGES
+		 UNION ALL
+		 SELECT
+		       'TOTAL' AGES
+		     , IFNULL(SUM(IF(SEXDSTN = 'M', 1, 0)), 0) TOT_MAN
+		     , IFNULL(SUM(IF(SEXDSTN = 'F', 1, 0)), 0) TOT_WOMAN
+		     , IFNULL(SUM(1), 0) TOTAL
+		     , IFNULL(SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959') AND SEXDSTN = 'M', 1, 0)), 0) NEW_MAN
+		     , IFNULL(SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959') AND SEXDSTN = 'F', 1, 0)), 0) NEW_WOMAN
+		     , IFNULL(SUM(IF(REGIST_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959'), 1, 0)), 0) NEW_TOTAL
+		     , IFNULL(SUM(IF(JDGMNT_VAL > 0 AND SEXDSTN = 'M', 1, 0)), 0) RISK_FCTR_MAN
+		     , IFNULL(SUM(IF(JDGMNT_VAL > 0 AND SEXDSTN = 'F', 1, 0)), 0) RISK_FCTR_WOMAN
+		     , IFNULL(SUM(IF(JDGMNT_VAL > 0, 1, 0)), 0) RISK_FCTR_TOTAL
+		     , IFNULL(SUM(1), 0) ALL_TOTAL
+		  FROM (
+				SELECT
+                       MBER_NO
+                     , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+                            WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+                            ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+                        END AGES
+                     , SEXDSTN
+                     , REGIST_DT
+                  FROM MBER_INFO
+                 WHERE MBER_SECSN_AT = 'N'
+                   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		     ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+		  		SELECT MBER_NO
+		  		  FROM MBER_PSTINST_INFO MPI
+		  		 INNER JOIN (
+		    				SELECT INST_NO
+		    				  FROM INST_INFO
+		    				 WHERE USE_AT = 'Y'
+		    				   AND TOP_INST_NO = #{INST_NO}
+		    				 UNION ALL
+		    				SELECT INST_NO
+		    				  FROM INST_INFO
+		    				 WHERE USE_AT = 'Y'
+		    				   AND MIDDLE_INST_NO = #{INST_NO}
+		    				 UNION ALL
+		    				SELECT INST_NO
+		    				  FROM INST_INFO
+		    				 WHERE USE_AT = 'Y'
+		    				   AND BOTTOM_INST_NO = #{INST_NO}
+		  			   ) II
+		  		 WHERE MPI.INST_NO = II.INST_NO
+		  		   AND CONFM_AT = 'Y'
+		  		   AND SECSN_AT = 'N'
+		  		 GROUP BY MBER_NO
+		     ) MPI
+ 		    ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , SUM(JDGMNT_VAL) JDGMNT_VAL
+		          FROM (
+		                SELECT
+		                       MIC.MBER_NO
+		                     , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                            WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                            ELSE MIC.MESURE_CODE
+		                        END MESURE_CODES
+		                     , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                ELSE 0
+		                            END
+		                          ) JDGMNT_VAL
+		                     , MAX(CASE WHEN MIC.MESURE_CODE = '8072' THEN '허'
+		                                WHEN MIC.MESURE_CODE = '622E' THEN '압'
+		                                WHEN MIC.MESURE_CODE = '622F' THEN '압'
+		                                WHEN MIC.MESURE_CODE = '624A' THEN '당'
+		                                WHEN MIC.MESURE_CODE = '624D' THEN '중'
+		                                WHEN MIC.MESURE_CODE = '624E' THEN 'H'
+		                                ELSE NULL
+		                            END
+		                          ) MESURE_CODE_NM
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , MESURE_CODE
+		                             , MAX(MESURE_DT) MESURE_DT
+		                          FROM MESURE_INFO_CMMN
+		                         WHERE MESURE_CODE IN (
+		                                 '8072'
+		                               , '622E', '622F'
+		                               , '624A'
+		                               , '624D', '624E'
+		                             )
+		                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, MESURE_CODE
+		                     ) MMIC
+		                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                 GROUP BY MBER_NO, MESURE_CODES
+		             ) MIC
+		         GROUP BY MBER_NO
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+	</select>
+	
+	<!-- 위험군 통계 -->
+	<select id="selectRiskGroupStatsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       R.AGES
+		     , IFNULL(NRMLT_MAN, 0) NRMLT_MAN
+		     , IFNULL(NRMLT_WOMAN, 0) NRMLT_WOMAN
+		     , IFNULL(NRMLT_TOTAL, 0) NRMLT_TOTAL
+		     , IFNULL(HEALTH_ATENT_1_MAN, 0) HEALTH_ATENT_1_MAN
+		     , IFNULL(HEALTH_ATENT_1_WOMAN, 0) HEALTH_ATENT_1_WOMAN
+		     , IFNULL(HEALTH_ATENT_2_MAN, 0) HEALTH_ATENT_2_MAN
+		     , IFNULL(HEALTH_ATENT_2_WOMAN, 0) HEALTH_ATENT_2_WOMAN
+		     , IFNULL(HEALTH_ATENT_TOTAL, 0) HEALTH_ATENT_TOTAL
+		     , IFNULL(MTBL_SYNDR_3_MAN, 0) MTBL_SYNDR_3_MAN
+		     , IFNULL(MTBL_SYNDR_3_WOMAN, 0) MTBL_SYNDR_3_WOMAN
+		     , IFNULL(MTBL_SYNDR_4_MAN, 0) MTBL_SYNDR_4_MAN
+		     , IFNULL(MTBL_SYNDR_4_WOMAN, 0) MTBL_SYNDR_4_WOMAN
+		     , IFNULL(MTBL_SYNDR_5_MAN, 0) MTBL_SYNDR_5_MAN
+		     , IFNULL(MTBL_SYNDR_5_WOMAN, 0) MTBL_SYNDR_5_WOMAN
+		     , IFNULL(MTBL_SYNDR_TOTAL, 0) MTBL_SYNDR_TOTAL
+		     , IFNULL(NTCL_MAN, 0) NTCL_MAN
+		     , IFNULL(NTCL_WOMAN, 0) NTCL_WOMAN
+		     , IFNULL(NTCL_TOTAL, 0) NTCL_TOTAL
+		     , IFNULL(MAN_TOTAL, 0) MAN_TOTAL
+		     , IFNULL(WOMAN_TOTAL, 0) WOMAN_TOTAL
+		     , IFNULL(ALL_TOTAL, 0) ALL_TOTAL
+		  FROM (
+		        SELECT 10 AGES
+		         UNION ALL
+		        SELECT 20
+		         UNION ALL
+		        SELECT 30
+		         UNION ALL
+		        SELECT 40
+		         UNION ALL
+		        SELECT 50
+		         UNION ALL
+		        SELECT 60
+		         UNION ALL
+		        SELECT 70
+		         UNION ALL
+		        SELECT 80
+		     ) R
+		  LEFT JOIN (
+		        SELECT
+		        	   MI.AGES
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 0 AND MI.SEXDSTN = 'M', 1, 0)) NRMLT_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 0 AND MI.SEXDSTN = 'F', 1, 0)) NRMLT_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 0                     , 1, 0)) NRMLT_TOTAL
+		             , SUM(IF(MIC.RISK_FCTR_CNT = 1 AND MI.SEXDSTN = 'M', 1, 0)) HEALTH_ATENT_1_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 1 AND MI.SEXDSTN = 'F', 1, 0)) HEALTH_ATENT_1_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 2 AND MI.SEXDSTN = 'M', 1, 0)) HEALTH_ATENT_2_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 2 AND MI.SEXDSTN = 'F', 1, 0)) HEALTH_ATENT_2_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT IN (1, 2)               , 1, 0)) HEALTH_ATENT_TOTAL
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 3 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_3_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 3 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_3_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 4 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_4_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 4 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_4_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 5 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_5_MAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT = 5 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_5_WOMAN
+		        	 , SUM(IF(MIC.RISK_FCTR_CNT IN (3, 4, 5)            , 1, 0)) MTBL_SYNDR_TOTAL
+		        	 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0 AND MI.SEXDSTN = 'M', 1, 0)) NTCL_MAN
+		        	 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0 AND MI.SEXDSTN = 'F', 1, 0)) NTCL_WOMAN
+		        	 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0                     , 1, 0)) NTCL_TOTAL
+		             , SUM(IF(MI.SEXDSTN = 'M', 1, 0)) MAN_TOTAL
+		             , SUM(IF(MI.SEXDSTN = 'F', 1, 0)) WOMAN_TOTAL
+		             , SUM(1) ALL_TOTAL
+		          FROM (
+						SELECT
+							   MBER_NO
+							 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+									WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+									ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+								END AGES
+							 , SEXDSTN
+							 , REGIST_DT
+						  FROM MBER_INFO
+						 WHERE MBER_SECSN_AT = 'N'
+						   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		             ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		         INNER JOIN (
+		            		SELECT MBER_NO
+		            		  FROM MBER_PSTINST_INFO MPI
+		            		 INNER JOIN (
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND TOP_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND MIDDLE_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND BOTTOM_INST_NO = #{INST_NO}
+		            			   ) II
+		            		 WHERE MPI.INST_NO = II.INST_NO
+		            		   AND CONFM_AT = 'Y'
+		            		   AND SECSN_AT = 'N'
+		            		 GROUP BY MBER_NO
+		             ) MPI
+		            ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , SUM(JDGMNT_VAL) RISK_FCTR_CNT
+		                  FROM (
+		                        SELECT
+		                               MIC.MBER_NO
+		                             , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                                    WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                                    ELSE MIC.MESURE_CODE
+		                                END MESURE_CODES
+		                             , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                        WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                        ELSE 0
+		                                    END
+		                                  ) JDGMNT_VAL
+		                             , MAX(CASE WHEN MIC.MESURE_CODE = '8072' THEN '허'
+		                                        WHEN MIC.MESURE_CODE = '622E' THEN '압'
+		                                        WHEN MIC.MESURE_CODE = '622F' THEN '압'
+		                                        WHEN MIC.MESURE_CODE = '624A' THEN '당'
+		                                        WHEN MIC.MESURE_CODE = '624D' THEN '중'
+		                                        WHEN MIC.MESURE_CODE = '624E' THEN 'H'
+		                                        ELSE NULL
+		                                    END
+		                                  ) MESURE_CODE_NM
+		                          FROM MESURE_INFO_CMMN MIC
+		                         INNER JOIN (
+		                                SELECT
+		                                       MBER_NO
+		                                     , MESURE_CODE
+		                                     , MAX(MESURE_DT) MESURE_DT
+		                                  FROM MESURE_INFO_CMMN
+		                                 WHERE MESURE_CODE IN (
+		                                         '8072'
+		                                       , '622E', '622F'
+		                                       , '624A'
+		                                       , '624D', '624E'
+		                                     )
+		                                   AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                                 GROUP BY MBER_NO, MESURE_CODE
+		                             ) MMIC
+		                            ON MIC.MBER_NO = MMIC.MBER_NO
+		                           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                           AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                         GROUP BY MBER_NO, MESURE_CODES
+		                     ) MICJ
+		                 GROUP BY MBER_NO
+		             ) MIC
+		            ON MI.MBER_NO = MIC.MBER_NO
+		         GROUP BY MI.AGES
+		         ORDER BY MI.AGES
+		     ) TBL
+		    ON R.AGES = TBL.AGES
+		 UNION ALL
+		 SELECT
+			   'TOTAL'
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 0 AND MI.SEXDSTN = 'M', 1, 0)) NRMLT_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 0 AND MI.SEXDSTN = 'F', 1, 0)) NRMLT_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 0                     , 1, 0)) NRMLT_TOTAL
+		     , SUM(IF(MIC.RISK_FCTR_CNT = 1 AND MI.SEXDSTN = 'M', 1, 0)) HEALTH_ATENT_1_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 1 AND MI.SEXDSTN = 'F', 1, 0)) HEALTH_ATENT_1_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 2 AND MI.SEXDSTN = 'M', 1, 0)) HEALTH_ATENT_2_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 2 AND MI.SEXDSTN = 'F', 1, 0)) HEALTH_ATENT_2_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT IN (1, 2)               , 1, 0)) HEALTH_ATENT_TOTAL
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 3 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_3_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 3 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_3_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 4 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_4_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 4 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_4_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 5 AND MI.SEXDSTN = 'M', 1, 0)) MTBL_SYNDR_5_MAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT = 5 AND MI.SEXDSTN = 'F', 1, 0)) MTBL_SYNDR_5_WOMAN
+			 , SUM(IF(MIC.RISK_FCTR_CNT IN (3, 4, 5)            , 1, 0)) MTBL_SYNDR_TOTAL
+			 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0 AND MI.SEXDSTN = 'M', 1, 0)) NTCL_MAN
+			 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0 AND MI.SEXDSTN = 'F', 1, 0)) NTCL_WOMAN
+			 , SUM(IF(IFNULL(MIC.RISK_FCTR_CNT, -1) <![CDATA[ < ]]> 0                     , 1, 0)) NTCL_TOTAL
+		     , SUM(IF(MI.SEXDSTN = 'M', 1, 0)) MAN_TOTAL
+		     , SUM(IF(MI.SEXDSTN = 'F', 1, 0)) WOMAN_TOTAL
+		     , SUM(1) ALL_TOTAL
+		  FROM (
+				SELECT
+					   MBER_NO
+					 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+							WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+							ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+						END AGES
+					 , SEXDSTN
+					 , REGIST_DT
+				  FROM MBER_INFO
+				 WHERE MBER_SECSN_AT = 'N'
+				   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		
+		     ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+		    		SELECT MBER_NO
+		    		  FROM MBER_PSTINST_INFO MPI
+		    		 INNER JOIN (
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND TOP_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND MIDDLE_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND BOTTOM_INST_NO = #{INST_NO}
+		    			   ) II
+		    		 WHERE MPI.INST_NO = II.INST_NO
+		    		   AND CONFM_AT = 'Y'
+		    		   AND SECSN_AT = 'N'
+		    		 GROUP BY MBER_NO
+		     ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , SUM(JDGMNT_VAL) RISK_FCTR_CNT
+		          FROM (
+		                SELECT
+		                       MIC.MBER_NO
+		                     , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                            WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                            ELSE MIC.MESURE_CODE
+		                        END MESURE_CODES
+		                     , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                ELSE 0
+		                            END
+		                          ) JDGMNT_VAL
+		                     , MAX(CASE WHEN MIC.MESURE_CODE = '8072' THEN '허'
+		                                WHEN MIC.MESURE_CODE = '622E' THEN '압'
+		                                WHEN MIC.MESURE_CODE = '622F' THEN '압'
+		                                WHEN MIC.MESURE_CODE = '624A' THEN '당'
+		                                WHEN MIC.MESURE_CODE = '624D' THEN '중'
+		                                WHEN MIC.MESURE_CODE = '624E' THEN 'H'
+		                                ELSE NULL
+		                            END
+		                          ) MESURE_CODE_NM
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , MESURE_CODE
+		                             , MAX(MESURE_DT) MESURE_DT
+		                          FROM MESURE_INFO_CMMN
+		                         WHERE MESURE_CODE IN (
+		                                 '8072'
+		                               , '622E', '622F'
+		                               , '624A'
+		                               , '624D', '624E'
+		                             )
+		                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, MESURE_CODE
+		                     ) MMIC
+		                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                 GROUP BY MBER_NO, MESURE_CODES
+		             ) MICJ
+		         GROUP BY MBER_NO
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+	</select>
+	
+	<!-- 위험요인 통계 -->
+	<select id="selectRiskFctrStatsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       R.AGES
+		     , IFNULL(WAIST_NRMLT_MAN  , 0) WAIST_NRMLT_MAN 
+		     , IFNULL(WAIST_NRMLT_WOMAN, 0) WAIST_NRMLT_WOMAN
+		     , IFNULL(WAIST_NRMLT_TOTAL, 0) WAIST_NRMLT_TOTAL
+		     , IFNULL(WAIST_RISK_MAN   , 0) WAIST_RISK_MAN
+		     , IFNULL(WAIST_RISK_WOMAN , 0) WAIST_RISK_WOMAN
+		     , IFNULL(WAIST_RISK_TOTAL , 0) WAIST_RISK_TOTAL
+		     , IFNULL(BP_NRMLT_MAN     , 0) BP_NRMLT_MAN
+		     , IFNULL(BP_NRMLT_WOMAN   , 0) BP_NRMLT_WOMAN
+		     , IFNULL(BP_NRMLT_TOTAL   , 0) BP_NRMLT_TOTAL
+		     , IFNULL(BP_RISK_MAN      , 0) BP_RISK_MAN
+		     , IFNULL(BP_RISK_WOMAN    , 0) BP_RISK_WOMAN
+		     , IFNULL(BP_RISK_TOTAL    , 0) BP_RISK_TOTAL
+		     , IFNULL(FBS_NRMLT_MAN    , 0) FBS_NRMLT_MAN
+		     , IFNULL(FBS_NRMLT_WOMAN  , 0) FBS_NRMLT_WOMAN
+		     , IFNULL(FBS_NRMLT_TOTAL  , 0) FBS_NRMLT_TOTAL
+		     , IFNULL(FBS_RISK_MAN     , 0) FBS_RISK_MAN
+		     , IFNULL(FBS_RISK_WOMAN   , 0) FBS_RISK_WOMAN
+		     , IFNULL(FBS_RISK_TOTAL   , 0) FBS_RISK_TOTAL
+		     , IFNULL(TG_NRMLT_MAN     , 0) TG_NRMLT_MAN
+		     , IFNULL(TG_NRMLT_WOMAN   , 0) TG_NRMLT_WOMAN
+		     , IFNULL(TG_NRMLT_TOTAL   , 0) TG_NRMLT_TOTAL
+		     , IFNULL(TG_RISK_MAN      , 0) TG_RISK_MAN
+		     , IFNULL(TG_RISK_WOMAN    , 0) TG_RISK_WOMAN
+		     , IFNULL(TG_RISK_TOTAL    , 0) TG_RISK_TOTAL
+		     , IFNULL(HDLC_NRMLT_MAN   , 0) HDLC_NRMLT_MAN
+		     , IFNULL(HDLC_NRMLT_WOMAN , 0) HDLC_NRMLT_WOMAN
+		     , IFNULL(HDLC_NRMLT_TOTAL , 0) HDLC_NRMLT_TOTAL
+		     , IFNULL(HDLC_RISK_MAN    , 0) HDLC_RISK_MAN
+		     , IFNULL(HDLC_RISK_WOMAN  , 0) HDLC_RISK_WOMAN
+		     , IFNULL(HDLC_RISK_TOTAL  , 0) HDLC_RISK_TOTAL
+		     , IFNULL(ALL_TOTAL        , 0) ALL_TOTAL
+		  FROM (
+		        SELECT 10 AGES
+		         UNION ALL
+		        SELECT 20
+		         UNION ALL
+		        SELECT 30
+		         UNION ALL
+		        SELECT 40
+		         UNION ALL
+		        SELECT 50
+		         UNION ALL
+		        SELECT 60
+		         UNION ALL
+		        SELECT 70
+		         UNION ALL
+		        SELECT 80
+		     ) R
+		  LEFT JOIN (
+		        SELECT
+		               MI.AGES
+		             , SUM(IF(IFNULL(WAIST, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) WAIST_NRMLT_MAN
+		             , SUM(IF(IFNULL(WAIST, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) WAIST_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(WAIST, 0) = 0                     , 1, 0)) WAIST_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(WAIST, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) WAIST_RISK_MAN
+		             , SUM(IF(IFNULL(WAIST, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) WAIST_RISK_WOMAN
+		             , SUM(IF(IFNULL(WAIST, 0) > 0                     , 1, 0)) WAIST_RISK_TOTAL
+		             , SUM(IF(IFNULL(BP, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) BP_NRMLT_MAN
+		             , SUM(IF(IFNULL(BP, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) BP_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(BP, 0) = 0                     , 1, 0)) BP_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(BP, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) BP_RISK_MAN
+		             , SUM(IF(IFNULL(BP, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) BP_RISK_WOMAN
+		             , SUM(IF(IFNULL(BP, 0) > 0                     , 1, 0)) BP_RISK_TOTAL
+		             , SUM(IF(IFNULL(FBS, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) FBS_NRMLT_MAN
+		             , SUM(IF(IFNULL(FBS, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) FBS_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(FBS, 0) = 0                     , 1, 0)) FBS_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(FBS, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) FBS_RISK_MAN
+		             , SUM(IF(IFNULL(FBS, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) FBS_RISK_WOMAN
+		             , SUM(IF(IFNULL(FBS, 0) > 0                     , 1, 0)) FBS_RISK_TOTAL
+		             , SUM(IF(IFNULL(TG, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) TG_NRMLT_MAN
+		             , SUM(IF(IFNULL(TG, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) TG_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(TG, 0) = 0                     , 1, 0)) TG_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(TG, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) TG_RISK_MAN
+		             , SUM(IF(IFNULL(TG, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) TG_RISK_WOMAN
+		             , SUM(IF(IFNULL(TG, 0) > 0                     , 1, 0)) TG_RISK_TOTAL
+		             , SUM(IF(IFNULL(HDLC, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) HDLC_NRMLT_MAN
+		             , SUM(IF(IFNULL(HDLC, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) HDLC_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(HDLC, 0) = 0                     , 1, 0)) HDLC_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(HDLC, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) HDLC_RISK_MAN
+		             , SUM(IF(IFNULL(HDLC, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) HDLC_RISK_WOMAN
+		             , SUM(IF(IFNULL(HDLC, 0) > 0                     , 1, 0)) HDLC_RISK_TOTAL
+		             , SUM(1) ALL_TOTAL
+		          FROM (
+						SELECT
+							   MBER_NO
+							 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+									WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+									ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+								END AGES
+							 , SEXDSTN
+							 , REGIST_DT
+						  FROM MBER_INFO
+						 WHERE MBER_SECSN_AT = 'N'
+						   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		             ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		         INNER JOIN (
+		            		SELECT MBER_NO
+		            		  FROM MBER_PSTINST_INFO MPI
+		            		 INNER JOIN (
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND TOP_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND MIDDLE_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND BOTTOM_INST_NO = #{INST_NO}
+		            			   ) II
+		            		 WHERE MPI.INST_NO = II.INST_NO
+		            		   AND CONFM_AT = 'Y'
+		            		   AND SECSN_AT = 'N'
+		            		 GROUP BY MBER_NO
+		             ) MPI
+		            ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , MAX(IF(MESURE_CODES = '6021' AND JDGMNT_VAL = 1, 1, 0)) WAIST
+		                     , MAX(IF(MESURE_CODES = '622E' AND JDGMNT_VAL = 1, 1, 0)) BP
+		                     , MAX(IF(MESURE_CODES = '624A' AND JDGMNT_VAL = 1, 1, 0)) FBS
+		                     , MAX(IF(MESURE_CODES = '624D' AND JDGMNT_VAL = 1, 1, 0)) TG
+		                     , MAX(IF(MESURE_CODES = '624E' AND JDGMNT_VAL = 1, 1, 0)) HDLC
+		                  FROM (
+		                        SELECT
+		                               MIC.MBER_NO
+		                             , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                                    WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                                    ELSE MIC.MESURE_CODE
+		                                END MESURE_CODES
+		                             , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                        WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                        ELSE 0
+		                                    END
+		                                  ) JDGMNT_VAL
+		                          FROM MESURE_INFO_CMMN MIC
+		                         INNER JOIN (
+		                                SELECT
+		                                       MBER_NO
+		                                     , MESURE_CODE
+		                                     , MAX(MESURE_DT) MESURE_DT
+		                                  FROM MESURE_INFO_CMMN
+		                                 WHERE MESURE_CODE IN (
+		                                         '8072'
+		                                       , '622E', '622F'
+		                                       , '624A'
+		                                       , '624D', '624E'
+		                                     )
+		                                   AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                                 GROUP BY MBER_NO, MESURE_CODE
+		                             ) MMIC
+		                            ON MIC.MBER_NO = MMIC.MBER_NO
+		                           AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                           AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                         GROUP BY MBER_NO, MESURE_CODES
+		                     ) MICJ
+		                 GROUP BY MBER_NO
+		             ) MIC
+		            ON MI.MBER_NO = MIC.MBER_NO
+		         GROUP BY MI.AGES
+		         ORDER BY MI.AGES
+		     ) TBL
+		    ON R.AGES = TBL.AGES
+		 UNION ALL
+		SELECT
+		       'TOTAL'
+		     , SUM(IF(IFNULL(WAIST, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) WAIST_NRMLT_MAN
+		     , SUM(IF(IFNULL(WAIST, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) WAIST_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(WAIST, 0) = 0                     , 1, 0)) WAIST_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(WAIST, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) WAIST_RISK_MAN
+		     , SUM(IF(IFNULL(WAIST, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) WAIST_RISK_WOMAN
+		     , SUM(IF(IFNULL(WAIST, 0) > 0                     , 1, 0)) WAIST_RISK_TOTAL
+		     , SUM(IF(IFNULL(BP, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) BP_NRMLT_MAN
+		     , SUM(IF(IFNULL(BP, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) BP_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(BP, 0) = 0                     , 1, 0)) BP_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(BP, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) BP_RISK_MAN
+		     , SUM(IF(IFNULL(BP, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) BP_RISK_WOMAN
+		     , SUM(IF(IFNULL(BP, 0) > 0                     , 1, 0)) BP_RISK_TOTAL
+		     , SUM(IF(IFNULL(FBS, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) FBS_NRMLT_MAN
+		     , SUM(IF(IFNULL(FBS, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) FBS_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(FBS, 0) = 0                     , 1, 0)) FBS_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(FBS, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) FBS_RISK_MAN
+		     , SUM(IF(IFNULL(FBS, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) FBS_RISK_WOMAN
+		     , SUM(IF(IFNULL(FBS, 0) > 0                     , 1, 0)) FBS_RISK_TOTAL
+		     , SUM(IF(IFNULL(TG, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) TG_NRMLT_MAN
+		     , SUM(IF(IFNULL(TG, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) TG_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(TG, 0) = 0                     , 1, 0)) TG_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(TG, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) TG_RISK_MAN
+		     , SUM(IF(IFNULL(TG, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) TG_RISK_WOMAN
+		     , SUM(IF(IFNULL(TG, 0) > 0                     , 1, 0)) TG_RISK_TOTAL
+		     , SUM(IF(IFNULL(HDLC, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) HDLC_NRMLT_MAN
+		     , SUM(IF(IFNULL(HDLC, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) HDLC_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(HDLC, 0) = 0                     , 1, 0)) HDLC_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(HDLC, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) HDLC_RISK_MAN
+		     , SUM(IF(IFNULL(HDLC, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) HDLC_RISK_WOMAN
+		     , SUM(IF(IFNULL(HDLC, 0) > 0                     , 1, 0)) HDLC_RISK_TOTAL
+		     , SUM(1) ALL_TOTAL
+		  FROM (
+				SELECT
+					   MBER_NO
+					 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+							WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+							ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+						END AGES
+					 , SEXDSTN
+					 , REGIST_DT
+				  FROM MBER_INFO
+				 WHERE MBER_SECSN_AT = 'N'
+				   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		
+		     ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+		    		SELECT MBER_NO
+		    		  FROM MBER_PSTINST_INFO MPI
+		    		 INNER JOIN (
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND TOP_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND MIDDLE_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND BOTTOM_INST_NO = #{INST_NO}
+		    			   ) II
+		    		 WHERE MPI.INST_NO = II.INST_NO
+		    		   AND CONFM_AT = 'Y'
+		    		   AND SECSN_AT = 'N'
+		    		 GROUP BY MBER_NO
+		     ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , MAX(IF(MESURE_CODES = '6021' AND JDGMNT_VAL = 1, 1, 0)) WAIST
+		             , MAX(IF(MESURE_CODES = '622E' AND JDGMNT_VAL = 1, 1, 0)) BP
+		             , MAX(IF(MESURE_CODES = '624A' AND JDGMNT_VAL = 1, 1, 0)) FBS
+		             , MAX(IF(MESURE_CODES = '624D' AND JDGMNT_VAL = 1, 1, 0)) TG
+		             , MAX(IF(MESURE_CODES = '624E' AND JDGMNT_VAL = 1, 1, 0)) HDLC
+		          FROM (
+		                SELECT
+		                       MIC.MBER_NO
+		                     , CASE WHEN MIC.MESURE_CODE IN ('622E', '622F') THEN '622E'
+		                            WHEN MIC.MESURE_CODE = '8072' THEN '6021'
+		                            ELSE MIC.MESURE_CODE
+		                        END MESURE_CODES
+		                     , MAX(CASE WHEN INSTR(MIC.JDGMNT_RESULT, '주의') > 0 THEN 1
+		                                WHEN INSTR(MIC.JDGMNT_RESULT, '나쁨') > 0 THEN 1
+		                                ELSE 0
+		                            END
+		                          ) JDGMNT_VAL
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , MESURE_CODE
+		                             , MAX(MESURE_DT) MESURE_DT
+		                          FROM MESURE_INFO_CMMN
+		                         WHERE MESURE_CODE IN (
+		                                 '8072'
+		                               , '622E', '622F'
+		                               , '624A'
+		                               , '624D', '624E'
+		                             )
+		                           AND MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, MESURE_CODE
+		                     ) MMIC
+		                    ON MIC.MBER_NO = MMIC.MBER_NO
+		                   AND MIC.MESURE_CODE = MMIC.MESURE_CODE
+		                   AND MIC.MESURE_DT = MMIC.MESURE_DT
+		                 GROUP BY MBER_NO, MESURE_CODES
+		             ) MICJ
+		         GROUP BY MBER_NO
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+	</select>
+	
+	<!-- 복약 통계 -->
+	<select id="selectTakngMdcinStatsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       R.AGES
+		     , IFNULL(OBST_NRMLT_MAN  , 0) OBST_NRMLT_MAN
+		     , IFNULL(OBST_NRMLT_WOMAN, 0) OBST_NRMLT_WOMAN
+		     , IFNULL(OBST_NRMLT_TOTAL, 0) OBST_NRMLT_TOTAL
+		     , IFNULL(OBST_RISK_MAN   , 0) OBST_RISK_MAN
+		     , IFNULL(OBST_RISK_WOMAN , 0) OBST_RISK_WOMAN
+		     , IFNULL(OBST_RISK_TOTAL , 0) OBST_RISK_TOTAL
+		     , IFNULL(HBPS_NRMLT_MAN  , 0) HBPS_NRMLT_MAN
+		     , IFNULL(HBPS_NRMLT_WOMAN, 0) HBPS_NRMLT_WOMAN
+		     , IFNULL(HBPS_NRMLT_TOTAL, 0) HBPS_NRMLT_TOTAL
+		     , IFNULL(HBPS_RISK_MAN   , 0) HBPS_RISK_MAN
+		     , IFNULL(HBPS_RISK_WOMAN , 0) HBPS_RISK_WOMAN
+		     , IFNULL(HBPS_RISK_TOTAL , 0) HBPS_RISK_TOTAL
+		     , IFNULL(DABT_NRMLT_MAN  , 0) DABT_NRMLT_MAN
+		     , IFNULL(DABT_NRMLT_WOMAN, 0) DABT_NRMLT_WOMAN
+		     , IFNULL(DABT_NRMLT_TOTAL, 0) DABT_NRMLT_TOTAL
+		     , IFNULL(DABT_RISK_MAN   , 0) DABT_RISK_MAN
+		     , IFNULL(DABT_RISK_WOMAN , 0) DABT_RISK_WOMAN
+		     , IFNULL(DABT_RISK_TOTAL , 0) DABT_RISK_TOTAL
+		     , IFNULL(DSPD_NRMLT_MAN  , 0) DSPD_NRMLT_MAN
+		     , IFNULL(DSPD_NRMLT_WOMAN, 0) DSPD_NRMLT_WOMAN
+		     , IFNULL(DSPD_NRMLT_TOTAL, 0) DSPD_NRMLT_TOTAL
+		     , IFNULL(DSPD_RISK_MAN   , 0) DSPD_RISK_MAN
+		     , IFNULL(DSPD_RISK_WOMAN , 0) DSPD_RISK_WOMAN
+		     , IFNULL(DSPD_RISK_TOTAL , 0) DSPD_RISK_TOTAL
+		     , IFNULL(ETC_NRMLT_MAN   , 0) ETC_NRMLT_MAN
+		     , IFNULL(ETC_NRMLT_WOMAN , 0) ETC_NRMLT_WOMAN
+		     , IFNULL(ETC_NRMLT_TOTAL , 0) ETC_NRMLT_TOTAL
+		     , IFNULL(ETC_RISK_MAN    , 0) ETC_RISK_MAN
+		     , IFNULL(ETC_RISK_WOMAN  , 0) ETC_RISK_WOMAN
+		     , IFNULL(ETC_RISK_TOTAL  , 0) ETC_RISK_TOTAL
+		     , IFNULL(ALL_TOTAL        , 0) ALL_TOTAL
+		  FROM (
+		        SELECT 10 AGES
+		         UNION ALL
+		        SELECT 20
+		         UNION ALL
+		        SELECT 30
+		         UNION ALL
+		        SELECT 40
+		         UNION ALL
+		        SELECT 50
+		         UNION ALL
+		        SELECT 60
+		         UNION ALL
+		        SELECT 70
+		         UNION ALL
+		        SELECT 80
+		     ) R
+		  LEFT JOIN (
+		        SELECT
+		               MI.AGES
+		             , SUM(IF(IFNULL(OBST, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) OBST_NRMLT_MAN
+		             , SUM(IF(IFNULL(OBST, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) OBST_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(OBST, 0) = 0                     , 1, 0)) OBST_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(OBST, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) OBST_RISK_MAN
+		             , SUM(IF(IFNULL(OBST, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) OBST_RISK_WOMAN
+		             , SUM(IF(IFNULL(OBST, 0) > 0                     , 1, 0)) OBST_RISK_TOTAL
+		             , SUM(IF(IFNULL(HBPS, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) HBPS_NRMLT_MAN
+		             , SUM(IF(IFNULL(HBPS, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) HBPS_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(HBPS, 0) = 0                     , 1, 0)) HBPS_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(HBPS, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) HBPS_RISK_MAN
+		             , SUM(IF(IFNULL(HBPS, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) HBPS_RISK_WOMAN
+		             , SUM(IF(IFNULL(HBPS, 0) > 0                     , 1, 0)) HBPS_RISK_TOTAL
+		             , SUM(IF(IFNULL(DABT, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) DABT_NRMLT_MAN
+		             , SUM(IF(IFNULL(DABT, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) DABT_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(DABT, 0) = 0                     , 1, 0)) DABT_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(DABT, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) DABT_RISK_MAN
+		             , SUM(IF(IFNULL(DABT, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) DABT_RISK_WOMAN
+		             , SUM(IF(IFNULL(DABT, 0) > 0                     , 1, 0)) DABT_RISK_TOTAL
+		             , SUM(IF(IFNULL(DSPD, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) DSPD_NRMLT_MAN
+		             , SUM(IF(IFNULL(DSPD, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) DSPD_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(DSPD, 0) = 0                     , 1, 0)) DSPD_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(DSPD, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) DSPD_RISK_MAN
+		             , SUM(IF(IFNULL(DSPD, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) DSPD_RISK_WOMAN
+		             , SUM(IF(IFNULL(DSPD, 0) > 0                     , 1, 0)) DSPD_RISK_TOTAL
+		             , SUM(IF(IFNULL(ETC, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) ETC_NRMLT_MAN
+		             , SUM(IF(IFNULL(ETC, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) ETC_NRMLT_WOMAN
+		             , SUM(IF(IFNULL(ETC, 0) = 0                     , 1, 0)) ETC_NRMLT_TOTAL
+		             , SUM(IF(IFNULL(ETC, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) ETC_RISK_MAN
+		             , SUM(IF(IFNULL(ETC, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) ETC_RISK_WOMAN
+		             , SUM(IF(IFNULL(ETC, 0) > 0                     , 1, 0)) ETC_RISK_TOTAL
+		             , SUM(1) ALL_TOTAL
+		          FROM (
+						SELECT
+							   MBER_NO
+							 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+									WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+									ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+								END AGES
+							 , SEXDSTN
+							 , REGIST_DT
+						  FROM MBER_INFO
+						 WHERE MBER_SECSN_AT = 'N'
+						   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		             ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		         INNER JOIN (
+		            		SELECT MBER_NO
+		            		  FROM MBER_PSTINST_INFO MPI
+		            		 INNER JOIN (
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND TOP_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND MIDDLE_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND BOTTOM_INST_NO = #{INST_NO}
+		            			   ) II
+		            		 WHERE MPI.INST_NO = II.INST_NO
+		            		   AND CONFM_AT = 'Y'
+		            		   AND SECSN_AT = 'N'
+		            		 GROUP BY MBER_NO
+		             ) MPI
+		            ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		          LEFT JOIN (
+		                SELECT 
+		                       MQA.MBER_NO
+		                     , IF(INSTR(MQA.ANSWER, 'OBST') > 0, 1, 0) OBST
+		                     , IF(INSTR(MQA.ANSWER, 'HBPS') > 0, 1, 0) HBPS
+		                     , IF(INSTR(MQA.ANSWER, 'DABT') > 0, 1, 0) DABT
+		                     , IF(INSTR(MQA.ANSWER, 'DSPD') > 0, 1, 0) DSPD
+		                     , IF(INSTR(MQA.ANSWER, '9999') > 0, 1, 0) ETC
+		                  FROM MBER_QUSTNR_ANSWER MQA
+		                 INNER JOIN (
+		                        SELECT
+		                               MBER_NO
+		                             , QUSTNR_SE_CODE
+		                             , QUSTNR_SN
+		                             , QESTN_SN
+		                             , MAX(QUSTNR_DT) QUSTNR_DT
+		                          FROM MBER_QUSTNR_ANSWER
+		                         WHERE QUSTNR_SE_CODE = 'LLHB'
+		                           AND QUSTNR_SN = 1
+		                           AND QESTN_SN = 3
+		                           AND QUSTNR_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN
+		                     ) MMQA
+		                    ON MQA.MBER_NO = MMQA.MBER_NO
+		                   AND MQA.QUSTNR_SE_CODE = MMQA.QUSTNR_SE_CODE
+		                   AND MQA.QUSTNR_SN = MMQA.QUSTNR_SN
+		                   AND MQA.QESTN_SN = MMQA.QESTN_SN
+		                   AND MQA.QUSTNR_DT = MMQA.QUSTNR_DT
+		             ) MQA
+		            ON MI.MBER_NO = MQA.MBER_NO
+		         GROUP BY MI.AGES
+		         ORDER BY MI.AGES
+		     ) TBL
+		    ON R.AGES = TBL.AGES
+		 UNION ALL
+		SELECT
+		       'TOTAL'
+		     , SUM(IF(IFNULL(OBST, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) OBST_NRMLT_MAN
+		     , SUM(IF(IFNULL(OBST, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) OBST_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(OBST, 0) = 0                     , 1, 0)) OBST_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(OBST, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) OBST_RISK_MAN
+		     , SUM(IF(IFNULL(OBST, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) OBST_RISK_WOMAN
+		     , SUM(IF(IFNULL(OBST, 0) > 0                     , 1, 0)) OBST_RISK_TOTAL
+		     , SUM(IF(IFNULL(HBPS, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) HBPS_NRMLT_MAN
+		     , SUM(IF(IFNULL(HBPS, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) HBPS_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(HBPS, 0) = 0                     , 1, 0)) HBPS_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(HBPS, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) HBPS_RISK_MAN
+		     , SUM(IF(IFNULL(HBPS, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) HBPS_RISK_WOMAN
+		     , SUM(IF(IFNULL(HBPS, 0) > 0                     , 1, 0)) HBPS_RISK_TOTAL
+		     , SUM(IF(IFNULL(DABT, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) DABT_NRMLT_MAN
+		     , SUM(IF(IFNULL(DABT, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) DABT_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(DABT, 0) = 0                     , 1, 0)) DABT_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(DABT, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) DABT_RISK_MAN
+		     , SUM(IF(IFNULL(DABT, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) DABT_RISK_WOMAN
+		     , SUM(IF(IFNULL(DABT, 0) > 0                     , 1, 0)) DABT_RISK_TOTAL
+		     , SUM(IF(IFNULL(DSPD, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) DSPD_NRMLT_MAN
+		     , SUM(IF(IFNULL(DSPD, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) DSPD_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(DSPD, 0) = 0                     , 1, 0)) DSPD_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(DSPD, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) DSPD_RISK_MAN
+		     , SUM(IF(IFNULL(DSPD, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) DSPD_RISK_WOMAN
+		     , SUM(IF(IFNULL(DSPD, 0) > 0                     , 1, 0)) DSPD_RISK_TOTAL
+		     , SUM(IF(IFNULL(ETC, 0) = 0 AND MI.SEXDSTN = 'M', 1, 0)) ETC_NRMLT_MAN
+		     , SUM(IF(IFNULL(ETC, 0) = 0 AND MI.SEXDSTN = 'F', 1, 0)) ETC_NRMLT_WOMAN
+		     , SUM(IF(IFNULL(ETC, 0) = 0                     , 1, 0)) ETC_NRMLT_TOTAL
+		     , SUM(IF(IFNULL(ETC, 0) > 0 AND MI.SEXDSTN = 'M', 1, 0)) ETC_RISK_MAN
+		     , SUM(IF(IFNULL(ETC, 0) > 0 AND MI.SEXDSTN = 'F', 1, 0)) ETC_RISK_WOMAN
+		     , SUM(IF(IFNULL(ETC, 0) > 0                     , 1, 0)) ETC_RISK_TOTAL
+		     , SUM(1) ALL_TOTAL
+		  FROM (
+				SELECT
+					   MBER_NO
+					 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+							WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+							ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+						END AGES
+					 , SEXDSTN
+					 , REGIST_DT
+				  FROM MBER_INFO
+				 WHERE MBER_SECSN_AT = 'N'
+				   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		     ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+		    		SELECT MBER_NO
+		    		  FROM MBER_PSTINST_INFO MPI
+		    		 INNER JOIN (
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND TOP_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND MIDDLE_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND BOTTOM_INST_NO = #{INST_NO}
+		    			   ) II
+		    		 WHERE MPI.INST_NO = II.INST_NO
+		    		   AND CONFM_AT = 'Y'
+		    		   AND SECSN_AT = 'N'
+		    		 GROUP BY MBER_NO
+		     ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT 
+		               MQA.MBER_NO
+		             , IF(INSTR(MQA.ANSWER, 'OBST') > 0, 1, 0) OBST
+		             , IF(INSTR(MQA.ANSWER, 'HBPS') > 0, 1, 0) HBPS
+		             , IF(INSTR(MQA.ANSWER, 'DABT') > 0, 1, 0) DABT
+		             , IF(INSTR(MQA.ANSWER, 'DSPD') > 0, 1, 0) DSPD
+		             , IF(INSTR(MQA.ANSWER, '9999') > 0, 1, 0) ETC
+		          FROM MBER_QUSTNR_ANSWER MQA
+		         INNER JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , QUSTNR_SE_CODE
+		                     , QUSTNR_SN
+		                     , QESTN_SN
+		                     , MAX(QUSTNR_DT) QUSTNR_DT
+		                  FROM MBER_QUSTNR_ANSWER
+		                 WHERE QUSTNR_SE_CODE = 'LLHB'
+		                   AND QUSTNR_SN = 1
+		                   AND QESTN_SN = 3
+		                   AND QUSTNR_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                 GROUP BY MBER_NO, QUSTNR_SE_CODE, QUSTNR_SN, QESTN_SN
+		             ) MMQA
+		            ON MQA.MBER_NO = MMQA.MBER_NO
+		           AND MQA.QUSTNR_SE_CODE = MMQA.QUSTNR_SE_CODE
+		           AND MQA.QUSTNR_SN = MMQA.QUSTNR_SN
+		           AND MQA.QESTN_SN = MMQA.QESTN_SN
+		           AND MQA.QUSTNR_DT = MMQA.QUSTNR_DT
+		     ) MQA
+		    ON MI.MBER_NO = MQA.MBER_NO
+	</select>
+	
+	<!-- 기기사용 통계 -->
+	<select id="selectDeviceUseStatsInfoList" parameterType="hmap" resultType="hmap">
+		SELECT
+		       R.AGES
+		     , IFNULL(ZONE_IS_MAN  , 0) ZONE_IS_MAN
+		     , IFNULL(ZONE_IS_WOMAN, 0) ZONE_IS_WOMAN
+		     , IFNULL(ZONE_IS_TOTAL, 0) ZONE_IS_TOTAL
+		     , IFNULL(ZONE_BP_MAN  , 0) ZONE_BP_MAN
+		     , IFNULL(ZONE_BP_WOMAN, 0) ZONE_BP_WOMAN
+		     , IFNULL(ZONE_BP_TOTAL, 0) ZONE_BP_TOTAL
+		     , IFNULL(ZONE_BS_MAN  , 0) ZONE_BS_MAN
+		     , IFNULL(ZONE_BS_WOMAN, 0) ZONE_BS_WOMAN
+		     , IFNULL(ZONE_BS_TOTAL, 0) ZONE_BS_TOTAL
+		     , IFNULL(ZONE_BC_MAN  , 0) ZONE_BC_MAN
+		     , IFNULL(ZONE_BC_WOMAN, 0) ZONE_BC_WOMAN
+		     , IFNULL(ZONE_BC_TOTAL, 0) ZONE_BC_TOTAL
+		     , IFNULL(ZONE_SR_MAN  , 0) ZONE_SR_MAN
+		     , IFNULL(ZONE_SR_WOMAN, 0) ZONE_SR_WOMAN
+		     , IFNULL(ZONE_SR_TOTAL, 0) ZONE_SR_TOTAL
+		     , IFNULL(ZONE_HT_MAN  , 0) ZONE_HT_MAN
+		     , IFNULL(ZONE_HT_WOMAN, 0) ZONE_HT_WOMAN
+		     , IFNULL(ZONE_HT_TOTAL, 0) ZONE_HT_TOTAL
+		     , IFNULL(ZONE_BH_MAN  , 0) ZONE_BH_MAN
+		     , IFNULL(ZONE_BH_WOMAN, 0) ZONE_BH_WOMAN
+		     , IFNULL(ZONE_BH_TOTAL, 0) ZONE_BH_TOTAL
+		     , IFNULL(ZONE_IS_TOTAL, 0) + IFNULL(ZONE_BP_TOTAL, 0) + IFNULL(ZONE_BS_TOTAL, 0) + IFNULL(ZONE_BC_TOTAL, 0) + IFNULL(ZONE_SR_TOTAL, 0) + IFNULL(ZONE_HT_TOTAL, 0) + IFNULL(ZONE_BH_TOTAL, 0) ZONE_TOTAL		     
+		     , IFNULL(HOME_IS_MAN  , 0) HOME_IS_MAN
+		     , IFNULL(HOME_IS_WOMAN, 0) HOME_IS_WOMAN
+		     , IFNULL(HOME_IS_TOTAL, 0) HOME_IS_TOTAL
+		     , IFNULL(HOME_BP_MAN  , 0) HOME_BP_MAN
+		     , IFNULL(HOME_BP_WOMAN, 0) HOME_BP_WOMAN
+		     , IFNULL(HOME_BP_TOTAL, 0) HOME_BP_TOTAL
+		     , IFNULL(HOME_BS_MAN  , 0) HOME_BS_MAN
+		     , IFNULL(HOME_BS_WOMAN, 0) HOME_BS_WOMAN
+		     , IFNULL(HOME_BS_TOTAL, 0) HOME_BS_TOTAL
+		     , IFNULL(HOME_BD_MAN  , 0) HOME_BD_MAN
+		     , IFNULL(HOME_BD_WOMAN, 0) HOME_BD_WOMAN
+		     , IFNULL(HOME_BD_TOTAL, 0) HOME_BD_TOTAL
+		     , IFNULL(HOME_BH_MAN  , 0) HOME_BH_MAN
+		     , IFNULL(HOME_BH_WOMAN, 0) HOME_BH_WOMAN
+		     , IFNULL(HOME_BH_TOTAL, 0) HOME_BH_TOTAL
+		     , IFNULL(HOME_RR_MAN  , 0) HOME_RR_MAN
+		     , IFNULL(HOME_RR_WOMAN, 0) HOME_RR_WOMAN
+		     , IFNULL(HOME_RR_TOTAL, 0) HOME_RR_TOTAL
+		     , IFNULL(HOME_IS_TOTAL, 0) + IFNULL(HOME_BP_TOTAL, 0) + IFNULL(HOME_BS_TOTAL, 0) + IFNULL(HOME_BD_TOTAL, 0) + IFNULL(HOME_BH_TOTAL, 0) + IFNULL(HOME_RR_TOTAL, 0) HOME_TOTAL
+		  FROM (
+		        SELECT 10 AGES
+		         UNION ALL
+		        SELECT 20
+		         UNION ALL
+		        SELECT 30
+		         UNION ALL
+		        SELECT 40
+		         UNION ALL
+		        SELECT 50
+		         UNION ALL
+		        SELECT 60
+		         UNION ALL
+		        SELECT 70
+		         UNION ALL
+		        SELECT 80
+		     ) R
+		  LEFT JOIN (
+		        SELECT
+		               MI.AGES
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_IS_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_IS_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_IS_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_BP_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_BP_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_BP_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_BS_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_BS_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_BS_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_BC_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_BC_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_BC_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_SR_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_SR_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_SR_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_HT_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_HT_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_HT_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) ZONE_BH_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) ZONE_BH_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)) ZONE_BH_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_IS_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_IS_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_IS_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_BP_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_BP_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_BP_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_BS_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_BS_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_BS_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_BD_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_BD_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_BD_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_BH_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_BH_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_BH_TOTAL
+		             , SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)) HOME_RR_MAN
+		             , SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)) HOME_RR_WOMAN
+		             , SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)) HOME_RR_TOTAL
+		             , SUM(MESURE_CNT) ALL_TOTAL
+		          FROM (
+						SELECT
+							   MBER_NO
+							 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+									WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+									ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+								END AGES
+							 , SEXDSTN
+							 , REGIST_DT
+						  FROM MBER_INFO
+						 WHERE MBER_SECSN_AT = 'N'
+						   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		             ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		         INNER JOIN (
+		            		SELECT MBER_NO
+		            		  FROM MBER_PSTINST_INFO MPI
+		            		 INNER JOIN (
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND TOP_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND MIDDLE_INST_NO = #{INST_NO}
+		                				 UNION ALL
+		                				SELECT INST_NO
+		                				  FROM INST_INFO
+		                				 WHERE USE_AT = 'Y'
+		                				   AND BOTTOM_INST_NO = #{INST_NO}
+		            			   ) II
+		            		 WHERE MPI.INST_NO = II.INST_NO
+		            		   AND CONFM_AT = 'Y'
+		            		   AND SECSN_AT = 'N'
+		            		 GROUP BY MBER_NO
+		             ) MPI
+		            ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		          LEFT JOIN (
+		                SELECT
+		                       MBER_NO
+		                     , DEVICE_TY_CODES DEVICE_TY_CODE
+		                     , USEPRPS_CODE
+		                     , COUNT(*) MESURE_CNT
+		                  FROM (
+		                        SELECT 
+		                               MIC.MBER_NO
+				                     , CASE WHEN MD.DEVICE_TY_CODE IN ('IS', 'IW') THEN 'IS'
+				                            WHEN MD.DEVICE_TY_CODE = 'BSBC' AND MIC.MESURE_CODE IN ('624A', '624B') THEN 'BS'
+		                                	WHEN MD.DEVICE_TY_CODE = 'BSBC' THEN 'BC'
+				                            ELSE MD.DEVICE_TY_CODE
+				                        END DEVICE_TY_CODES
+		                             , MD.USEPRPS_CODE
+		                             , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		                          FROM MESURE_INFO_CMMN MIC
+		                         INNER JOIN MESURE_DEVICE MD
+		                            ON MIC.DEVICE_MODEL = MD.DEVICE_CODE
+		                           AND MIC.MESURE_MTHD = 'D'
+		                           AND MIC.MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MIC.MBER_NO, DEVICE_TY_CODES, MD.USEPRPS_CODE, SUBSTRING(MIC.MESURE_DT, 1, 8)
+		                         UNION ALL
+		                        SELECT
+		                               MBER_NO
+		                             , 'BD'
+		                             , 'B'
+		                             , SUBSTRING(MESURE_BGNDT, 1, 8) 
+		                          FROM MESURE_INFO_ACTV_TRCK 
+		                         WHERE MESURE_CODE = '4010'
+		                           AND MESURE_BGNDT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                         GROUP BY MBER_NO, SUBSTRING(MESURE_BGNDT, 1, 8) 
+		                     ) MIC
+		                 GROUP BY MBER_NO, DEVICE_TY_CODES, USEPRPS_CODE
+		             ) MIC
+		            ON MI.MBER_NO = MIC.MBER_NO
+		         GROUP BY MI.AGES
+		         ORDER BY MI.AGES
+		      ) TBL
+		    ON R.AGES = TBL.AGES
+		 UNION ALL
+		SELECT
+		       'TOTAL'
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_IS_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_IS_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_IS_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_BP_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_BP_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_BP_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_BS_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_BS_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_BS_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_BC_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_BC_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BC' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_BC_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_SR_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_SR_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'SR' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_SR_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_HT_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_HT_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'HT' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_HT_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) ZONE_BH_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z') AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) ZONE_BH_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE IN ('U', 'Z')                     , MESURE_CNT, 0)), 0) ZONE_BH_TOTAL
+		     , IFNULL(SUM(IF(USEPRPS_CODE IN ('U', 'Z')                                               , MESURE_CNT, 0)), 0) ZONE_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_IS_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_IS_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'IS' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_IS_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_BP_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_BP_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BP' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_BP_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_BS_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_BS_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BS' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_BS_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_BD_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_BD_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BD' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_BD_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_BH_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_BH_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'BH' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_BH_TOTAL
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'M', MESURE_CNT, 0)), 0) HOME_RR_MAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B' AND MI.SEXDSTN = 'F', MESURE_CNT, 0)), 0) HOME_RR_WOMAN
+		     , IFNULL(SUM(IF(DEVICE_TY_CODE = 'RR' AND USEPRPS_CODE = 'B'                     , MESURE_CNT, 0)), 0) HOME_RR_TOTAL
+		     , IFNULL(SUM(IF(USEPRPS_CODE = 'B'                                               , MESURE_CNT, 0)), 0) HOME_TOTAL
+		  FROM (
+				SELECT
+					   MBER_NO
+					 , CASE WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) <![CDATA[ <= ]]> 10 THEN 10
+							WHEN DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4) >= 80 THEN 80
+							ELSE CAST(FLOOR(((DATE_FORMAT(#{BGNDE}, '%Y') - SUBSTR(BRTHDY, 1, 4)) + IF(DATE_FORMAT(#{BGNDE}, '%m%d') <![CDATA[ < ]]> SUBSTR(BRTHDY, 5, 8), -1, 0)) / 10) * 10 AS UNSIGNED)
+						END AGES
+					 , SEXDSTN
+					 , REGIST_DT
+				  FROM MBER_INFO
+				 WHERE MBER_SECSN_AT = 'N'
+				   AND REGIST_DT <![CDATA[ <= ]]> CONCAT(#{ENDDE}, '235959')
+		     ) MI
+		<if test = "INST_NO != null and INST_NO != ''">
+		 INNER JOIN (
+		    		SELECT MBER_NO
+		    		  FROM MBER_PSTINST_INFO MPI
+		    		 INNER JOIN (
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND TOP_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND MIDDLE_INST_NO = #{INST_NO}
+		        				 UNION ALL
+		        				SELECT INST_NO
+		        				  FROM INST_INFO
+		        				 WHERE USE_AT = 'Y'
+		        				   AND BOTTOM_INST_NO = #{INST_NO}
+		    			   ) II
+		    		 WHERE MPI.INST_NO = II.INST_NO
+		    		   AND CONFM_AT = 'Y'
+		    		   AND SECSN_AT = 'N'
+		    		 GROUP BY MBER_NO
+		     ) MPI
+		    ON MI.MBER_NO = MPI.MBER_NO
+		</if>
+		  LEFT JOIN (
+		        SELECT
+		               MBER_NO
+		             , DEVICE_TY_CODES DEVICE_TY_CODE
+		             , USEPRPS_CODE
+		             , COUNT(*) MESURE_CNT
+		          FROM (
+		                SELECT 
+		                       MIC.MBER_NO
+		                     , CASE WHEN MD.DEVICE_TY_CODE IN ('IS', 'IW') THEN 'IS'
+		                            WHEN MD.DEVICE_TY_CODE = 'BSBC' AND MIC.MESURE_CODE IN ('624A', '624B') THEN 'BS'
+                                	WHEN MD.DEVICE_TY_CODE = 'BSBC' THEN 'BC'
+		                            ELSE MD.DEVICE_TY_CODE
+		                        END DEVICE_TY_CODES
+		                     , MD.USEPRPS_CODE
+		                     , SUBSTRING(MIC.MESURE_DT, 1, 8) MESURE_DE
+		                  FROM MESURE_INFO_CMMN MIC
+		                 INNER JOIN MESURE_DEVICE MD
+		                    ON MIC.DEVICE_MODEL = MD.DEVICE_CODE
+		                   AND MIC.MESURE_MTHD = 'D'
+		                   AND MIC.MESURE_DT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                 GROUP BY MIC.MBER_NO, DEVICE_TY_CODES, MD.USEPRPS_CODE, SUBSTRING(MIC.MESURE_DT, 1, 8)
+		                 UNION ALL
+		                SELECT
+		                       MBER_NO
+		                     , 'BD'
+		                     , 'B'
+		                     , SUBSTRING(MESURE_BGNDT, 1, 8) 
+		                  FROM MESURE_INFO_ACTV_TRCK 
+		                 WHERE MESURE_CODE = '4010'
+		                   AND MESURE_BGNDT BETWEEN CONCAT(#{BGNDE}, '000000') AND CONCAT(#{ENDDE}, '235959')
+		                 GROUP BY MBER_NO, SUBSTRING(MESURE_BGNDT, 1, 8) 
+		             ) MIC
+		         GROUP BY MBER_NO, DEVICE_TY_CODE, USEPRPS_CODE
+		     ) MIC
+		    ON MI.MBER_NO = MIC.MBER_NO
+	</select>
+	
+	
+	<!-- 회원들의 측정현환 반환 -->
+	<select id="selectMesureLatestHistory" parameterType="hmap" resultType="hmap">			
+		SELECT 
+			MI.MBER_NO,
+			MI.MBTLNUM, 
+			MI.NM,
+			MI.BRTHDY,
+			MI.SEXDSTN,
+		    MIC.MESURE_DE,
+		    MIC.SYSTOLIC,
+		    MIC.DIASTOLIC,
+		    MIC.FAT_MAS,
+		    MIC.FBS,
+		    MIC.PP2,
+		    MIC.SLM,
+		    MIC.BDWGH,
+		    MIC.WAIST_CRCMFRNC
+		FROM MBER_INFO MI
+		INNER JOIN MESURE_INFO_CMMN_DALY MIC
+		ON MI.MBER_NO = MIC.MBER_NO
+		WHERE 1=1
+		<if test='INST_NO != null and INST_NO != ""'>
+		AND MIC.MBER_NO IN (
+			SELECT 
+				MBER_NO
+			FROM MBER_PSTINST_INFO MPI
+			
+			INNER JOIN (
+				SELECT INST_NO
+				  FROM INST_INFO
+				 WHERE USE_AT = 'Y'
+				   AND TOP_INST_NO = #{INST_NO}
+				 UNION ALL
+				SELECT INST_NO
+				  FROM INST_INFO
+				 WHERE USE_AT = 'Y'
+				   AND MIDDLE_INST_NO = #{INST_NO}
+				 UNION ALL
+				SELECT INST_NO
+				  FROM INST_INFO
+				 WHERE USE_AT = 'Y'
+				   AND BOTTOM_INST_NO = #{INST_NO}
+			 ) II			 
+			WHERE MPI.INST_NO = II.INST_NO
+			AND CONFM_AT = 'Y'
+			AND SECSN_AT = 'N'	
+			
+			GROUP BY MBER_NO
+		)
+		</if>
+		AND MI.NM like CONCAT('%', #{NM}, '%')
+		<if test='SEXDSTN != null and SEXDSTN != ""'>
+		AND MI.SEXDSTN = #{SEXDSTN}
+		</if>
+		AND MI.MBER_SECSN_AT = 'N'		
+		AND DATE_FORMAT(MIC.MESURE_DE, '%Y%m%d') &gt;= DATE_FORMAT(#{START_DE}, '%Y%m%d')
+		AND DATE_FORMAT(MIC.MESURE_DE, '%Y%m%d') &lt;= DATE_FORMAT(#{END_DE}, '%Y%m%d')
+		AND (
+			MIC.SYSTOLIC IS NOT NULL
+			OR MIC.DIASTOLIC IS NOT NULL
+			OR MIC.FAT_MAS IS NOT NULL
+			OR MIC.FBS IS NOT NULL
+			OR MIC.PP2 IS NOT NULL
+			OR MIC.BDWGH IS NOT NULL
+			OR WAIST_CRCMFRNC IS NOT NULL
+		)
+		<choose>
+			<when test='ORDER_RULE == "SYS"'>
+			ORDER BY MIC.SYSTOLIC
+			</when>
+			<when test='ORDER_RULE == "DIA"'>
+			ORDER BY MIC.DIASTOLIC
+			</when>
+			<when test='ORDER_RULE == "FBS"'>
+			ORDER BY MIC.FBS
+			</when>
+			<when test='ORDER_RULE == "PP2"'>
+			ORDER BY MIC.PP2
+			</when>
+			<when test='ORDER_RULE == "WAIST"'>
+			ORDER BY MIC.WAIST_CRCMFRNC
+			</when>
+			<when test='ORDER_RULE == "SLM"'>
+			ORDER BY MIC.SLM
+			</when>
+			<when test='ORDER_RULE == "FAT"'>
+			ORDER BY MIC.FAT_MAS
+			</when>
+			<when test='ORDER_RULE == "BDWGH"'>
+			ORDER BY MIC.BDWGH
+			</when>
+			<when test='ORDER_RULE == "MESURE_DE"'>
+			ORDER BY MIC.MESURE_DE
+			</when>
+			<otherwise>
+			ORDER BY MIC.MESURE_DE 
+			</otherwise>
+		</choose>
+		<choose>
+			<when test='ORDER == "DESC"'>
+			 DESC
+			</when>
+			<otherwise>
+			 ASC
+			</otherwise>
+		</choose>
+		LIMIT #{START_PAGE}, 30	
+	</select>
+	
+	<!-- 질환 위험도 -->
+	<select id="selectDiseaseDanger" parameterType="hmap" resultType="hmap">
+		SELECT 		  
+			MPI.SEXDSTN,
+			ROUND(AVG(MIC.SYSTOLIC), 1) AVG_SYS,
+			ROUND(AVG(MIC.DIASTOLIC), 1) AVG_DIA,
+			TRUNCATE(AVG(MIC.WAIST_CRCMFRNC), 1) AVG_WAIST,
+			ROUND(AVG(MIC.HDLC)) AVG_HDLC,
+			ROUND(AVG(MIC.TG)) AVG_TG,
+			ROUND(AVG(MIC.PP2)) AVG_PP2,
+			COUNT(MPI.SEXDSTN) CNT
+		FROM MESURE_INFO_CMMN_DALY MIC
+		INNER JOIN (
+			SELECT MBER_NO, SEXDSTN FROM MBER_INFO MBI
+			WHERE MBER_SECSN_AT = 'N'      
+		  AND MBER_NO IN
+		  (
+				SELECT 
+					MBER_NO 
+				FROM MBER_PSTINST_INFO MBI
+				<if test='INST_NO != null and INST_NO != ""'>				
+				INNER JOIN (
+					SELECT INST_NO
+						FROM INST_INFO
+					WHERE USE_AT = 'Y'
+					AND TOP_INST_NO = #{INST_NO}
+					UNION ALL
+					SELECT INST_NO
+					  FROM INST_INFO
+					WHERE USE_AT = 'Y'
+					AND MIDDLE_INST_NO = #{INST_NO}
+					UNION ALL
+					SELECT INST_NO
+					  FROM INST_INFO
+					WHERE USE_AT = 'Y'
+					AND BOTTOM_INST_NO = #{INST_NO}
+				) II			
+				WHERE MBI.INST_NO = II.INST_NO
+				AND CONFM_AT = 'Y'
+				AND SECSN_AT = 'N'
+				</if>
+				GROUP BY MBER_NO
+		  )
+		) MPI
+		ON MPI.MBER_NO = MIC.MBER_NO
+		WHERE MIC.MESURE_DE like CONCAT(#{YEAR}, '%')
+		AND MIC.WAIST_CRCMFRNC IS NOT NULL
+		GROUP BY SEXDSTN	
+	</select>
+	
+	
+	<!-- 활동량 현황 -->
+	<select id="selectActivityWalk" parameterType="hmap" resultType="hmap">
+		<choose>
+			<when test='INST_NO != null and INST_NO != "" and INST_NO !="1000"'>
+				SELECT TBL.* FROM
+				(
+					<include refid="selectActivityInstQuery" />
+				) TBL
+				<if test="START_PAGE != null">
+ 		 		LIMIT #{START_PAGE}, 30
+				</if>
+			</when>
+			<otherwise>
+				SELECT TBL.* FROM
+				(
+					<include refid="selectActivityAdminQuery" />
+				) TBL
+				<if test="START_PAGE != null">
+ 		 		LIMIT #{START_PAGE}, 30
+				</if>
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	<!-- 활동량 데이터 토탈카운트 -->
+	<select id="selectActivityWalkTotCount" parameterType="hmap" resultType="hmap">
+		<choose>
+			<when test='INST_NO != null and INST_NO != "" and INST_NO !="1000"'>
+				SELECT COUNT(*) TOTAL_COUNT FROM
+				(
+					<include refid="selectActivityInstQuery" />
+				) TBL				
+			</when>
+			<otherwise>
+				SELECT COUNT(*) TOTAL_COUNT FROM
+				(
+					<include refid="selectActivityAdminQuery" />
+				) TBL				
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	<!-- 기관 활동량 -->
+	<sql id="selectActivityInstQuery">
+		SELECT 
+			MBER_NO,
+			NM,            
+			BRTHDY,
+			SEXDSTN,			
+			ODR,	
+			MBER_CNT,    
+		    MESURE_DE,
+		    TRUNCATE(SPORTS_TOT_STEPS, 1) SPORTS_TOT_STEPS,
+			TRUNCATE(CNSMP_CALORIE, 1) CNSMP_CALORIE,
+			TRUNCATE(SPORTS_DSTNC, 1) SPORTS_DSTNC,
+			TRUNCATE(MAX_HR, 1) MAX_HR,
+			TRUNCATE(AVG_HR, 1) AVG_HR
+		FROM
+	    (
+			SELECT 
+				NULL MBER_NO,
+				NULL NM,
+				NULL BRTHDY,
+				NULL SEXDSTN,
+				0 ODR,			
+				COUNT(MI.MBER_NO) MBER_CNT, 
+	            MIAT.MESURE_BGNDT MESURE_DE,
+				NULL SPORTS_TOT_STEPS,
+				NULL CNSMP_CALORIE,
+				NULL SPORTS_DSTNC,
+				NULL MAX_HR,
+				NULL AVG_HR
+			 FROM 
+			(
+				SELECT 
+					MBER_NO,
+			        NM,
+			        BRTHDY,
+			        SEXDSTN
+			    FROM MBER_INFO
+				WHERE 1=1
+				AND MBER_NO IN (
+					SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO						
+				)    
+			    
+			) MI
+			INNER JOIN
+			(
+				SELECT 
+					MBER_NO,
+					DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') MESURE_BGNDT,    		
+					TRUNCATE(MAX(SPORTS_TOT_STEPS), 1) SPORTS_TOT_STEPS,
+					TRUNCATE(MAX(CNSMP_CALORIE), 1) CNSMP_CALORIE,
+			        TRUNCATE(MAX(SPORTS_DSTNC), 1) SPORTS_DSTNC
+				FROM MESURE_INFO_ACTV_TRCK
+				WHERE 1=1
+			    AND MBER_NO IN (
+				SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO
+					WHERE INST_NO = #{INST_NO}
+				) 
+				AND MESURE_BGNDT IS NOT NULL
+				AND MESURE_CODE = '4010'
+				AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') IS NOT NULL
+			    AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') BETWEEN #{BEGIN_DE} AND #{END_DE}		
+				GROUP BY MBER_NO, DATE_FORMAT(MESURE_BGNDT, '%Y%m%d')
+				ORDER BY MESURE_BGNDT	    
+			) MIAT
+			ON MI.MBER_NO = MIAT.MBER_NO
+			LEFT JOIN
+			(
+				SELECT 
+					MBER_NO,
+					DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') MESURE_BGNDT,    		
+					TRUNCATE(MAX(HR), 1) MAX_HR,
+					TRUNCATE(AVG(HR), 1) AVG_HR
+				FROM MESURE_DETAIL_ACTV_TRCK
+				WHERE 1=1
+			    AND MBER_NO IN (
+					SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO
+					WHERE INST_NO = #{INST_NO}
+				)
+				AND MESURE_BGNDT IS NOT NULL
+				AND MESURE_CODE = '4030'
+				AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') IS NOT NULL
+			    AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') BETWEEN #{BEGIN_DE} AND #{END_DE}	
+				GROUP BY MBER_NO, DATE_FORMAT(MESURE_BGNDT, '%Y%m%d')
+				ORDER BY MESURE_BGNDT    
+			) MDAT
+			ON MIAT.MBER_NO = MDAT.MBER_NO AND MIAT.MESURE_BGNDT = MDAT.MESURE_BGNDT
+			WHERE 1=1
+	        <if test='SEARCH !="" and SEARCH != null'>
+			AND MI.NM like CONCAT('%', #{SEARCH} ,'%')
+			</if>
+	        GROUP BY MESURE_DE, MBER_NO		       
+		) A
+	    UNION ALL
+	    (   
+	        SELECT 
+				MI.MBER_NO,
+			    MI.NM,
+			    MI.BRTHDY,
+			    MI.SEXDSTN,
+	            1 ODR,			
+				0 MBER_CNT, 
+			    MIAT.MESURE_BGNDT MESURE_DE,
+			    MIAT.SPORTS_TOT_STEPS,
+			    MIAT.CNSMP_CALORIE,
+			    MIAT.SPORTS_DSTNC,
+			    MDAT.MAX_HR,
+			    MDAT.AVG_HR
+			 FROM 
+			(
+				SELECT 
+					MBER_NO,
+			        NM,
+			        BRTHDY,
+			        SEXDSTN
+			    FROM MBER_INFO
+				WHERE 1=1
+				AND MBER_NO IN (
+					SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO						
+				)    
+			    
+			) MI
+			INNER JOIN
+			(
+				SELECT 
+					MBER_NO,
+					DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') MESURE_BGNDT,    		
+					TRUNCATE(MAX(SPORTS_TOT_STEPS), 1) SPORTS_TOT_STEPS,
+					TRUNCATE(MAX(CNSMP_CALORIE), 1) CNSMP_CALORIE,
+			        TRUNCATE(MAX(SPORTS_DSTNC), 1) SPORTS_DSTNC
+				FROM MESURE_INFO_ACTV_TRCK
+				WHERE 1=1
+			    AND MBER_NO IN (
+				SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO
+					WHERE INST_NO = #{INST_NO}
+				) 
+				AND MESURE_BGNDT IS NOT NULL
+				AND MESURE_CODE = '4010'
+				AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') IS NOT NULL
+			    AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') BETWEEN #{BEGIN_DE} AND #{END_DE}	
+				GROUP BY MBER_NO, DATE_FORMAT(MESURE_BGNDT, '%Y%m%d')
+				ORDER BY MESURE_BGNDT	    
+			) MIAT
+			ON MI.MBER_NO = MIAT.MBER_NO
+			LEFT JOIN
+			(
+				SELECT 
+					MBER_NO,
+					DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') MESURE_BGNDT,    		
+					TRUNCATE(MAX(HR), 1) MAX_HR,
+					TRUNCATE(AVG(HR), 1) AVG_HR
+				FROM MESURE_DETAIL_ACTV_TRCK
+				WHERE 1=1
+			    AND MBER_NO IN (
+					SELECT 
+						MBER_NO 
+					FROM MBER_PSTINST_INFO
+					WHERE INST_NO = #{INST_NO}
+				)
+				AND MESURE_BGNDT IS NOT NULL
+				AND MESURE_CODE = '4030'
+				AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') IS NOT NULL
+			    AND DATE_FORMAT(MESURE_BGNDT, '%Y%m%d') BETWEEN #{BEGIN_DE} AND #{END_DE}	
+				GROUP BY MBER_NO, DATE_FORMAT(MESURE_BGNDT, '%Y%m%d')
+				ORDER BY MESURE_BGNDT    
+			) MDAT
+			ON MIAT.MBER_NO = MDAT.MBER_NO AND MIAT.MESURE_BGNDT = MDAT.MESURE_BGNDT
+			WHERE 1=1        
+	        <if test='SEARCH !="" and SEARCH != null'>
+			AND MI.NM like CONCAT('%', #{SEARCH} ,'%')
+			</if>
+		)
+	    ORDER BY MESURE_DE, ODR ASC
+	
+	
+			
+	</sql>
+	
+	
+	<!-- 시스템관리자용 활동량 쿼리 (최대심박 및 평균심박을 제외한 값만뽑음) -->
+	<sql id="selectActivityAdminQuery">
+		SELECT 
+			MBER_NO,
+			NM,            
+			BRTHDY,
+			SEXDSTN,			
+			ODR,
+			MESURE_DE,
+			MBER_CNT,
+			SPORTS_TOT_STEPS,
+			TRUNCATE(CNSMP_CALORIE, 1) CNSMP_CALORIE,
+    		TRUNCATE(SPORTS_DSTNC, 1) SPORTS_DSTNC,
+			MAX_HR,
+			AVG_HR
+		FROM
+		(
+			 SELECT 	
+					NULL MBER_NO,
+				    NULL NM,
+				    NULL BRTHDY,
+				    NULL SEXDSTN,
+					0 ODR,
+					MICD.MESURE_DE MESURE_DE,
+		            COUNT(MICD.MBER_NO) MBER_CNT, 
+				    NULL SPORTS_TOT_STEPS,
+				    NULL CNSMP_CALORIE,
+				    NULL SPORTS_DSTNC,
+				    NULL MAX_HR,
+				    NULL AVG_HR
+				FROM MBER_INFO MI
+				JOIN MESURE_INFO_CMMN_DALY MICD
+				ON MI.MBER_NO = MICD.MBER_NO
+				WHERE 1=1
+				AND ( MICD.SPORTS_TOT_STEPS > 0	
+				    OR MICD.CNSMP_CALORIE > 0    
+				    OR MICD.SPORTS_DSTNC > 0 )
+				AND MESURE_DE BETWEEN #{BEGIN_DE} AND #{END_DE}	   
+		        <if test='SEARCH !="" and SEARCH != null'>
+				AND MI.NM like CONCAT('%', #{SEARCH} ,'%')
+				</if>
+		        GROUP BY MESURE_DE, MBER_NO		
+		        
+		) A
+		UNION ALL
+		(
+			SELECT 	
+					MI.MBER_NO,
+				    MI.NM,            
+				    MI.BRTHDY,
+				    MI.SEXDSTN,			
+		            1 ODR,
+					MICD.MESURE_DE,
+		            0 MBER_CNT,
+				    MICD.SPORTS_TOT_STEPS,
+				    TRUNCATE(MICD.CNSMP_CALORIE, 1) CNSMP_CALORIE,		    
+		    		TRUNCATE(MICD.SPORTS_DSTNC, 1) SPORTS_DSTNC,
+				    NULL MAX_HR,
+				    NULL AVG_HR            
+				FROM MBER_INFO MI
+				JOIN MESURE_INFO_CMMN_DALY MICD
+				ON MI.MBER_NO = MICD.MBER_NO
+				WHERE 1=1
+				AND ( MICD.SPORTS_TOT_STEPS > 0	
+				    OR MICD.CNSMP_CALORIE > 0    
+				    OR MICD.SPORTS_DSTNC > 0 )
+				AND MESURE_DE BETWEEN #{BEGIN_DE} AND #{END_DE}
+				<if test='SEARCH !="" and SEARCH != null'>
+				AND MI.NM like CONCAT('%', #{SEARCH} ,'%')
+				</if>
+		)
+		ORDER BY MESURE_DE, ODR ASC
+	</sql>
+	
+</mapper>
